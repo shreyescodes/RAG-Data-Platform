@@ -1,5 +1,10 @@
 # RAG Financial Platform
 
+[![CI](https://github.com/shreyescodes/RAG-Data-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/shreyescodes/RAG-Data-Platform/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/release/python-3100/)
+[![Node.js 18+](https://img.shields.io/badge/node-18+-green.svg)](https://nodejs.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A full-stack synthetic data platform with Retrieval-Augmented Generation (RAG) workflows and advanced multi-agent capabilities for querying financial data using natural language.
 
 ## Overview
@@ -220,9 +225,12 @@ curl -X POST http://localhost:8000/api/index-schema
 │   │   └── database.py
 │   └── utils/
 │       └── data_loader.py
-├── src/
-│   ├── App.jsx              # React UI
-│   └── App.css
+├── frontend/
+│   ├── src/
+│   │   ├── App.jsx              # React UI
+│   │   └── App.css
+│   ├── package.json
+│   └── vite.config.js
 └── README.md
 ```
 
