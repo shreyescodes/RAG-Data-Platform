@@ -1,11 +1,13 @@
-from typing import Dict, Any
-from .retrieval_agent import RetrievalAgent
-from .analysis_agent import AnalysisAgent
-from .enrichment_agent import EnrichmentAgent
-from ..db.models import QueryLog
-from sqlalchemy.orm import Session
 import time
 from datetime import datetime
+from typing import Any, Dict
+
+from sqlalchemy.orm import Session
+
+from ..db.models import QueryLog
+from .analysis_agent import AnalysisAgent
+from .enrichment_agent import EnrichmentAgent
+from .retrieval_agent import RetrievalAgent
 
 
 class AgentOrchestrator:
@@ -28,10 +30,7 @@ class AgentOrchestrator:
         """
         start_time = time.time()
 
-        context = {
-            "query": user_query,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        context = {"query": user_query, "timestamp": datetime.utcnow().isoformat()}
 
         # Step 1: Retrieval Agent - Get data from database
         retrieval_result = await self.retrieval_agent.execute(context)
@@ -46,14 +45,14 @@ class AgentOrchestrator:
                 success=False,
                 error_message=retrieval_result.get("error"),
                 execution_time_ms=(time.time() - start_time) * 1000,
-                agent_reasoning=self._combine_reasoning([retrieval_result])
+                agent_reasoning=self._combine_reasoning([retrieval_result]),
             )
 
             return {
                 "success": False,
                 "error": retrieval_result.get("error"),
                 "query": user_query,
-                "execution_time_ms": (time.time() - start_time) * 1000
+                "execution_time_ms": (time.time() - start_time) * 1000,
             }
 
         # Step 2: Analysis Agent - Analyze and summarize
@@ -82,8 +81,10 @@ class AgentOrchestrator:
             "agent_flow": {
                 "retrieval": "completed",
                 "analysis": "completed",
-                "enrichment": "completed" if enrichment_result.get("enriched_data") else "skipped"
-            }
+                "enrichment": "completed"
+                if enrichment_result.get("enriched_data")
+                else "skipped",
+            },
         }
 
         # Log successful query
@@ -95,11 +96,9 @@ class AgentOrchestrator:
             context_used=str(retrieval_result.get("relevant_tables")),
             success=True,
             execution_time_ms=execution_time_ms,
-            agent_reasoning=self._combine_reasoning([
-                retrieval_result,
-                analysis_result,
-                enrichment_result
-            ])
+            agent_reasoning=self._combine_reasoning(
+                [retrieval_result, analysis_result, enrichment_result]
+            ),
         )
 
         return final_response
@@ -113,6 +112,7 @@ class AgentOrchestrator:
                 all_reasoning.extend(result["reasoning"])
 
         import json
+
         return json.dumps(all_reasoning, indent=2)
 
     def _log_query(
@@ -125,7 +125,7 @@ class AgentOrchestrator:
         success: bool = True,
         error_message: str = None,
         execution_time_ms: float = 0,
-        agent_reasoning: str = None
+        agent_reasoning: str = None,
     ):
         """Log query to database"""
         try:
@@ -138,7 +138,7 @@ class AgentOrchestrator:
                 agent_reasoning=agent_reasoning,
                 execution_time_ms=execution_time_ms,
                 success=success,
-                error_message=error_message
+                error_message=error_message,
             )
 
             self.db.add(query_log)

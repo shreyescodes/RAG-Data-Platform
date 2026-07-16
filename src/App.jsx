@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
 
 function App() {
@@ -8,7 +8,7 @@ function App() {
   const [error, setError] = useState(null)
   const [stats, setStats] = useState(null)
 
-  const API_URL = 'http://localhost:8000/api'
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -51,7 +51,7 @@ function App() {
     }
   }
 
-  useState(() => {
+  useEffect(() => {
     loadStats()
   }, [])
 

@@ -1,20 +1,34 @@
-from fastapi import FastAPI, Depends, HTTPException
+from contextlib import asynccontextmanager
+from typing import Any, Dict, List, Optional
+from starlette.concurrency import run_in_threadpool
+
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
-from ..db.database import get_db, init_db
-from ..rag.vector_store import FAISSVectorStore
-from ..rag.schema_indexer import SchemaIndexer
-from ..agents.retrieval_agent import RetrievalAgent
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+
 from ..agents.orchestrator import AgentOrchestrator
+from ..agents.retrieval_agent import RetrievalAgent
+from ..db.database import get_db, init_db
 from ..db.models import QueryLog
-import os
+from ..rag.schema_indexer import SchemaIndexer
+from ..rag.vector_store import FAISSVectorStore
+from ..config import settings
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize database on startup"""
+    print("Initializing database...")
+    init_db()
+    print("Database initialized")
+    yield
 
 app = FastAPI(
     title="RAG Platform API",
     description="Multi-agent RAG system for financial data querying",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 # CORS middleware
@@ -27,7 +41,10 @@ app.add_middleware(
 )
 
 # Initialize vector store
-vector_store = FAISSVectorStore(dimension=1536, index_path="data/faiss_index")
+vector_store = FAISSVectorStore(
+    dimension=settings.FAISS_DIMENSION, 
+    index_path=settings.FAISS_INDEX_PATH
+)
 
 
 class QueryRequest(BaseModel):
@@ -50,14 +67,6 @@ class QueryResponse(BaseModel):
     error: Optional[str] = None
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database on startup"""
-    print("Initializing database...")
-    init_db()
-    print("Database initialized")
-
-
 @app.get("/")
 async def root():
     return {
@@ -67,8 +76,8 @@ async def root():
             "query": "/api/query",
             "history": "/api/history",
             "stats": "/api/stats",
-            "health": "/api/health"
-        }
+            "health": "/api/health",
+        },
     }
 
 
@@ -77,7 +86,7 @@ async def health_check(db: Session = Depends(get_db)):
     """Health check endpoint"""
     try:
         # Check database connection
-        db.execute("SELECT 1")
+        await run_in_threadpool(db.execute, text("SELECT 1"))
 
         # Check vector store
         vector_stats = vector_store.get_stats()
@@ -85,13 +94,10 @@ async def health_check(db: Session = Depends(get_db)):
         return {
             "status": "healthy",
             "database": "connected",
-            "vector_store": vector_stats
+            "vector_store": vector_stats,
         }
     except Exception as e:
-        return {
-            "status": "unhealthy",
-            "error": str(e)
-        }
+        return {"status": "unhealthy", "error": str(e)}
 
 
 @app.post("/api/query", response_model=QueryResponse)
@@ -117,15 +123,17 @@ async def query(request: QueryRequest, db: Session = Depends(get_db)):
 
 @app.get("/api/history")
 async def get_query_history(
-    limit: int = 20,
-    offset: int = 0,
-    db: Session = Depends(get_db)
+    limit: int = 20, offset: int = 0, db: Session = Depends(get_db)
 ):
     """Get query history"""
     try:
-        logs = db.query(QueryLog).order_by(
-            QueryLog.created_at.desc()
-        ).limit(limit).offset(offset).all()
+        logs = (
+            db.query(QueryLog)
+            .order_by(QueryLog.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+            .all()
+        )
 
         return {
             "total": db.query(QueryLog).count(),
@@ -139,10 +147,10 @@ async def get_query_history(
                     "answer": log.final_answer,
                     "success": log.success,
                     "execution_time_ms": log.execution_time_ms,
-                    "created_at": log.created_at.isoformat()
+                    "created_at": log.created_at.isoformat(),
                 }
                 for log in logs
-            ]
+            ],
         }
 
     except Exception as e:
@@ -153,25 +161,33 @@ async def get_query_history(
 async def get_stats(db: Session = Depends(get_db)):
     """Get platform statistics"""
     try:
-        from ..db.models import Company, FinancialStatement, PortfolioCompany, PerformanceMetric, MarketData
+        from ..db.models import (
+            Company,
+            FinancialStatement,
+            MarketData,
+            PerformanceMetric,
+            PortfolioCompany,
+        )
 
         total_queries = db.query(QueryLog).count()
-        successful_queries = db.query(QueryLog).filter(QueryLog.success == True).count()
+        successful_queries = db.query(QueryLog).filter(QueryLog.success.is_(True)).count()
 
         stats = {
             "queries": {
                 "total": total_queries,
                 "successful": successful_queries,
-                "success_rate": (successful_queries / total_queries * 100) if total_queries > 0 else 0
+                "success_rate": (successful_queries / total_queries * 100)
+                if total_queries > 0
+                else 0,
             },
             "database": {
                 "companies": db.query(Company).count(),
                 "financial_statements": db.query(FinancialStatement).count(),
                 "portfolio_companies": db.query(PortfolioCompany).count(),
                 "performance_metrics": db.query(PerformanceMetric).count(),
-                "market_data": db.query(MarketData).count()
+                "market_data": db.query(MarketData).count(),
             },
-            "vector_store": vector_store.get_stats()
+            "vector_store": vector_store.get_stats(),
         }
 
         return stats
@@ -190,7 +206,7 @@ async def index_schema(db: Session = Depends(get_db)):
         return {
             "success": True,
             "message": "Database schema indexed successfully",
-            "stats": vector_store.get_stats()
+            "stats": vector_store.get_stats(),
         }
 
     except Exception as e:
@@ -199,4 +215,5 @@ async def index_schema(db: Session = Depends(get_db)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    uvicorn.run(app, host=settings.API_HOST, port=settings.API_PORT)

@@ -55,7 +55,7 @@ createdb RAG
 
 Update `.env` with your database credentials (already configured):
 ```
-DATABASE_URL=postgresql://postgres:1234@localhost:5432/RAG
+DATABASE_URL=postgresql://user:password@localhost:5432/RAG
 OPENAI_API_KEY=your_openai_key
 SEC_EDGAR_API_KEY=your_sec_edgar_key
 ```

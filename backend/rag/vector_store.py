@@ -1,8 +1,10 @@
+import os
+import json
+from typing import Dict, List, Tuple
+
 import faiss
 import numpy as np
-import pickle
-import os
-from typing import List, Tuple, Dict
+
 from .embeddings import EmbeddingService
 
 
@@ -14,7 +16,10 @@ class FAISSVectorStore:
         self.metadata = []
         self.embedding_service = EmbeddingService()
 
-        os.makedirs(os.path.dirname(index_path) if os.path.dirname(index_path) else "data", exist_ok=True)
+        os.makedirs(
+            os.path.dirname(index_path) if os.path.dirname(index_path) else "data",
+            exist_ok=True,
+        )
 
         if os.path.exists(f"{index_path}.index"):
             self.load_index()
@@ -24,7 +29,7 @@ class FAISSVectorStore:
         embeddings = self.embedding_service.get_embeddings_batch(texts)
 
         if embeddings:
-            embeddings_array = np.array(embeddings).astype('float32')
+            embeddings_array = np.array(embeddings).astype("float32")
             self.index.add(embeddings_array)
             self.metadata.extend(metadata)
             self.save_index()
@@ -36,7 +41,7 @@ class FAISSVectorStore:
         if not query_embedding:
             return []
 
-        query_vector = np.array([query_embedding]).astype('float32')
+        query_vector = np.array([query_embedding]).astype("float32")
         distances, indices = self.index.search(query_vector, min(k, self.index.ntotal))
 
         results = []
@@ -49,15 +54,15 @@ class FAISSVectorStore:
     def save_index(self):
         """Save FAISS index and metadata to disk"""
         faiss.write_index(self.index, f"{self.index_path}.index")
-        with open(f"{self.index_path}.metadata", 'wb') as f:
-            pickle.dump(self.metadata, f)
+        with open(f"{self.index_path}.metadata", "w", encoding="utf-8") as f:
+            json.dump(self.metadata, f)
 
     def load_index(self):
         """Load FAISS index and metadata from disk"""
         try:
             self.index = faiss.read_index(f"{self.index_path}.index")
-            with open(f"{self.index_path}.metadata", 'rb') as f:
-                self.metadata = pickle.load(f)
+            with open(f"{self.index_path}.metadata", "r", encoding="utf-8") as f:
+                self.metadata = json.load(f)
         except Exception as e:
             print(f"Error loading index: {e}")
 
@@ -66,5 +71,5 @@ class FAISSVectorStore:
         return {
             "total_documents": self.index.ntotal,
             "dimension": self.dimension,
-            "metadata_count": len(self.metadata)
+            "metadata_count": len(self.metadata),
         }

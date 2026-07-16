@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any
 from datetime import datetime
+from typing import Any, Dict
 
 
 class BaseAgent(ABC):
@@ -15,12 +15,14 @@ class BaseAgent(ABC):
 
     def log_reasoning(self, step: str, details: Any):
         """Log agent reasoning for explainability"""
-        self.reasoning_log.append({
-            "agent": self.name,
-            "step": step,
-            "details": details,
-            "timestamp": datetime.utcnow().isoformat()
-        })
+        self.reasoning_log.append(
+            {
+                "agent": self.name,
+                "step": step,
+                "details": details,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        )
 
     def get_reasoning(self) -> list:
         """Get all reasoning steps"""

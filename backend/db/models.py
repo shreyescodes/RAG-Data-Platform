@@ -1,7 +1,17 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey, Date, Boolean
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
 from datetime import datetime
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
@@ -82,7 +92,9 @@ class PerformanceMetric(Base):
     __tablename__ = "performance_metrics"
 
     id = Column(Integer, primary_key=True, index=True)
-    portfolio_company_id = Column(Integer, ForeignKey("portfolio_companies.id"), nullable=False)
+    portfolio_company_id = Column(
+        Integer, ForeignKey("portfolio_companies.id"), nullable=False
+    )
     metric_date = Column(Date, nullable=False)
 
     # Growth Metrics

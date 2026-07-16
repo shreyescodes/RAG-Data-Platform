@@ -2,16 +2,17 @@
 """
 Script to initialize database and load data
 """
-import sys
 import os
+import sys
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend.db.database import SessionLocal, init_db
-from backend.utils.data_loader import DataLoader
-from backend.rag.vector_store import FAISSVectorStore
-from backend.rag.schema_indexer import SchemaIndexer
+from backend.db.database import SessionLocal, init_db  # noqa: E402
+from backend.rag.schema_indexer import SchemaIndexer  # noqa: E402
+from backend.rag.vector_store import FAISSVectorStore  # noqa: E402
+from backend.utils.data_loader import DataLoader  # noqa: E402
+from backend.config import settings  # noqa: E402
 
 
 def main():
@@ -43,8 +44,16 @@ def main():
         # Synthesize data from Yahoo Finance
         print("\n[3/5] Synthesizing financial data from Yahoo Finance...")
         tickers = [
-            "AAPL", "MSFT", "GOOGL", "AMZN", "META",
-            "TSLA", "NVDA", "JPM", "BAC", "WMT"
+            "AAPL",
+            "MSFT",
+            "GOOGL",
+            "AMZN",
+            "META",
+            "TSLA",
+            "NVDA",
+            "JPM",
+            "BAC",
+            "WMT",
         ]
         loader.synthesize_financial_data(tickers, num_years=2)
         print(f"✓ Synthesized data for {len(tickers)} companies")
@@ -55,8 +64,11 @@ def main():
         print("✓ Generated 5000+ performance metrics")
 
         # Index database schema into vector store
-        print("\n[5/5] Indexing database schema into vector store...")
-        vector_store = FAISSVectorStore(dimension=1536, index_path="data/faiss_index")
+        print("\n[5/5] Indexing database schema...")
+        vector_store = FAISSVectorStore(
+            dimension=settings.FAISS_DIMENSION, 
+            index_path=settings.FAISS_INDEX_PATH
+        )
         schema_indexer = SchemaIndexer(vector_store)
         schema_indexer.index_database_schema()
         print("✓ Schema indexed into vector store")
@@ -66,7 +78,13 @@ def main():
         print("=" * 60)
 
         # Print statistics
-        from backend.db.models import Company, FinancialStatement, PortfolioCompany, PerformanceMetric, MarketData
+        from backend.db.models import (
+            Company,
+            FinancialStatement,
+            MarketData,
+            PerformanceMetric,
+            PortfolioCompany,
+        )
 
         print("\nDatabase Statistics:")
         print(f"  Companies: {db.query(Company).count()}")
@@ -75,7 +93,7 @@ def main():
         print(f"  Performance Metrics: {db.query(PerformanceMetric).count()}")
         print(f"  Market Data: {db.query(MarketData).count()}")
 
-        print(f"\nVector Store Statistics:")
+        print("\nVector Store Statistics:")
         stats = vector_store.get_stats()
         print(f"  Total Documents: {stats['total_documents']}")
         print(f"  Dimension: {stats['dimension']}")
@@ -86,6 +104,7 @@ def main():
     except Exception as e:
         print(f"\n✗ Error during setup: {e}")
         import traceback
+
         traceback.print_exc()
         db.rollback()
         sys.exit(1)

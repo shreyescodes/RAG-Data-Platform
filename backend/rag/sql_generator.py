@@ -1,10 +1,13 @@
-import openai
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List
+
+import openai
+import logging
 from dotenv import load_dotenv
 
-load_dotenv()
+logger = logging.getLogger(__name__)
 
+from ..config import settings
 
 class SQLGenerator:
     def __init__(self):
@@ -15,7 +18,7 @@ class SQLGenerator:
         query: str,
         relevant_tables: List[str],
         table_columns: Dict[str, List[str]],
-        schema_context: str = ""
+        schema_context: str = "",
     ) -> Dict[str, any]:
         """Generate SQL query from natural language using GPT-4"""
 
@@ -41,11 +44,14 @@ Generate a valid PostgreSQL query to answer this question. Return ONLY the SQL q
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are an expert SQL query generator. Return only valid PostgreSQL queries without any formatting or explanations."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are an expert SQL query generator. Return only valid PostgreSQL queries without any formatting or explanations.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.1,
-                max_tokens=500
+                max_tokens=500,
             )
 
             sql_query = response.choices[0].message.content.strip()
@@ -54,17 +60,16 @@ Generate a valid PostgreSQL query to answer this question. Return ONLY the SQL q
             return {
                 "sql": sql_query,
                 "relevant_tables": relevant_tables,
-                "reasoning": "Generated SQL based on schema context and natural language query"
+                "reasoning": "Generated SQL based on schema context and natural language query",
             }
 
         except Exception as e:
-            return {
-                "sql": None,
-                "error": str(e),
-                "relevant_tables": relevant_tables
-            }
+            logger.error(f"Failed to generate SQL: {e}")
+            return {"sql": None, "error": str(e), "relevant_tables": relevant_tables}
 
-    def _format_schema_context(self, tables: List[str], table_columns: Dict[str, List[str]]) -> str:
+    def _format_schema_context(
+        self, tables: List[str], table_columns: Dict[str, List[str]]
+    ) -> str:
         """Format schema information for the prompt"""
         schema_lines = []
 
@@ -94,14 +99,18 @@ Provide a brief explanation of what the query does and what the result means. Ke
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are a helpful assistant that explains SQL queries and results in plain English."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are a helpful assistant that explains SQL queries and results in plain English.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.3,
-                max_tokens=200
+                max_tokens=200,
             )
 
             return response.choices[0].message.content.strip()
 
         except Exception as e:
+            logger.error(f"Failed to explain query: {e}")
             return f"Query executed successfully. Result: {result}"

@@ -1,10 +1,12 @@
-from typing import Dict, Any
-from .base_agent import BaseAgent
-from ..rag.vector_store import FAISSVectorStore
+from typing import Any, Dict
+
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
 from ..rag.schema_indexer import SchemaIndexer
 from ..rag.sql_generator import SQLGenerator
-from sqlalchemy.orm import Session
-from sqlalchemy import text
+from ..rag.vector_store import FAISSVectorStore
+from .base_agent import BaseAgent
 
 
 class RetrievalAgent(BaseAgent):
@@ -32,16 +34,14 @@ class RetrievalAgent(BaseAgent):
         relevant_tables = self.schema_indexer.get_relevant_tables(user_query, k=5)
         table_columns = self.schema_indexer.get_relevant_columns(user_query, k=10)
 
-        self.log_reasoning("schema_retrieval", {
-            "relevant_tables": relevant_tables,
-            "table_columns": table_columns
-        })
+        self.log_reasoning(
+            "schema_retrieval",
+            {"relevant_tables": relevant_tables, "table_columns": table_columns},
+        )
 
         # Step 2: Generate SQL query
         sql_result = self.sql_generator.generate_sql(
-            user_query,
-            relevant_tables,
-            table_columns
+            user_query, relevant_tables, table_columns
         )
 
         if not sql_result.get("sql"):
@@ -49,7 +49,7 @@ class RetrievalAgent(BaseAgent):
             return {
                 "success": False,
                 "error": "Failed to generate SQL query",
-                "reasoning": self.get_reasoning()
+                "reasoning": self.get_reasoning(),
             }
 
         generated_sql = sql_result["sql"]
@@ -57,19 +57,31 @@ class RetrievalAgent(BaseAgent):
 
         # Step 3: Execute SQL query
         try:
-            result = self.db.execute(text(generated_sql))
-            rows = result.fetchall()
-            columns = result.keys()
+            import sqlglot
+            from sqlglot import exp
+            from starlette.concurrency import run_in_threadpool
+
+            # Validate query is strictly a SELECT
+            try:
+                expressions = sqlglot.parse(generated_sql, read="postgres")
+                for expression in expressions:
+                    if not isinstance(expression, exp.Select):
+                        raise ValueError(f"Only SELECT queries are allowed. Found: {type(expression).__name__}")
+            except Exception as parse_error:
+                raise ValueError(f"SQL Validation failed: {parse_error}")
+
+            def _execute():
+                res = self.db.execute(text(generated_sql))
+                return res.fetchall(), list(res.keys())
+
+            rows, columns = await run_in_threadpool(_execute)
 
             # Convert to list of dicts
-            data = []
-            for row in rows:
-                data.append(dict(zip(columns, row)))
+            data = [dict(zip(columns, row)) for row in rows]
 
-            self.log_reasoning("query_executed", {
-                "rows_returned": len(data),
-                "columns": list(columns)
-            })
+            self.log_reasoning(
+                "query_executed", {"rows_returned": len(data), "columns": list(columns)}
+            )
 
             return {
                 "success": True,
@@ -77,7 +89,7 @@ class RetrievalAgent(BaseAgent):
                 "data": data,
                 "row_count": len(data),
                 "relevant_tables": relevant_tables,
-                "reasoning": self.get_reasoning()
+                "reasoning": self.get_reasoning(),
             }
 
         except Exception as e:
@@ -86,5 +98,5 @@ class RetrievalAgent(BaseAgent):
                 "success": False,
                 "error": f"Query execution failed: {str(e)}",
                 "sql": generated_sql,
-                "reasoning": self.get_reasoning()
+                "reasoning": self.get_reasoning(),
             }
