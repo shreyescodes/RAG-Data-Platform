@@ -8,11 +8,11 @@ import sys
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from backend.config import settings  # noqa: E402
 from backend.db.database import SessionLocal, init_db  # noqa: E402
 from backend.rag.schema_indexer import SchemaIndexer  # noqa: E402
 from backend.rag.vector_store import FAISSVectorStore  # noqa: E402
 from backend.utils.data_loader import DataLoader  # noqa: E402
-from backend.config import settings  # noqa: E402
 
 
 def main():

@@ -1,7 +1,8 @@
+import os
+import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
@@ -14,14 +15,11 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-import os
-import sys
-
 # Add backend directory to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from config import settings
-from db.models import Base
+from config import settings  # noqa: E402
+from db.models import Base  # noqa: E402
 
 # Set sqlalchemy.url dynamically
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)

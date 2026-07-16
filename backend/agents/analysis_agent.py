@@ -3,8 +3,8 @@ from typing import Any, Dict
 
 import openai
 
-from .base_agent import BaseAgent
 from ..config import settings
+from .base_agent import BaseAgent
 
 
 class AnalysisAgent(BaseAgent):

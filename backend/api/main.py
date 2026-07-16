@@ -1,20 +1,21 @@
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
-from starlette.concurrency import run_in_threadpool
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
 from sqlalchemy import text
+from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from ..agents.orchestrator import AgentOrchestrator
 from ..agents.retrieval_agent import RetrievalAgent
+from ..config import settings
 from ..db.database import get_db, init_db
 from ..db.models import QueryLog
 from ..rag.schema_indexer import SchemaIndexer
 from ..rag.vector_store import FAISSVectorStore
-from ..config import settings
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

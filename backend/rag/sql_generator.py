@@ -1,13 +1,11 @@
+import logging
 import os
 from typing import Dict, List
 
 import openai
-import logging
-from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
-from ..config import settings
 
 class SQLGenerator:
     def __init__(self):

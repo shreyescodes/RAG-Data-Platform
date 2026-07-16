@@ -1,5 +1,5 @@
-import os
 import json
+import os
 from typing import Dict, List, Tuple
 
 import faiss

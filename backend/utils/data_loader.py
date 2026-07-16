@@ -1,5 +1,5 @@
-import random
 import logging
+import random
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -321,7 +321,9 @@ class DataLoader:
                 self.db.rollback()
                 continue
 
-    logger = logging.getLogger(__name__)
+    def __init__(self, db_session):
+        self.db = db_session
+        self.logger = logging.getLogger(__name__)
 
     def _safe_get(self, df, key, date):
         """Safely get value from DataFrame"""
@@ -331,7 +333,7 @@ class DataLoader:
                 if pd.notna(value):
                     return float(value)
         except Exception as e:
-            logger.error(f"Safe get failed for {key}: {e}")
+            self.logger.error(f"Safe get failed for {key}: {e}")
         return None
 
     def generate_synthetic_performance_metrics(self, num_records: int = 5000):

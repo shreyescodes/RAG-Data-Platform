@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql://postgres:password123@localhost:5432/RAG"
