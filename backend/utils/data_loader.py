@@ -18,6 +18,7 @@ from ..db.models import (
 class DataLoader:
     def __init__(self, db: Session):
         self.db = db
+        self.logger = logging.getLogger(__name__)
 
     def load_excel_data(self, file_path: str):
         """Load data from Excel file"""
@@ -320,10 +321,6 @@ class DataLoader:
                 print(f"Error synthesizing data for {ticker_symbol}: {e}")
                 self.db.rollback()
                 continue
-
-    def __init__(self, db_session):
-        self.db = db_session
-        self.logger = logging.getLogger(__name__)
 
     def _safe_get(self, df, key, date):
         """Safely get value from DataFrame"""

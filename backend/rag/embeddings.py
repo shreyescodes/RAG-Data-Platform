@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from ..config import settings
+from ..config import settings  # noqa: E402
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
