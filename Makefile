@@ -3,7 +3,7 @@
 install:
 	cd backend && pip install -r requirements.txt
 	cd backend && pip install -r requirements-dev.txt
-	npm install
+	cd frontend && npm install
 
 test:
 	pytest backend
