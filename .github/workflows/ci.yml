@@ -9,37 +9,55 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    # Env vars required by the app at import time (pydantic-settings).
+    # Tests override these via conftest.py os.environ.setdefault() calls,
+    # but setting them here also keeps the linter/import happy.
+    env:
+      DATABASE_URL: "sqlite:///./test.db"
+      OPENAI_API_KEY: "dummy_key_for_ci"
+      API_KEY: "test-api-key-for-ci"
+      ALLOWED_ORIGINS: "http://localhost:5173"
+
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+
     - name: Set up Python 3.10
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
+
     - name: Install backend dependencies
       run: |
         cd backend
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
-    - name: Run tests with coverage
-      run: |
-        cd backend
-        python -m pytest --cov=api --cov=agents --cov=rag --cov=utils
+
     - name: Run linting
       run: |
         cd backend
         python -m ruff check .
+
+    - name: Run tests with coverage
+      run: |
+        cd backend
+        python -m pytest --cov=api --cov=agents --cov=rag --cov=utils
+
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
+
     - name: Install frontend dependencies
       run: |
         cd frontend
         npm ci
+
     - name: Run frontend lint
       run: |
         cd frontend
         npm run lint
+
     - name: Build frontend
       run: |
         cd frontend
