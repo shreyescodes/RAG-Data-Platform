@@ -47,66 +47,110 @@ backend/
 
 ### Prerequisites
 
-- Python 3.8+ with pip
-- Node.js 16+ and npm
-- PostgreSQL 12+
+- Python 3.10+ with pip
+- Node.js 18+ and npm
+- PostgreSQL 13+
+- Docker & Docker Compose (recommended)
 
-### 1. Database Setup
+---
+
+### Option A — Docker (Recommended)
+
+**1. Copy the example env file and fill in your values:**
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set **all** required variables (see [Environment Variables](#environment-variables) below).
+
+**2. Start all services:**
+
+```bash
+docker compose up --build
+```
+
+- API: `http://localhost:8000`
+- Frontend: `http://localhost:5173`
+
+---
+
+### Option B — Local Development
+
+**1. Database Setup**
 
 Create a PostgreSQL database:
 ```bash
-createdb RAG
+createdb RAG-Data
 ```
 
-Update `.env` with your database credentials (already configured):
-```
-DATABASE_URL=postgresql://user:password@localhost:5432/RAG
-OPENAI_API_KEY=your_openai_key
-SEC_EDGAR_API_KEY=your_sec_edgar_key
+**2. Environment**
+
+```bash
+cp .env.example .env
+# Edit .env — fill in DATABASE_URL, OPENAI_API_KEY, API_KEY, etc.
 ```
 
-### 2. Backend Setup
+**3. Backend Setup**
 
-Install Python dependencies:
 ```bash
 cd backend
 pip install -r requirements.txt
+python setup_data.py   # Creates tables, loads data, indexes schema
 ```
-
-Initialize database and load data:
-```bash
-python setup_data.py
-```
-
-This will:
-- Create database tables
-- Load Excel data (if available)
-- Synthesize financial data from Yahoo Finance for 10 companies
-- Generate 5000+ performance metrics
-- Index database schema into FAISS vector store
 
 Start the FastAPI server:
 ```bash
 uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-API will be available at: `http://localhost:8000`
+**4. Frontend Setup**
 
-### 3. Frontend Setup
-
-Install dependencies and start development server:
 ```bash
+cd frontend
 npm install
 npm run dev
 ```
 
-Frontend will be available at: `http://localhost:5173`
+Frontend: `http://localhost:5173`
+
+---
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and fill in every required value. **Never commit `.env`.**
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | ✅ Yes | Full PostgreSQL connection string |
+| `POSTGRES_USER` | ✅ Yes | Postgres username (Docker) |
+| `POSTGRES_PASSWORD` | ✅ Yes | Postgres password (Docker) — use a strong random value |
+| `POSTGRES_DB` | ✅ Yes | Postgres database name (Docker) |
+| `OPENAI_API_KEY` | ✅ Yes | OpenAI API key for GPT-4 and embeddings |
+| `SEC_EDGAR_API_KEY` | Optional | SEC EDGAR API key for filing enrichment |
+| `API_KEY` | ✅ Yes (production) | Secret key sent in `X-API-Key` header — generate with `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `ALLOWED_ORIGINS` | Optional | Comma-separated CORS origins (default: `http://localhost:5173`) |
+| `FAISS_INDEX_PATH` | Optional | Path to FAISS index (default: `data/faiss_index`) |
+| `API_HOST` | Optional | Bind host (default: `0.0.0.0`) |
+| `API_PORT` | Optional | Bind port (default: `8000`) |
+
+> **Note:** `API_KEY` can be left empty to disable authentication in local development. **Always set it in production.**
+
+---
 
 ## Usage
 
-### Example Queries
+### Authenticating API Requests
 
-The platform can answer questions like:
+All endpoints except `/` and `/api/health` require an `X-API-Key` header:
+
+```bash
+curl -H "X-API-Key: your_api_key" http://localhost:8000/api/stats
+```
+
+When using the frontend, set `VITE_API_URL` and pass the key via the env — the UI handles it automatically if `VITE_API_KEY` is set.
+
+### Example Queries
 
 - "What are the total liabilities in Company X?"
 - "What's the YoY revenue growth in 2024?"
@@ -117,11 +161,14 @@ The platform can answer questions like:
 
 ### API Endpoints
 
-- `POST /api/query` - Submit natural language query
-- `GET /api/history` - View query history
-- `GET /api/stats` - Platform statistics
-- `GET /api/health` - Health check
-- `POST /api/index-schema` - Re-index database schema
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/` | No | API info |
+| `GET` | `/api/health` | No | Health check |
+| `POST` | `/api/query` | ✅ | Submit natural language query |
+| `GET` | `/api/history` | ✅ | View query history (max 100 per page) |
+| `GET` | `/api/stats` | ✅ | Platform statistics |
+| `POST` | `/api/index-schema` | ✅ | Re-index database schema (admin) |
 
 ### Query Response Format
 
@@ -129,11 +176,11 @@ The platform can answer questions like:
 {
   "success": true,
   "query": "What are the total liabilities?",
-  "sql": "SELECT SUM(total_liabilities) FROM financial_statements",
+  "sql": "SELECT SUM(total_liabilities) FROM financial_statements LIMIT 500",
   "answer": "The total liabilities amount to $5.2M",
   "summary": "Query executed successfully...",
   "insights": ["Finding 1", "Finding 2"],
-  "data": [...],
+  "data": [],
   "row_count": 10,
   "relevant_tables": ["financial_statements"],
   "enriched_data": {},
@@ -146,42 +193,46 @@ The platform can answer questions like:
 }
 ```
 
+---
+
 ## Technical Stack
 
 ### Backend
-- FastAPI - Modern web framework
-- SQLAlchemy - ORM for PostgreSQL
-- OpenAI - GPT-4 for SQL generation and analysis
-- FAISS - Vector similarity search
-- Pandas - Data manipulation
-- yfinance - Yahoo Finance API integration
+- **FastAPI** — Modern async web framework
+- **SQLAlchemy 2** — ORM for PostgreSQL
+- **Alembic** — Database migrations
+- **OpenAI** — GPT-4o-mini for SQL generation and analysis
+- **FAISS** — Vector similarity search
+- **sqlglot** — SQL parsing and validation
+- **slowapi** — Rate limiting
+- **Pandas** — Data manipulation
+- **yfinance** — Yahoo Finance integration
 
 ### Frontend
-- React 19 - UI framework
-- Vite - Build tool and dev server
+- **React 19** — UI framework
+- **Vite** — Build tool and dev server
 
-## Features
+### Infrastructure
+- **Docker / Docker Compose** — Containerised deployment
+- **PostgreSQL 13** — Primary database
+- **nginx** — Frontend static server
 
-### RAG Workflow
-1. User submits natural language query
-2. Vector search finds relevant database tables/columns
-3. GPT-4 generates SQL query with context
-4. Query executes against PostgreSQL
-5. Results analyzed and summarized by AI
-6. External APIs enriched data when relevant
+---
 
-### Query Explainability
-- Generated SQL displayed
-- Execution time tracked
-- Relevant tables shown
-- Agent reasoning logged
-- All queries logged to database
+## Security
 
-### Data Sources
-- **Excel Import**: Portfolio company data
-- **Yahoo Finance**: Real-time stock data, financials
-- **SEC EDGAR**: Company filings
-- **Synthetic Data**: 5000+ performance metrics
+This project implements the following security controls:
+
+- **API Key authentication** — All data endpoints require `X-API-Key`
+- **Restricted CORS** — Origins controlled via `ALLOWED_ORIGINS` env var
+- **SQL injection prevention** — LLM-generated SQL is validated (SELECT-only) and row-capped (500) via `sqlglot`
+- **Rate limiting** — `/api/query` limited to 20/min per IP; `/api/index-schema` to 5/hour
+- **Sanitised error responses** — Internal errors logged server-side; generic messages returned to clients
+- **Security response headers** — `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`
+- **Non-root Docker user** — Backend container runs as `appuser`
+- **No hardcoded secrets** — All credentials must be explicitly provided via environment
+
+---
 
 ## Development
 
@@ -193,16 +244,18 @@ from backend.db.database import SessionLocal
 
 db = SessionLocal()
 loader = DataLoader(db)
-
 loader.synthesize_financial_data(['TSLA', 'NVDA'], num_years=2)
 ```
 
 ### Re-indexing Schema
 
-After database changes:
+After database changes (requires API key):
 ```bash
-curl -X POST http://localhost:8000/api/index-schema
+curl -X POST http://localhost:8000/api/index-schema \
+  -H "X-API-Key: your_api_key"
 ```
+
+---
 
 ## Project Structure
 
@@ -231,8 +284,12 @@ curl -X POST http://localhost:8000/api/index-schema
 │   │   └── App.css
 │   ├── package.json
 │   └── vite.config.js
+├── .env.example                 # Template — copy to .env and fill in
+├── docker-compose.yml
 └── README.md
 ```
+
+---
 
 ## Future Improvements
 
@@ -242,7 +299,6 @@ curl -X POST http://localhost:8000/api/index-schema
 - Implement policy agent for query validation
 - Add real-time data streaming
 - Support for multi-turn conversations
-- Add authentication and user management
 - Deploy to cloud platform
 
 ## License
