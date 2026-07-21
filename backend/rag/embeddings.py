@@ -2,20 +2,15 @@ import os
 from typing import List
 
 import openai
-from dotenv import load_dotenv
 
-load_dotenv()
-
-from ..config import settings  # noqa: E402
-
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
+from ..config import settings
 
 
 class EmbeddingService:
     def __init__(self, model: str = None):
         self.model = model or settings.EMBEDDING_MODEL
-        self.client = openai.OpenAI(api_key=openai.api_key)
+        # Use instance-scoped client — avoid mutating the global openai module state
+        self.client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     def get_embedding(self, text: str) -> List[float]:
         """Generate embedding for a single text"""

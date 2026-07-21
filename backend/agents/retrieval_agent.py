@@ -61,14 +61,31 @@ class RetrievalAgent(BaseAgent):
             from sqlglot import exp
             from starlette.concurrency import run_in_threadpool
 
-            # Validate query is strictly a SELECT
+            # Validate query is strictly a SELECT (prevents DDL/DML injection)
             try:
                 expressions = sqlglot.parse(generated_sql, read="postgres")
+                if len(expressions) != 1:
+                    raise ValueError("Only a single SELECT statement is allowed.")
                 for expression in expressions:
                     if not isinstance(expression, exp.Select):
                         raise ValueError(f"Only SELECT queries are allowed. Found: {type(expression).__name__}")
+            except ValueError:
+                raise
             except Exception as parse_error:
                 raise ValueError(f"SQL Validation failed: {parse_error}")
+
+            # High #4: Enforce a row cap to prevent memory / cost DoS.
+            # If the LLM-generated query has no LIMIT, inject one.
+            MAX_ROWS = 500
+            try:
+                parsed = sqlglot.parse_one(generated_sql, read="postgres")
+                if parsed.find(exp.Limit) is None:
+                    parsed = parsed.limit(MAX_ROWS)
+                    generated_sql = parsed.sql(dialect="postgres")
+                    self.log_reasoning("limit_injected", f"Added LIMIT {MAX_ROWS} to query")
+            except Exception:
+                # If rewriting fails, proceed with original and trust DB timeout
+                pass
 
             def _execute():
                 res = self.db.execute(text(generated_sql))

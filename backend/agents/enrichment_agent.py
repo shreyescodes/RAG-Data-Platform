@@ -124,7 +124,13 @@ class EnrichmentAgent(BaseAgent):
 
         try:
             async with httpx.AsyncClient() as client:
-                headers = {"User-Agent": f"RAG Platform {self.sec_api_key}"}
+                # SEC EDGAR requires a descriptive User-Agent (company + contact).
+                # The API key (if any) is sent in the Authorization header, NOT User-Agent.
+                headers = {
+                    "User-Agent": "RAGPlatform/1.0 (contact@example.com)",
+                }
+                if self.sec_api_key:
+                    headers["Authorization"] = f"Bearer {self.sec_api_key}"
 
                 # Search for company CIK
                 search_url = "https://www.sec.gov/cgi-bin/browse-edgar"

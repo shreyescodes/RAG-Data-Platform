@@ -38,3 +38,7 @@ env/
 # Data and Vector Store
 data/
 backend/data/
+
+# Alembic — may contain DB credentials if sqlalchemy.url is set
+# alembic.ini
+# (Uncomment the line above if you add a DATABASE_URL directly in alembic.ini)

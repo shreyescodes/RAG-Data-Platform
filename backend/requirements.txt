@@ -18,3 +18,4 @@ sentence-transformers==3.3.1
 pydantic-settings>=2.4.0
 sqlglot>=25.0.0
 alembic>=1.13.0
+slowapi>=0.1.9
