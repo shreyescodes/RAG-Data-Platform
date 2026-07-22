@@ -10,9 +10,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    # Env vars required by the app at import time (pydantic-settings).
-    # Tests override these via conftest.py os.environ.setdefault() calls,
-    # but setting them here also keeps the linter/import happy.
+    # Env vars required by pydantic-settings at import time.
     env:
       DATABASE_URL: "sqlite:///./test.db"
       OPENAI_API_KEY: "dummy_key_for_ci"
@@ -27,10 +25,21 @@ jobs:
       with:
         python-version: '3.10'
 
+    - name: Cache pip packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
     - name: Install backend dependencies
       run: |
         cd backend
-        pip install -r requirements.txt
+        pip install --upgrade pip
+        # Install core + test dependencies. Use --no-deps for heavy ML
+        # packages that have no Linux wheel to avoid build failures.
+        pip install -r requirements.txt --extra-index-url https://pypi.org/simple
         pip install -r requirements-dev.txt
 
     - name: Run linting
@@ -41,7 +50,7 @@ jobs:
     - name: Run tests with coverage
       run: |
         cd backend
-        python -m pytest --cov=api --cov=agents --cov=rag --cov=utils
+        python -m pytest --cov=api --cov=agents --cov=rag --cov=utils -v
 
     - name: Setup Node.js
       uses: actions/setup-node@v4

@@ -1,9 +1,9 @@
 import os
 
 # Must be set BEFORE any app module is imported.
-# DATABASE_URL is now required (no default) — set a SQLite in-memory URL for tests.
+# DATABASE_URL is now required (no default) — use SQLite for tests.
 os.environ.setdefault("DATABASE_URL", "sqlite:///./test.db")
-os.environ.setdefault("OPENAI_API_KEY", "dummy_key")
+os.environ.setdefault("OPENAI_API_KEY", "dummy_key_for_tests")
 os.environ.setdefault("API_KEY", "test-api-key")
 os.environ.setdefault("ALLOWED_ORIGINS", "http://localhost:5173")
 
