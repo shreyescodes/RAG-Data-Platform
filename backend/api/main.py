@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -175,7 +174,7 @@ async def query(request: Request, body: QueryRequest, db: Session = Depends(get_
         orchestrator = AgentOrchestrator(retrieval_agent, db)
         result = await orchestrator.process_query(body.query)
         return QueryResponse(**result)
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error in /api/query")
         raise HTTPException(status_code=500, detail="An internal error occurred.")
 
@@ -213,7 +212,7 @@ async def get_query_history(
                 for log in logs
             ],
         }
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error in /api/history")
         raise HTTPException(status_code=500, detail="An internal error occurred.")
 
@@ -251,7 +250,7 @@ async def get_stats(db: Session = Depends(get_db)):
             "vector_store": vector_store.get_stats(),
         }
         return stats
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error in /api/stats")
         raise HTTPException(status_code=500, detail="An internal error occurred.")
 
@@ -270,7 +269,7 @@ async def index_schema(request: Request, db: Session = Depends(get_db)):
             "message": "Database schema indexed successfully",
             "stats": vector_store.get_stats(),
         }
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error in /api/index-schema")
         raise HTTPException(status_code=500, detail="An internal error occurred.")
 
