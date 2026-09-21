@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from rag.schema_indexer import SchemaIndexer
 from rag.sql_generator import SQLGenerator
 from rag.vector_store import FAISSVectorStore
+
 from .base_agent import BaseAgent
 
 

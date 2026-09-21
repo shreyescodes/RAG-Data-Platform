@@ -1,12 +1,12 @@
-import os
 from datetime import datetime
 from typing import Any, Dict, Optional
 
 import httpx
 import yfinance as yf
 
-from .base_agent import BaseAgent
 from config import settings
+
+from .base_agent import BaseAgent
 
 
 class EnrichmentAgent(BaseAgent):
