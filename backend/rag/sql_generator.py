@@ -3,13 +3,17 @@ import os
 from typing import Dict, List
 
 import openai
+from config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class SQLGenerator:
     def __init__(self):
-        self.client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.client = openai.OpenAI(
+            api_key=settings.GROQ_API_KEY,
+            base_url=settings.OPENAI_API_BASE
+        )
 
     def generate_sql(
         self,
@@ -32,15 +36,16 @@ Additional Context:
 - Use appropriate JOINs when querying multiple tables
 - Use aggregations (SUM, AVG, COUNT) when appropriate
 - Format dates properly using PostgreSQL date functions
+- CRITICAL: DO NOT hallucinate tables or columns. If the required tables or columns do not exist in the Database Schema provided above, output EXACTLY "ERROR: Schema missing required elements" and nothing else.
 - Return only the SQL query, no explanations
 
 Question: {query}
 
-Generate a valid PostgreSQL query to answer this question. Return ONLY the SQL query without any markdown formatting or explanations."""
+Generate a valid PostgreSQL query to answer this question. Return ONLY the SQL query without any markdown formatting or explanations. If you cannot, return the exact ERROR string specified above."""
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=settings.LLM_MODEL,
                 messages=[
                     {
                         "role": "system",

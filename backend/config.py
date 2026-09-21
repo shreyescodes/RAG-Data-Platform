@@ -6,16 +6,18 @@ class Settings(BaseSettings):
     DATABASE_URL: str
 
     # External APIs
-    OPENAI_API_KEY: str = ""
+    GROQ_API_KEY: str = ""
+    OPENAI_API_KEY: str = "groq" # Dummy key for OpenAI client compatibility
+    OPENAI_API_BASE: str = "https://api.groq.com/openai/v1"
     SEC_EDGAR_API_KEY: str = ""
 
     # FAISS Configuration
     FAISS_INDEX_PATH: str = "data/faiss_index"
-    FAISS_DIMENSION: int = 1536
+    FAISS_DIMENSION: int = 384  # all-MiniLM-L6-v2 uses 384 dimensions
 
     # Models
-    LLM_MODEL: str = "gpt-4o-mini"
-    EMBEDDING_MODEL: str = "text-embedding-3-small"
+    LLM_MODEL: str = "groq/compound"
+    EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
 
     # Server Configuration
     API_HOST: str = "0.0.0.0"

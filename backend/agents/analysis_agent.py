@@ -3,14 +3,17 @@ from typing import Any, Dict
 
 import openai
 
-from ..config import settings
+from config import settings
 from .base_agent import BaseAgent
 
 
 class AnalysisAgent(BaseAgent):
     def __init__(self):
         super().__init__("AnalysisAgent")
-        self.client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.client = openai.OpenAI(
+            api_key=settings.GROQ_API_KEY,
+            base_url=settings.OPENAI_API_BASE
+        )
 
     async def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """

@@ -38,7 +38,7 @@ class FAISSVectorStore:
         """Search for similar documents"""
         query_embedding = self.embedding_service.get_embedding(query)
 
-        if not query_embedding:
+        if not query_embedding or self.index.ntotal == 0:
             return []
 
         query_vector = np.array([query_embedding]).astype("float32")

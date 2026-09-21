@@ -23,7 +23,7 @@ def main():
     # Initialize database
     print("\n[1/5] Initializing database schema...")
     init_db()
-    print("✓ Database schema created")
+    print("[OK] Database schema created")
 
     # Create database session
     db = SessionLocal()
@@ -37,7 +37,7 @@ def main():
         if os.path.exists(excel_path):
             print(f"\n[2/5] Loading Excel data from {excel_path}...")
             loader.load_excel_data(excel_path)
-            print("✓ Excel data loaded")
+            print("[OK] Excel data loaded")
         else:
             print(f"\n[2/5] Excel file not found at {excel_path}, skipping...")
 
@@ -56,12 +56,12 @@ def main():
             "WMT",
         ]
         loader.synthesize_financial_data(tickers, num_years=2)
-        print(f"✓ Synthesized data for {len(tickers)} companies")
+        print(f"[OK] Synthesized data for {len(tickers)} companies")
 
         # Generate synthetic performance metrics to reach 5000+ rows
         print("\n[4/5] Generating synthetic performance metrics...")
         loader.generate_synthetic_performance_metrics(num_records=5000)
-        print("✓ Generated 5000+ performance metrics")
+        print("[OK] Generated 5000+ performance metrics")
 
         # Index database schema into vector store
         print("\n[5/5] Indexing database schema...")
@@ -71,7 +71,7 @@ def main():
         )
         schema_indexer = SchemaIndexer(vector_store)
         schema_indexer.index_database_schema()
-        print("✓ Schema indexed into vector store")
+        print("[OK] Schema indexed into vector store")
 
         print("\n" + "=" * 60)
         print("Setup Complete!")
@@ -102,7 +102,7 @@ def main():
         print("  cd backend && uvicorn api.main:app --reload")
 
     except Exception as e:
-        print(f"\n✗ Error during setup: {e}")
+        print(f"\n[Error] Error during setup: {e}")
         import traceback
 
         traceback.print_exc()

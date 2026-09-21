@@ -2,7 +2,7 @@ from typing import Dict, List
 
 from sqlalchemy import inspect
 
-from ..db.database import engine
+from db.database import engine
 from .vector_store import FAISSVectorStore
 
 

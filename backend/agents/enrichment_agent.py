@@ -6,12 +6,13 @@ import httpx
 import yfinance as yf
 
 from .base_agent import BaseAgent
+from config import settings
 
 
 class EnrichmentAgent(BaseAgent):
     def __init__(self):
         super().__init__("EnrichmentAgent")
-        self.sec_api_key = os.getenv("SEC_EDGAR_API_KEY")
+        self.sec_api_key = settings.SEC_EDGAR_API_KEY
 
     async def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """

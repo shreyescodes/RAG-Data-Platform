@@ -4,7 +4,8 @@ from typing import Any, Dict
 
 from sqlalchemy.orm import Session
 
-from ..db.models import QueryLog
+from db.models import QueryLog
+from utils.pii_redactor import PIIRedactor
 from .analysis_agent import AnalysisAgent
 from .enrichment_agent import EnrichmentAgent
 from .retrieval_agent import RetrievalAgent
@@ -30,7 +31,10 @@ class AgentOrchestrator:
         """
         start_time = time.time()
 
-        context = {"query": user_query, "timestamp": datetime.utcnow().isoformat()}
+        # PII Reduction Step: Sanitize the incoming query before any processing
+        sanitized_query = PIIRedactor.redact(user_query)
+
+        context = {"query": sanitized_query, "timestamp": datetime.utcnow().isoformat()}
 
         # Step 1: Retrieval Agent - Get data from database
         retrieval_result = await self.retrieval_agent.execute(context)

@@ -6,7 +6,7 @@ import pandas as pd
 import yfinance as yf
 from sqlalchemy.orm import Session
 
-from ..db.models import (
+from db.models import (
     Company,
     FinancialStatement,
     MarketData,

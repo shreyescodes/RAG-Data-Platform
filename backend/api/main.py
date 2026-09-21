@@ -14,13 +14,13 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from ..agents.orchestrator import AgentOrchestrator
-from ..agents.retrieval_agent import RetrievalAgent
-from ..config import settings
-from ..db.database import get_db, init_db
-from ..db.models import QueryLog
-from ..rag.schema_indexer import SchemaIndexer
-from ..rag.vector_store import FAISSVectorStore
+from agents.orchestrator import AgentOrchestrator
+from agents.retrieval_agent import RetrievalAgent
+from config import settings
+from db.database import get_db, init_db
+from db.models import QueryLog
+from rag.schema_indexer import SchemaIndexer
+from rag.vector_store import FAISSVectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -221,7 +221,7 @@ async def get_query_history(
 async def get_stats(db: Session = Depends(get_db)):
     """Get platform statistics"""
     try:
-        from ..db.models import (
+        from db.models import (
             Company,
             FinancialStatement,
             MarketData,

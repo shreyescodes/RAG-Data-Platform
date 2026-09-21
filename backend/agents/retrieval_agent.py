@@ -3,9 +3,9 @@ from typing import Any, Dict
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from ..rag.schema_indexer import SchemaIndexer
-from ..rag.sql_generator import SQLGenerator
-from ..rag.vector_store import FAISSVectorStore
+from rag.schema_indexer import SchemaIndexer
+from rag.sql_generator import SQLGenerator
+from rag.vector_store import FAISSVectorStore
 from .base_agent import BaseAgent
 
 
@@ -55,6 +55,14 @@ class RetrievalAgent(BaseAgent):
         generated_sql = sql_result["sql"]
         self.log_reasoning("sql_generated", generated_sql)
 
+        if "ERROR: Schema missing required elements" in generated_sql:
+            self.log_reasoning("sql_generation_failed", "LLM prevented hallucination")
+            return {
+                "success": False,
+                "error": "The AI Agent refused to write this query because the provided database schema does not contain the required tables or columns to answer this question.",
+                "reasoning": self.get_reasoning(),
+            }
+
         # Step 3: Execute SQL query
         try:
             import sqlglot
@@ -69,10 +77,14 @@ class RetrievalAgent(BaseAgent):
                 for expression in expressions:
                     if not isinstance(expression, exp.Select):
                         raise ValueError(f"Only SELECT queries are allowed. Found: {type(expression).__name__}")
-            except ValueError:
-                raise
+            except ValueError as ve:
+                raise ValueError(str(ve))
             except Exception as parse_error:
-                raise ValueError(f"SQL Validation failed: {parse_error}")
+                # If the LLM returned natural language instead of SQL, show a clean message
+                error_msg = str(parse_error)
+                if not generated_sql.strip().upper().startswith("SELECT"):
+                    raise ValueError(f"The AI Agent refused to write this query: {generated_sql[:100]}...")
+                raise ValueError(f"SQL Validation failed: {error_msg}")
 
             # High #4: Enforce a row cap to prevent memory / cost DoS.
             # If the LLM-generated query has no LIMIT, inject one.
