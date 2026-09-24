@@ -5,7 +5,7 @@
 [![Node.js 18+](https://img.shields.io/badge/node-18+-green.svg)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A full-stack synthetic data platform with Retrieval-Augmented Generation (RAG) workflows, robust security pipelines (PII redaction), and advanced multi-agent orchestration for querying financial data using natural language.
+A full-stack data platform with Retrieval-Augmented Generation (RAG) workflows, robust security pipelines (PII redaction), and advanced multi-agent orchestration for querying financial data using natural language.
 
 ---
 
