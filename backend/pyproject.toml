@@ -1,20 +1,84 @@
 [project]
-name = "rag-backend"
-version = "0.1.0"
+name = "rag-data-platform-backend"
+version = "1.1.0"
+description = "Multi-agent RAG API for natural-language querying of financial data."
+readme = "../README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+
+# Dependencies are pinned in requirements.txt / requirements-dev.txt.
 
 [tool.ruff]
-line-length = 88
-target-version = "py310"
+line-length = 100
+target-version = "py311"
+extend-exclude = [".venv"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I"]
-ignore = ["E501"]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "B",        # bugbear
+    "UP",       # pyupgrade
+    "SIM",      # simplify
+    "C4",       # comprehensions
+    "PT",       # pytest style
+    "RUF",      # ruff-specific
+    "S",        # bandit (security)
+    "LOG",      # logging
+    "T20",      # no print()
+]
+ignore = [
+    "B008",     # FastAPI's Depends() in defaults is idiomatic
+    "S104",     # binding to 0.0.0.0 is intended inside containers
+    "RUF001",   # ambiguous unicode in strings (the ellipsis is deliberate)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "S311"]
+"app/ingestion/synthetic.py" = ["S311"]  # non-cryptographic RNG is intended
+"app/db/models.py" = ["RUF012"]  # SQLAlchemy's declarative __table_args__
+"alembic/versions/*" = ["E501"]
+"eval/**" = ["T201"]  # command-line report output
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+exclude = ["^alembic/", "^\\.venv/"]
+files = ["app", "tests", "eval"]
+
+[[tool.mypy.overrides]]
+module = ["faiss", "faiss.*", "pandas", "pandas.*", "yfinance", "yfinance.*", "sentence_transformers", "sentence_transformers.*", "slowapi", "slowapi.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
 
 [tool.pytest.ini_options]
-minversion = "6.0"
-addopts = "-ra -q"
-testpaths = [
-    "tests",
-]
+minversion = "8.0"
+addopts = "-ra --strict-markers"
+testpaths = ["tests"]
+pythonpath = ["."]
 asyncio_mode = "auto"
-pythonpath = [".."]
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    "error::DeprecationWarning:app.*",
+]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+omit = ["app/cli.py", "app/ingestion/yahoo.py", "app/ingestion/excel.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 85
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError", "\\.\\.\\."]

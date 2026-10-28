@@ -1,21 +1,26 @@
-fastapi==0.115.0
-uvicorn==0.32.0
-python-dotenv==1.0.1
-sqlalchemy==2.0.35
-psycopg2-binary==2.9.10
-pandas==2.2.3
+# Runtime dependencies. Pinned for reproducible builds; Dependabot keeps them current.
+
+# API
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+pydantic==2.14.1
+pydantic-settings==2.16.1
+slowapi==0.1.10
+
+# Database
+SQLAlchemy==2.1.6
+alembic==1.20.1
+psycopg[binary]==3.3.6
+
+# LLM, retrieval and SQL safety
+openai==3.40.0
+sentence-transformers==6.2.0
+faiss-cpu==1.15.1
+numpy==2.5.4
+sqlglot==30.25.0
+
+# External data and ingestion
+httpx==0.28.1
+yfinance==1.7.0
+pandas==3.1.0
 openpyxl==3.1.5
-openai==1.54.3
-faiss-cpu==1.8.0
-numpy==1.26.4
-pydantic==2.9.2
-httpx==0.27.2
-yfinance==0.2.48
-langchain==0.3.7
-langchain-openai==0.2.8
-langchain-community==0.3.7
-sentence-transformers==3.3.1
-pydantic-settings>=2.4.0
-sqlglot>=25.0.0
-alembic>=1.13.0
-slowapi>=0.1.9
