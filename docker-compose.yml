@@ -1,49 +1,60 @@
-version: '3.8'
+# Full stack: PostgreSQL, the API and the nginx-served frontend.
+#   cp .env.example .env    # then fill in the values
+#   docker compose up -d --build
+#   docker compose exec backend python -m app.cli seed
+# The UI is then at http://localhost:8080.
+
+name: rag-data-platform
 
 services:
   db:
-    image: postgres:13
+    image: postgres:16-alpine
     environment:
-      # Critical #1: No hardcoded passwords. All credentials MUST be set in the
-      # host environment or a .env file. The app will refuse to start if missing.
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    # Low #12: Do NOT publish the DB port externally in production.
-    # The backend reaches postgres via the internal Docker network (hostname: db).
-    # Uncomment the lines below ONLY for local development debugging:
-    # ports:
-    #   - "127.0.0.1:5432:5432"   # Bind to loopback only if you must expose it locally
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    # Not published: only the backend reaches the database, over the compose network.
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+    restart: unless-stopped
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - "${API_PORT:-8000}:8000"
+    build: ./backend
+    env_file: .env
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-    env_file:
-      - .env
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      FAISS_INDEX_PATH: /app/data/faiss_index
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      LOG_JSON: "true"
+      # Only nginx (on the compose network) should set X-Forwarded-For.
+      FORWARDED_ALLOW_IPS: "*"
+    ports:
+      # Loopback only, for direct API access during development.
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    volumes:
+      - backend_data:/app/data
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    build: ./frontend
+    environment:
+      BACKEND_URL: http://backend:8000
+      API_KEY: ${API_KEY:-}
     ports:
-      - "5173:80"
+      - "${FRONTEND_PORT:-8080}:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+  backend_data:

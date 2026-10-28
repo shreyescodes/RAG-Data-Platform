@@ -1,0 +1,51 @@
+# Rendered at container start; ${BACKEND_URL} and ${API_KEY} come from the
+# environment. nginx's own $variables are untouched because they are not
+# defined as environment variables.
+
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    server_tokens off;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'" always;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    # The API key is attached here, server-side, so it never reaches the browser.
+    location /api/ {
+        proxy_pass ${BACKEND_URL};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-API-Key "${API_KEY}";
+        proxy_read_timeout 120s;
+        client_max_body_size 16k;
+    }
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # Fingerprinted build output can be cached forever.
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        try_files $uri =404;
+    }
+
+    # SPA fallback.
+    location / {
+        add_header Cache-Control "no-cache" always;
+        try_files $uri $uri/ /index.html;
+    }
+}

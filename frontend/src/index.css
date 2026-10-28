@@ -16,6 +16,15 @@
   --accent-glow: rgba(16, 185, 129, 0.2);
   
   --error-color: #ef4444;
+  --warning-color: #f59e0b;
+
+  /* Charts: reference categorical palette, dark steps, validated (CVD + contrast)
+     against the card surface #121214. */
+  --chart-surface: #121214;
+  --chart-grid: rgba(255, 255, 255, 0.07);
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
   --error-bg: rgba(239, 68, 68, 0.1);
   
   /* Typography */
