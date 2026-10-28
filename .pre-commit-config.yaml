@@ -1,15 +1,30 @@
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
     hooks:
-    -   id: trailing-whitespace
-    -   id: end-of-file-fixer
-    -   id: check-yaml
-    -   id: check-added-large-files
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: detect-private-key
 
-- repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.4.10
-  hooks:
-  -   id: ruff
-      args: [--fix, --exit-non-zero-on-fix]
-  -   id: ruff-format
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.3  # keep in sync with backend/requirements-dev.txt
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
+
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint
+        entry: npm --prefix frontend run lint --
+        language: system
+        files: ^frontend/src/.*\.(js|jsx)$
+        pass_filenames: false
