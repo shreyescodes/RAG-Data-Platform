@@ -3,8 +3,8 @@
 # API
 fastapi==0.162.0
 uvicorn[standard]==0.54.0
-pydantic==2.14.1
-pydantic-settings==2.16.1
+pydantic==2.14.2
+pydantic-settings==2.16.2
 slowapi==0.1.10
 
 # Database
@@ -13,11 +13,11 @@ alembic==1.20.1
 psycopg[binary]==3.3.6
 
 # LLM, retrieval and SQL safety
-openai==3.40.0
+openai==3.42.0
 sentence-transformers==6.2.0
 faiss-cpu==1.15.1
 numpy==2.5.4
-sqlglot==30.25.0
+sqlglot==30.27.0
 
 # External data and ingestion
 httpx==0.28.1
