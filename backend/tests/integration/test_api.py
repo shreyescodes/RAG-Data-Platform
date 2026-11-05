@@ -12,13 +12,14 @@ from app.core.config import get_settings
 from app.core.exceptions import LLMNotConfiguredError
 from app.db.models import QueryLog
 from app.rag.sql_generator import CANNOT_ANSWER
-from tests.fakes import FakeChatModel, FakeMarketData
+from tests.fakes import FakeChatModel, FakeMarketData, sql_reply
 
 PROTECTED = [
     ("get", "/api/history"),
     ("get", "/api/stats"),
     ("post", "/api/query"),
     ("post", "/api/index-schema"),
+    ("get", "/api/health/llm"),
 ]
 
 
@@ -46,6 +47,8 @@ def test_health_reports_database_and_index(client: TestClient) -> None:
         "status": "healthy",
         "database": "connected",
         "vector_store_documents": body["vector_store_documents"],
+        "llm_endpoint": "remote",
+        "llm_configured": True,
     }
     assert body["vector_store_documents"] > 0
 
@@ -86,11 +89,141 @@ def test_query_success(client: TestClient, auth_headers: dict[str, str]) -> None
         "retrieval": "completed",
         "enrichment": "skipped",
         "analysis": "completed",
+        "verification": "completed",
     }
     assert "companies" in body["relevant_tables"]
     steps = [(s["agent"], s["step"]) for s in body["trace"]]
     assert ("retrieval", "sql_executed") in steps
     assert ("analysis", "analysis_completed") in steps
+
+
+def test_query_cites_tables_columns_and_scores(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    body = _ask(client, auth_headers, "List all companies")
+
+    citations = body["citations"]
+    assert citations["sql"] == body["sql"]
+    assert citations["retrieval_mode"] == "hybrid+rerank"
+    companies = next(t for t in citations["tables"] if t["table"] == "companies")
+    assert companies["used_in_sql"] is True
+    assert companies["rerank_score"] is not None
+    assert citations["output_columns"] == [
+        {"output_column": "name", "sources": ["companies.name"], "derivation": "column"},
+        {"output_column": "ticker", "sources": ["companies.ticker"], "derivation": "column"},
+    ]
+    assert citations["columns_referenced"] == ["companies.name", "companies.ticker"]
+    assert citations["key_columns"] == ["name", "ticker"]
+    assert citations["row_count"] == 3
+
+    step = next(s for s in body["trace"] if s["step"] == "schema_retrieved")
+    candidate = step["detail"]["candidates"][0]
+    assert {"dense_score", "sparse_score", "fused_rank", "rerank_score"} <= set(candidate)
+
+
+def test_failed_query_has_no_citations(
+    client: TestClient, auth_headers: dict[str, str], fake_llm: FakeChatModel
+) -> None:
+    fake_llm.sql = "DELETE FROM companies"
+    assert _ask(client, auth_headers, "Delete everything please")["citations"] is None
+
+
+def test_invalid_structured_reply_is_retried_and_traced(
+    client: TestClient, auth_headers: dict[str, str], fake_llm: FakeChatModel
+) -> None:
+    fake_llm.replies["sql_generation"] = ["SELECT name FROM companies"]  # not JSON
+
+    body = _ask(client, auth_headers, "List all companies")
+
+    assert body["success"] is True
+    steps = {s["step"]: s["detail"] for s in body["trace"]}
+    assert steps["sql_attempt_rejected"]["attempt"] == 1
+    assert steps["sql_generated"]["attempts"] == 2
+    assert steps["sql_generated"]["explanation"] == "Scripted by the test."
+    assert body["citations"]["generation_confidence"] == 0.9
+    assert body["citations"]["sql_explanation"] == "Scripted by the test."
+
+
+def test_failed_sql_is_repaired_with_the_database_error(
+    client: TestClient, auth_headers: dict[str, str], fake_llm: FakeChatModel
+) -> None:
+    fake_llm.replies["sql_generation"] = [sql_reply("SELECT nam FROM companies")]
+
+    body = _ask(client, auth_headers, "List all companies")
+
+    assert body["success"] is True
+    assert body["row_count"] == 3
+    steps = [s["step"] for s in body["trace"]]
+    assert steps.index("sql_failed") < steps.index("sql_repaired") < steps.index("sql_executed")
+    repair_prompt = fake_llm.calls_for("sql_repair")[0]["user"]
+    assert "SELECT nam FROM companies LIMIT 500" in repair_prompt
+    assert "nam" in repair_prompt.split("Error:", 1)[1]
+
+
+def test_persistently_invalid_output_fails_cleanly(
+    client: TestClient, auth_headers: dict[str, str], fake_llm: FakeChatModel, db: Session
+) -> None:
+    fake_llm.replies["sql_generation"] = ["no", "still no", "nope"]
+
+    body = _ask(client, auth_headers, "List all companies")
+
+    assert body["success"] is False
+    assert "did not return a valid structured response" in body["error"]
+    rejected = [s for s in body["trace"] if s["step"] == "sql_attempt_rejected"]
+    assert len(rejected) == 3
+    log = db.scalars(select(QueryLog)).one()
+    assert "no valid SQLGenerationOutput after 3 attempts" in (log.error_message or "")
+
+
+def test_hallucinated_claims_are_flagged(
+    client: TestClient, auth_headers: dict[str, str], fake_llm: FakeChatModel
+) -> None:
+    fake_llm.sql = (
+        "SELECT c.name, f.revenue FROM companies c "
+        "JOIN financial_statements f ON f.company_id = c.id"
+    )
+    fake_llm.analysis = {
+        "answer": "Apple Inc. reported revenue of $94.0B.",
+        "summary": "Microsoft Corporation reported $120B, the highest of the group.",
+        "insights": [],
+    }
+
+    body = _ask(client, auth_headers, "Revenue by company")
+
+    assert body["success"] is True
+    report = body["verification"]
+    assert report["status"] == "flagged"
+    assert report["mode"] == "hybrid"
+    supported, flagged = report["claims"]
+    assert supported["verdict"] == "supported"
+    assert supported["evidence"][0] == {
+        "id": "row:0",
+        "kind": "row",
+        "label": "Row 1 · name: Apple Inc., revenue: 94,000,000,000",
+        "row_index": 0,
+        "column": None,
+        "value": None,
+    }
+    assert flagged["verdict"] == "unsupported"
+    assert flagged["unsupported_values"] == ["$120B"]
+    assert body["agent_flow"]["verification"] == "completed"
+    # The judge was consulted only for the claim the checks could not clear.
+    (judge_call,) = fake_llm.calls_for("verification")
+    assert "[c2]" in judge_call["user"]
+    assert "[c1]" not in judge_call["user"]
+
+
+def test_verification_crash_never_fails_the_answer(
+    client: TestClient, auth_headers: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def boom(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("checker bug")
+
+    monkeypatch.setattr("app.agents.verification.check_claim", boom)
+    body = _ask(client, auth_headers, "List all companies")
+    assert body["success"] is True
+    assert body["verification"] is None
+    assert body["agent_flow"]["verification"] == "failed"
 
 
 def test_query_redacts_pii_before_llm_and_audit(
@@ -261,7 +394,10 @@ def test_unanswerable_from_db_falls_back_to_live_data(
         "retrieval": "skipped",
         "enrichment": "completed",
         "analysis": "completed",
+        "verification": "completed",
     }
+    assert body["verification"]["status"] == "verified"
+    assert body["verification"]["claims"][0]["evidence"][0]["id"] == "market:AAPL"
     assert ("orchestrator", "fallback_to_live_data") in [
         (s["agent"], s["step"]) for s in body["trace"]
     ]

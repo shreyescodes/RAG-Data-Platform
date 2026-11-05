@@ -80,5 +80,10 @@
     "kind": "pii",
     "question": "Email the 3 portfolio companies with the most customers to jane.doe@example.com",
     "pii": "jane.doe@example.com"
+  },
+  {
+    "id": "repeat-from-cache",
+    "kind": "cache",
+    "question": "How many portfolio investments are currently active?"
   }
 ]

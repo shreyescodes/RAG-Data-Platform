@@ -6,6 +6,9 @@
 
 const BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
 const DEFAULT_TIMEOUT_MS = 90_000
+// One answer can take minutes on a CPU-only local model; the backend already
+// bounds every LLM call (LLM_TIMEOUT_SECONDS), so the browser waits longer.
+export const QUERY_TIMEOUT_MS = Number(import.meta.env.VITE_QUERY_TIMEOUT_MS) || 300_000
 
 export class ApiError extends Error {
   constructor(message, { status, requestId } = {}) {
@@ -60,8 +63,13 @@ async function request(path, { method = 'GET', body, signal, timeoutMs = DEFAULT
 }
 
 export const api = {
-  query: (query, options) => request('/query', { method: 'POST', body: { query }, ...options }),
+  query: (query, options) =>
+    request('/query', { method: 'POST', body: { query }, timeoutMs: QUERY_TIMEOUT_MS, ...options }),
   stats: (options) => request('/stats', options),
   history: ({ limit = 10, offset = 0 } = {}, options) =>
     request(`/history?limit=${limit}&offset=${offset}`, options),
+  metricsSummary: (window, options) => request(`/metrics/summary?window=${window}`, options),
+  metricsTimeseries: (window, options) =>
+    request(`/metrics/timeseries?window=${window}`, options),
+  metricsRecent: (limit = 25, options) => request(`/metrics/recent?limit=${limit}`, options),
 }

@@ -3,7 +3,8 @@
 `info["description"]` on tables and columns is not DDL; it is the natural
 language context the schema indexer embeds so the retriever and SQL generator
 understand what each table holds. Tables with `info["queryable"] = False` are
-never exposed to the LLM.
+never exposed to the LLM. `info["natural_key"]` names the columns that identify
+a row without a database constraint; citations use it for row provenance.
 """
 
 from __future__ import annotations
@@ -64,7 +65,8 @@ class FinancialStatement(Base):
                 "Quarterly or annual financial statements per company: income "
                 "statement (revenue, profit, EPS), balance sheet (assets, "
                 "liabilities, equity) and cash flow figures in USD."
-            )
+            ),
+            "natural_key": ("company_id", "statement_date", "period_type"),
         }
     }
 
@@ -150,7 +152,8 @@ class PerformanceMetric(Base):
                 "Monthly SaaS operating metrics for portfolio companies: ARR, "
                 "MRR, customers, churn, CAC, LTV, burn, runway and valuation "
                 "multiples."
-            )
+            ),
+            "natural_key": ("portfolio_company_id", "metric_date"),
         }
     }
 
@@ -203,6 +206,7 @@ class MarketData(Base):
                 "moving averages. Join to companies on ticker."
             ),
             "related_tables": ("companies",),
+            "natural_key": ("ticker", "date"),
         }
     }
 
@@ -257,3 +261,67 @@ QUERYABLE_MODELS: tuple[type[Base], ...] = (
     PerformanceMetric,
     MarketData,
 )
+
+
+class RequestMetric(Base):
+    """One row per query: outcome, LLM usage, cost and latency by stage.
+
+    Operational telemetry for the observability dashboard; never exposed to the LLM.
+    """
+
+    __tablename__ = "request_metrics"
+    __table_args__ = {"info": {"queryable": False}}
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    request_id: Mapped[str | None] = mapped_column(String(64))
+    # PII-redacted and truncated.
+    query: Mapped[str] = mapped_column(Text)
+    success: Mapped[bool] = mapped_column(default=True)
+    error_type: Mapped[str | None] = mapped_column(String(64))
+    model: Mapped[str] = mapped_column(String(255))
+    llm_endpoint: Mapped[str] = mapped_column(String(16))  # local | remote
+    llm_calls: Mapped[int] = mapped_column(Integer, default=0)
+    cache_hits: Mapped[int] = mapped_column(Integer, default=0)
+    prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    row_count: Mapped[int] = mapped_column(Integer, default=0)
+    retrieval_mode: Mapped[str | None] = mapped_column(String(32))
+    verification_status: Mapped[str | None] = mapped_column(String(16))
+    unsupported_claims: Mapped[int | None] = mapped_column(Integer)
+    latency_total_ms: Mapped[float] = mapped_column(Float)
+    latency_retrieval_ms: Mapped[float | None] = mapped_column(Float)
+    latency_sql_generation_ms: Mapped[float | None] = mapped_column(Float)
+    latency_sql_execution_ms: Mapped[float | None] = mapped_column(Float)
+    latency_enrichment_ms: Mapped[float | None] = mapped_column(Float)
+    latency_analysis_ms: Mapped[float | None] = mapped_column(Float)
+    latency_verification_ms: Mapped[float | None] = mapped_column(Float)
+
+    calls: Mapped[list[LLMCall]] = relationship(
+        back_populates="request", cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class LLMCall(Base):
+    """One row per LLM completion (or cache hit) made while answering a query."""
+
+    __tablename__ = "llm_calls"
+    __table_args__ = {"info": {"queryable": False}}
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    request_metric_id: Mapped[int] = mapped_column(
+        ForeignKey("request_metrics.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
+    purpose: Mapped[str] = mapped_column(String(32))
+    model: Mapped[str] = mapped_column(String(255))
+    prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    latency_ms: Mapped[float] = mapped_column(Float)
+    success: Mapped[bool] = mapped_column(default=True)
+    cached: Mapped[bool] = mapped_column(default=False)
+    tokens_estimated: Mapped[bool] = mapped_column(default=False)
+
+    request: Mapped[RequestMetric] = relationship(back_populates="calls")

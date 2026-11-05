@@ -34,3 +34,21 @@ def test_accepts_legacy_groq_variable_names(monkeypatch: pytest.MonkeyPatch) -> 
 
 def test_secrets_are_masked_in_repr() -> None:
     assert "supersecret" not in repr(_settings(api_key="supersecret"))
+
+
+def test_pricing_and_feature_flags_parse_from_the_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_PRICING", '{"my-model": {"input": 0.5, "output": 1.5}}')
+    monkeypatch.setenv("VERIFICATION_MODE", "heuristic")
+    monkeypatch.setenv("RETRIEVAL_RERANK", "false")
+    settings = Settings()
+    assert settings.llm_pricing["my-model"].output == 1.5
+    assert settings.verification_mode == "heuristic"
+    assert settings.retrieval_rerank is False
+
+
+def test_invalid_structured_output_mode_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LLM_STRUCTURED_OUTPUT", "xml")
+    with pytest.raises(ValidationError):
+        Settings()

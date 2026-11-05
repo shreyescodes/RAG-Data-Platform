@@ -1,6 +1,25 @@
 import { describe, expect, it } from 'vitest'
 import { toCsv } from './csv.js'
-import { formatCell, formatCompact, formatDuration, formatRelativeTime } from './format.js'
+import {
+  formatCell,
+  formatCompact,
+  formatDuration,
+  formatRate,
+  formatRelativeTime,
+  formatUsd,
+} from './format.js'
+
+describe('formatUsd and formatRate', () => {
+  it('keeps precision for fractions of a cent', () => {
+    expect(formatUsd(0)).toBe('$0')
+    expect(formatUsd(0.0181)).toBe('$0.018')
+    expect(formatUsd(0.00043)).toBe('$0.00043')
+    expect(formatUsd(12.345)).toBe('$12.35')
+    expect(formatUsd(null)).toBe('—')
+    expect(formatRate(0.0714)).toBe('7.1%')
+    expect(formatRate(undefined)).toBe('—')
+  })
+})
 
 describe('formatCell', () => {
   it.each([

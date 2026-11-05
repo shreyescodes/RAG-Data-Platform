@@ -37,7 +37,7 @@ export function ResultsTable({ rows }) {
           </thead>
           <tbody>
             {visible.map((row, idx) => (
-              <tr key={idx}>
+              <tr key={idx} id={`result-row-${idx}`}>
                 {columns.map((col) => (
                   <td key={col} className={typeof row[col] === 'number' ? 'num' : undefined}>
                     {formatCell(row[col])}

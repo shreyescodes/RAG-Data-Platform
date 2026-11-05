@@ -5,6 +5,7 @@ import openai
 import pytest
 
 from app.core.exceptions import LLMError, LLMNotConfiguredError
+from app.observability.metrics import track_request
 from app.services.llm import OpenAICompatibleChatModel
 
 
@@ -24,6 +25,7 @@ def _stub_create(
     *,
     content: str | None = "ok",
     error: Exception | None = None,
+    usage: SimpleNamespace | None = None,
 ) -> list[dict[str, Any]]:
     calls: list[dict[str, Any]] = []
 
@@ -32,7 +34,7 @@ def _stub_create(
         if error is not None:
             raise error
         message = SimpleNamespace(content=content)
-        return SimpleNamespace(choices=[SimpleNamespace(message=message)])
+        return SimpleNamespace(choices=[SimpleNamespace(message=message)], usage=usage)
 
     assert model._client is not None
     monkeypatch.setattr(model._client.chat.completions, "create", create)
@@ -83,3 +85,86 @@ async def test_missing_api_key() -> None:
     with pytest.raises(LLMNotConfiguredError):
         await model.complete(system="s", user="u")
     await model.aclose()  # no-op without a client
+
+
+async def test_json_schema_requests_constrained_decoding(monkeypatch: pytest.MonkeyPatch) -> None:
+    model = _model()
+    calls = _stub_create(monkeypatch, model, content="{}")
+    schema = {"name": "Out", "schema": {"type": "object"}}
+    await model.complete(system="s", user="u", json_schema=schema, purpose="test")
+    assert calls[0]["response_format"] == {
+        "type": "json_schema",
+        "json_schema": {"name": "Out", "schema": {"type": "object"}, "strict": False},
+    }
+
+
+def test_local_endpoints_need_no_key() -> None:
+    local = OpenAICompatibleChatModel(
+        api_key="",
+        base_url="http://localhost:11434/v1",
+        model="m",
+        timeout_seconds=5,
+        max_retries=0,
+    )
+    remote = _model(api_key="")
+    assert (local.endpoint, local.configured) == ("local", True)
+    assert (remote.endpoint, remote.configured) == ("remote", False)
+
+
+async def test_usage_is_recorded_and_estimated_when_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    model = _model()
+    _stub_create(
+        monkeypatch,
+        model,
+        content="x" * 40,
+        usage=SimpleNamespace(prompt_tokens=11, completion_tokens=7),
+    )
+    with track_request() as metrics:
+        await model.complete(system="s", user="u", purpose="analysis")
+    (call,) = metrics.llm_calls
+    assert (call.purpose, call.prompt_tokens, call.completion_tokens) == ("analysis", 11, 7)
+    assert call.estimated is False
+
+    _stub_create(monkeypatch, model, content="x" * 40)
+    with track_request() as metrics:
+        await model.complete(system="s" * 8, user="u" * 8)
+    assert metrics.llm_calls[0].completion_tokens == 10
+    assert metrics.llm_calls[0].estimated is True
+
+
+async def test_failed_calls_are_recorded(monkeypatch: pytest.MonkeyPatch) -> None:
+    model = _model()
+    _stub_create(monkeypatch, model, error=openai.OpenAIError("boom"))
+    with track_request() as metrics, pytest.raises(LLMError):
+        await model.complete(system="s", user="u")
+    assert metrics.llm_calls[0].success is False
+
+
+async def test_probe_lists_models(monkeypatch: pytest.MonkeyPatch) -> None:
+    model = _model()
+    assert model._client is not None
+
+    class Models:
+        async def list(self) -> SimpleNamespace:
+            return SimpleNamespace(data=[SimpleNamespace(id="test-model"), SimpleNamespace(id="x")])
+
+    monkeypatch.setattr(model._client, "with_options", lambda **_: SimpleNamespace(models=Models()))
+    result = await model.probe()
+    assert (result.reachable, result.model_available) == (True, True)
+    assert result.models == ["test-model", "x"]
+
+
+async def test_probe_reports_unreachable_servers(monkeypatch: pytest.MonkeyPatch) -> None:
+    model = _model()
+    assert model._client is not None
+
+    class Models:
+        async def list(self) -> None:
+            raise openai.OpenAIError("connection refused")
+
+    monkeypatch.setattr(model._client, "with_options", lambda **_: SimpleNamespace(models=Models()))
+    result = await model.probe()
+    assert (result.reachable, result.error) == (False, "OpenAIError")
+    assert (await _model(api_key="").probe()).error == "not configured"

@@ -41,3 +41,27 @@ export function formatRelativeTime(iso, now = Date.now()) {
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
   return `${Math.floor(seconds / 86400)}d ago`
 }
+
+/** A score with fixed decimals, or a dash when absent. */
+export function formatScore(value, digits = 2) {
+  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '—'
+}
+
+/** A 0-1 fraction as a whole percentage, or a dash when absent. */
+export function formatPercent(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? `${Math.round(value * 100)}%` : '—'
+}
+
+/** US dollars, with enough precision for fractions of a cent. */
+export function formatUsd(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '—'
+  if (value === 0) return '$0'
+  // Per-request LLM costs are fractions of a cent: keep two significant figures.
+  if (Math.abs(value) < 1) return `$${value.toPrecision(2)}`
+  return value.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 })
+}
+
+/** A 0-1 rate as a percentage with one decimal. */
+export function formatRate(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : '—'
+}

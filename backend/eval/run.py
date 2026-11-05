@@ -2,12 +2,16 @@
 
 Each case is asked through the same orchestrator the API uses. Answerable
 cases are scored by execution accuracy: every value returned by a hand-written
-ground-truth query must appear in the pipeline's result rows. Guardrail cases
-check that unanswerable questions are refused, that questions the database
-cannot answer fall back to live market data, that prompt injection cannot
-modify data, and that PII never reaches the audit log.
+ground-truth query must appear in the pipeline's result rows. Every answered
+case also reports its citations (were the tables the ground truth reads cited
+as used?), the fact check of its answer (claims flagged as unsupported) and its
+LLM usage. Guardrail cases check that unanswerable questions are refused, that
+questions the database cannot answer fall back to live market data, that
+prompt injection cannot modify data, that PII never reaches the audit log and
+that a repeated question is served from the response cache.
 
-Usage, from `backend/` with DATABASE_URL and LLM_API_KEY set:
+Usage, from `backend/` with DATABASE_URL set and an LLM configured (a local
+endpoint such as Ollama needs no key):
 
     python -m eval.run                       # writes ../docs/evaluation.md
     python -m eval.run --only top-arr --pause 0
@@ -27,7 +31,9 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+import sqlglot
 from sqlalchemy import func, select, text
+from sqlglot import exp
 
 from app.api.dependencies import get_orchestrator
 from app.container import ServiceContainer, build_services
@@ -36,7 +42,8 @@ from app.core.logging import configure_logging
 from app.db.models import Company, QueryLog
 from app.db.repositories import count_rows_by_table
 from app.db.session import get_engine, get_session_factory
-from app.schemas import QueryResponse
+from app.schemas import QueryResponse, RequestUsage
+from app.services.llm import endpoint_kind
 
 HERE = Path(__file__).parent
 
@@ -57,6 +64,14 @@ class CaseResult:
     answer: str | None
     error: str | None
     expected: list[Any] = field(default_factory=list)
+    cited: bool | None = None  # every ground-truth table cited as used by the SQL
+    retrieval_confidence: float | None = None
+    claims: int = 0
+    flagged_claims: int = 0
+    tokens: int = 0
+    cost_usd: float = 0.0
+    cache_hits: int = 0
+    llm_calls: int = 0
 
 
 def _norm(value: Any) -> Any:
@@ -101,6 +116,10 @@ def _latest_logged_query() -> str:
         return latest.user_query if latest else ""
 
 
+def _truth_tables(sql: str) -> set[str]:
+    return {t.name for t in sqlglot.parse_one(sql, read="postgres").find_all(exp.Table)}
+
+
 async def run_case(services: ServiceContainer, case: dict[str, Any]) -> CaseResult:
     kind = case.get("kind", "accuracy")
     expected: list[Any] = []
@@ -109,6 +128,7 @@ async def run_case(services: ServiceContainer, case: dict[str, Any]) -> CaseResu
             expected = [_norm(r[0]) for r in conn.execute(text(case["truth_sql"])).all()]
 
     companies_before = _companies()
+    repeat_usage: RequestUsage | None = None
     started = time.perf_counter()
     response = await _ask(services, case["question"])
     latency = time.perf_counter() - started
@@ -138,8 +158,30 @@ async def run_case(services: ServiceContainer, case: dict[str, Any]) -> CaseResu
         secret = case["pii"]
         passed = secret not in response.query and secret not in _latest_logged_query()
         reason = "redacted before LLM and audit log" if passed else "PII leaked"
+    elif kind == "cache":
+        repeat = await _ask(services, case["question"])
+        repeat_usage = repeat.usage
+        replayed = (
+            repeat_usage is not None
+            and repeat_usage.llm_calls > 0
+            and repeat_usage.cache_hits == repeat_usage.llm_calls
+        )
+        passed = response.success and replayed and repeat.data == response.data
+        reason = (
+            f"repeat served from cache "
+            f"({repeat_usage.cache_hits} of {repeat_usage.llm_calls} LLM calls)"
+            if passed and repeat_usage
+            else "repeat was not served from the cache"
+        )
     else:
         raise ValueError(f"unknown case kind {kind!r}")
+
+    cited: bool | None = None
+    if kind == "accuracy" and response.citations is not None:
+        used = {t.table for t in response.citations.tables if t.used_in_sql}
+        cited = _truth_tables(case["truth_sql"]) <= used
+    report = response.verification
+    usage = response.usage
 
     return CaseResult(
         id=case["id"],
@@ -156,6 +198,17 @@ async def run_case(services: ServiceContainer, case: dict[str, Any]) -> CaseResu
         answer=response.answer,
         error=response.error,
         expected=expected[:5],
+        cited=cited,
+        retrieval_confidence=(
+            response.citations.retrieval_confidence if response.citations else None
+        ),
+        claims=len(report.claims) if report else 0,
+        flagged_claims=(report.unsupported + report.partially_supported) if report else 0,
+        tokens=(usage.prompt_tokens + usage.completion_tokens) if usage else 0,
+        cost_usd=usage.cost_usd if usage else 0.0,
+        # Count the cache case's repeat too, so the summary includes its hits.
+        cache_hits=sum(u.cache_hits for u in (usage, repeat_usage) if u),
+        llm_calls=sum(u.llm_calls for u in (usage, repeat_usage) if u),
     )
 
 
@@ -165,6 +218,8 @@ def render_markdown(results: list[CaseResult], meta: dict[str, Any]) -> str:
     guards = [r for r in results if r.kind != "accuracy"]
     latencies = sorted(r.latency_s for r in accuracy) or [0.0]
     median = latencies[len(latencies) // 2]
+    cited = [r for r in accuracy if r.cited is not None]
+    answered = [r for r in results if r.claims]
 
     lines = [
         "# Evaluation",
@@ -173,23 +228,39 @@ def render_markdown(results: list[CaseResult], meta: dict[str, Any]) -> str:
         "Yahoo Finance data loaded by `python -m app.cli seed`. Nothing here is mocked.",
         "",
         f"- **Run:** {meta['date']}",
-        f"- **Model:** `{meta['model']}`  ·  **Embeddings:** `{meta['embedding_model']}`",
+        f"- **Model:** `{meta['model']}` ({meta['endpoint']} endpoint)  ·  "
+        f"**Embeddings:** `{meta['embedding_model']}`",
+        f"- **Retrieval:** `{meta['retrieval']}`  ·  **Fact check:** `{meta['verification']}`",
         f"- **Dataset:** {', '.join(f'{k} {v:,}' for k, v in meta['rows'].items())}",
         "",
         f"**{passed}/{len(results)} cases passed.** "
         f"Execution accuracy {sum(r.passed for r in accuracy)}/{len(accuracy)}, "
-        f"behaviour checks (refusal, live-data fallback, injection, PII) "
+        f"behaviour checks (refusal, live-data fallback, injection, PII, cache) "
         f"{sum(r.passed for r in guards)}/{len(guards)}, "
         f"median latency {median:.1f}s.",
         "",
-        "| # | Case | Question | Result | Rows | Latency | Check |",
-        "|---|------|----------|--------|-----:|--------:|-------|",
+        f"- **Citations:** ground-truth tables cited as used in "
+        f"{sum(bool(r.cited) for r in cited)}/{len(cited)} answered accuracy cases.",
+        f"- **Fact check:** {sum(r.flagged_claims for r in answered)} of "
+        f"{sum(r.claims for r in answered)} answer claims flagged as not fully supported "
+        f"across {len(answered)} answers.",
+        f"- **Usage:** {sum(r.tokens for r in results):,} tokens, "
+        f"${sum(r.cost_usd for r in results):.4f} estimated, "
+        f"{sum(r.cache_hits for r in results)} of {sum(r.llm_calls for r in results)} "
+        "LLM calls served from cache.",
+        "",
+        "| # | Case | Question | Result | Rows | Latency | Cited | Claims flagged | Tokens "
+        "| Check |",
+        "|---|------|----------|--------|-----:|--------:|:-----:|---------------:|-------:"
+        "|-------|",
     ]
     for i, r in enumerate(results, 1):
         mark = "pass" if r.passed else "**fail**"
+        cited_mark = {True: "yes", False: "**no**", None: "–"}[r.cited]
+        flagged = f"{r.flagged_claims}/{r.claims}" if r.claims else "–"
         lines.append(
             f"| {i} | `{r.id}` | {r.question} | {mark} | {r.rows} "
-            f"| {r.latency_s:.1f}s | {r.reason} |"
+            f"| {r.latency_s:.1f}s | {cited_mark} | {flagged} | {r.tokens:,} | {r.reason} |"
         )
 
     lines += ["", "## Generated SQL and answers", ""]
@@ -212,16 +283,24 @@ async def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, default=HERE.parent.parent / "docs" / "evaluation.md")
     parser.add_argument("--only", nargs="*", help="Run only these case ids.")
     parser.add_argument(
-        "--pause", type=float, default=8.0, help="Seconds between cases (LLM rate limits)."
+        "--pause",
+        type=float,
+        default=None,
+        help="Seconds between cases for hosted-API rate limits (default: 8, or 0 when local).",
     )
     args = parser.parse_args(argv)
 
     settings = get_settings()
     configure_logging("WARNING")
-    if not settings.llm_api_key.get_secret_value():
-        sys.stderr.write("LLM_API_KEY is not set; the evaluation needs a real model.\n")
+    local = endpoint_kind(settings.llm_base_url) == "local"
+    if not (local or settings.llm_api_key.get_secret_value()):
+        sys.stderr.write(
+            "LLM_API_KEY is not set and LLM_BASE_URL is not a local endpoint; "
+            "the evaluation needs a real model.\n"
+        )
         return 2
 
+    pause = args.pause if args.pause is not None else (0.0 if local else 8.0)
     cases = json.loads(args.cases.read_text(encoding="utf-8"))
     if args.only:
         cases = [c for c in cases if c["id"] in args.only]
@@ -234,8 +313,8 @@ async def main(argv: list[str] | None = None) -> int:
 
         results = []
         for i, case in enumerate(cases):
-            if i and args.pause:
-                await asyncio.sleep(args.pause)
+            if i and pause:
+                await asyncio.sleep(pause)
             result = await run_case(services, case)
             results.append(result)
             status = "PASS" if result.passed else "FAIL"
@@ -248,7 +327,10 @@ async def main(argv: list[str] | None = None) -> int:
     meta = {
         "date": dt.datetime.now(dt.UTC).strftime("%Y-%m-%d %H:%M UTC"),
         "model": settings.llm_model,
+        "endpoint": "local" if local else "remote",
         "embedding_model": settings.embedding_model,
+        "retrieval": services.schema_indexer.mode,
+        "verification": settings.verification_mode,
         "rows": rows,
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)

@@ -35,13 +35,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Tests may inject their own services before startup.
     if getattr(app.state, "services", None) is None:
         app.state.services = build_services(settings)
-        await run_in_threadpool(app.state.services.vector_store.warm_up)
+        await run_in_threadpool(app.state.services.warm_up)
     logger.info(
-        "Started %s (env=%s, auth=%s, model=%s)",
+        "Started %s (env=%s, auth=%s, model=%s, retrieval=%s)",
         app.title,
         settings.environment,
         "on" if settings.auth_enabled else "off",
         settings.llm_model,
+        app.state.services.schema_indexer.mode,
     )
     try:
         yield
