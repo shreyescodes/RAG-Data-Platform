@@ -35,7 +35,7 @@ describe('VerificationPanel', () => {
       'href',
       '#result-row-0',
     )
-    expect(screen.getByText('min of arr = 1.5e+06').tagName).toBe('SPAN')
+    expect(screen.getByText('min of arr = 1,500,000').tagName).toBe('SPAN')
   })
 
   it('reports clean answers and a degraded judge', () => {

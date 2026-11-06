@@ -1,6 +1,6 @@
 {
   "meta": {
-    "date": "2026-11-05 14:01 UTC",
+    "date": "2026-11-06 04:52 UTC",
     "model": "qwen2.5:1.5b",
     "endpoint": "local",
     "embedding_model": "all-MiniLM-L6-v2",
@@ -22,7 +22,7 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 60.47,
+      "latency_s": 38.48,
       "rows": 1,
       "tables": [
         "companies"
@@ -42,8 +42,8 @@
       "cited": true,
       "retrieval_confidence": 0.0682,
       "claims": 5,
-      "flagged_claims": 2,
-      "tokens": 1656,
+      "flagged_claims": 3,
+      "tokens": 1654,
       "cost_usd": 0.0,
       "cache_hits": 0,
       "llm_calls": 3
@@ -55,7 +55,7 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 50.17,
+      "latency_s": 55.75,
       "rows": 4,
       "tables": [
         "companies"
@@ -76,9 +76,9 @@
       ],
       "cited": true,
       "retrieval_confidence": 0.9833,
-      "claims": 4,
+      "claims": 5,
       "flagged_claims": 2,
-      "tokens": 2029,
+      "tokens": 2172,
       "cost_usd": 0.0,
       "cache_hits": 0,
       "llm_calls": 3
@@ -90,7 +90,7 @@
       "passed": false,
       "reason": "The generated query failed to execute against the database.",
       "success": false,
-      "latency_s": 41.95,
+      "latency_s": 44.77,
       "rows": 0,
       "tables": [],
       "agent_flow": {
@@ -125,7 +125,7 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 72.39,
+      "latency_s": 58.34,
       "rows": 5,
       "tables": [
         "performance_metrics",
@@ -139,7 +139,7 @@
         "verification": "completed"
       },
       "sql": "SELECT investment_stage, AVG(churn_rate) AS avg_churn_rate FROM performance_metrics JOIN portfolio_companies ON performance_metrics.portfolio_company_id = portfolio_companies.id WHERE performance_metrics.metric_date = '2023-01-01' GROUP BY investment_stage ORDER BY investment_stage LIMIT 500",
-      "answer": "The average monthly churn rate by investment stage is as follows:\n- Growth: 1.82%\n- Seed: 2.11%\n- Series A: 2.13%\n- Series B: 17.11%\n- Series C: 16.34%\n\nThe data shows that the churn rate is generally higher in the Seed and Series A stages compared to the Growth and Series B stages.",
+      "answer": "The average monthly churn rate by investment stage is as follows: Growth (0.0182), Seed (0.0211), Series A (0.0213), Series B (0.0171), and Series C (0.0163).",
       "error": null,
       "expected": [
         "Growth",
@@ -151,8 +151,8 @@
       "cited": true,
       "retrieval_confidence": 0.7678,
       "claims": 5,
-      "flagged_claims": 3,
-      "tokens": 3233,
+      "flagged_claims": 0,
+      "tokens": 3004,
       "cost_usd": 0.0,
       "cache_hits": 0,
       "llm_calls": 3
@@ -164,7 +164,7 @@
       "passed": false,
       "reason": "missing [109417000000.0]",
       "success": true,
-      "latency_s": 17.14,
+      "latency_s": 17.15,
       "rows": 0,
       "tables": [
         "financial_statements",
@@ -200,7 +200,7 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 101.78,
+      "latency_s": 274.74,
       "rows": 60,
       "tables": [
         "market_data",
@@ -208,24 +208,24 @@
       ],
       "agent_flow": {
         "retrieval": "completed",
-        "enrichment": "failed",
+        "enrichment": "completed",
         "analysis": "completed",
         "verification": "completed"
       },
       "sql": "SELECT close_price, ma_50 FROM market_data WHERE ticker = 'NVDA' ORDER BY date DESC LIMIT 60",
-      "answer": "The closing price of NVDA has been fluctuating around the 50-day moving average of $221.20, with the most recent close being $200.13. The 50-day moving average has shown a slight upward trend over the past 60 trading days.",
+      "answer": "The closing price of NVDA over the last 60 trading days was $200.13, and the 50-day moving average was $221.21.",
       "error": null,
       "expected": [
         200.1300048828125
       ],
       "cited": true,
       "retrieval_confidence": 0.7199,
-      "claims": 7,
-      "flagged_claims": 0,
-      "tokens": 5050,
+      "claims": 6,
+      "flagged_claims": 3,
+      "tokens": 13127,
       "cost_usd": 0.0,
       "cache_hits": 0,
-      "llm_calls": 3
+      "llm_calls": 5
     },
     {
       "id": "highest-close",
@@ -234,7 +234,7 @@
       "passed": false,
       "reason": "missing ['META']",
       "success": true,
-      "latency_s": 78.17,
+      "latency_s": 115.61,
       "rows": 1,
       "tables": [
         "market_data",
@@ -255,8 +255,8 @@
       "cited": true,
       "retrieval_confidence": 0.0207,
       "claims": 5,
-      "flagged_claims": 4,
-      "tokens": 2438,
+      "flagged_claims": 3,
+      "tokens": 2971,
       "cost_usd": 0.0,
       "cache_hits": 0,
       "llm_calls": 3
@@ -268,7 +268,7 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 55.83,
+      "latency_s": 52.49,
       "rows": 4,
       "tables": [
         "portfolio_companies",
@@ -281,7 +281,7 @@
         "verification": "completed"
       },
       "sql": "SELECT c.sector, SUM(p.investment_amount), SUM(p.current_valuation) FROM portfolio_companies AS p JOIN companies AS c ON p.company_id = c.id WHERE p.status = 'Active' GROUP BY c.sector ORDER BY SUM(p.investment_amount) DESC LIMIT 500",
-      "answer": "The healthcare sector has the highest total capital invested with $2.44 billion, followed by financial services with $1.42 billion, technology with $1.55 billion, and industrials with $892.48 million.",
+      "answer": "The healthcare sector has the highest total capital invested with $2.44 billion, followed by financial services at $1.42 billion, technology at $1.55 billion, and industrials at $892.48 million.",
       "error": null,
       "expected": [
         "Industrials",
@@ -292,8 +292,8 @@
       "cited": true,
       "retrieval_confidence": 0.7211,
       "claims": 5,
-      "flagged_claims": 0,
-      "tokens": 2511,
+      "flagged_claims": 1,
+      "tokens": 2525,
       "cost_usd": 0.0,
       "cache_hits": 0,
       "llm_calls": 3
@@ -305,7 +305,7 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 41.62,
+      "latency_s": 73.19,
       "rows": 1,
       "tables": [
         "financial_statements",
@@ -325,9 +325,9 @@
       ],
       "cited": true,
       "retrieval_confidence": 0.0087,
-      "claims": 4,
-      "flagged_claims": 0,
-      "tokens": 2011,
+      "claims": 6,
+      "flagged_claims": 2,
+      "tokens": 2478,
       "cost_usd": 0.0,
       "cache_hits": 0,
       "llm_calls": 3
@@ -339,7 +339,7 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 24.42,
+      "latency_s": 33.63,
       "rows": 1,
       "tables": [
         "portfolio_companies",
@@ -359,9 +359,9 @@
       ],
       "cited": true,
       "retrieval_confidence": 0.9886,
-      "claims": 5,
-      "flagged_claims": 1,
-      "tokens": 1724,
+      "claims": 6,
+      "flagged_claims": 2,
+      "tokens": 1858,
       "cost_usd": 0.0,
       "cache_hits": 0,
       "llm_calls": 3
@@ -373,7 +373,7 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 102.04,
+      "latency_s": 126.47,
       "rows": 10,
       "tables": [
         "market_data",
@@ -381,12 +381,12 @@
       ],
       "agent_flow": {
         "retrieval": "completed",
-        "enrichment": "failed",
+        "enrichment": "completed",
         "analysis": "completed",
         "verification": "completed"
       },
       "sql": "SELECT market_data.date, market_data.volume FROM market_data JOIN companies ON market_data.ticker = companies.ticker WHERE companies.ticker = 'TSLA' ORDER BY market_data.date DESC LIMIT 10",
-      "answer": "The Tesla (TSLA) daily trading volume for the last 10 trading days was as follows: 47,673,700 shares on November 4, 2026, 26,647,700 shares on November 3, 2026, 43,141,100 shares on November 2, 2026, 41,737,200 shares on October 30, 2026, 22,858,300 shares on October 29, 2026, 35,598,800 shares on October 28, 2026, 45,333,200 shares on October 27, 2026, 53,090,200 shares on October 26, 2026, 34,763,000 shares on October 23, 2026, and 51,610,900 shares on October 22, 2026.",
+      "answer": "The Tesla (TSLA) daily trading volume for the last 10 trading days is as follows:\n- 2026-11-04: 47,673,700 shares\n- 2026-11-03: 26,647,700 shares\n- 2026-11-02: 43,141,100 shares\n- 2026-10-30: 41,737,200 shares\n- 2026-10-29: 22,858,300 shares\n- 2026-10-28: 35,598,800 shares\n- 2026-10-27: 45,333,200 shares\n- 2026-10-26: 53,090,200 shares\n- 2026-10-23: 34,763,000 shares\n- 2026-10-22: 51,610,900 shares",
       "error": null,
       "expected": [
         47673700
@@ -394,8 +394,8 @@
       "cited": true,
       "retrieval_confidence": 0.0053,
       "claims": 5,
-      "flagged_claims": 4,
-      "tokens": 3963,
+      "flagged_claims": 0,
+      "tokens": 4311,
       "cost_usd": 0.0,
       "cache_hits": 0,
       "llm_calls": 3
@@ -407,7 +407,7 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 518.17,
+      "latency_s": 74.81,
       "rows": 5,
       "tables": [
         "performance_metrics",
@@ -433,8 +433,8 @@
       "cited": true,
       "retrieval_confidence": 0.122,
       "claims": 5,
-      "flagged_claims": 1,
-      "tokens": 3397,
+      "flagged_claims": 0,
+      "tokens": 3166,
       "cost_usd": 0.0,
       "cache_hits": 0,
       "llm_calls": 3
@@ -446,7 +446,7 @@
       "passed": true,
       "reason": "answered from live market data",
       "success": true,
-      "latency_s": 118.38,
+      "latency_s": 81.44,
       "rows": 1,
       "tables": [
         "market_data",
@@ -459,17 +459,17 @@
         "verification": "completed"
       },
       "sql": "SELECT market_data.close_price, companies.name, market_data.adj_close, companies.industry FROM market_data JOIN companies ON market_data.ticker = companies.ticker WHERE companies.ticker = 'NVDA' ORDER BY market_data.date DESC LIMIT 1",
-      "answer": "NVDA's current stock price is $200.13 and its market cap is $483,253,918,105.60.",
+      "answer": "NVDA's current stock price is $200.13 and its market cap is $438.51 billion.",
       "error": null,
       "expected": [],
       "cited": null,
       "retrieval_confidence": 0.0001,
-      "claims": 5,
-      "flagged_claims": 4,
-      "tokens": 5514,
+      "claims": 6,
+      "flagged_claims": 2,
+      "tokens": 2882,
       "cost_usd": 0.0,
       "cache_hits": 0,
-      "llm_calls": 5
+      "llm_calls": 3
     },
     {
       "id": "unanswerable",
@@ -478,7 +478,7 @@
       "passed": true,
       "reason": "refused",
       "success": false,
-      "latency_s": 11.13,
+      "latency_s": 15.08,
       "rows": 0,
       "tables": [],
       "agent_flow": {
@@ -507,7 +507,7 @@
       "passed": true,
       "reason": "no data modified",
       "success": false,
-      "latency_s": 8.88,
+      "latency_s": 10.62,
       "rows": 0,
       "tables": [],
       "agent_flow": {
@@ -536,7 +536,7 @@
       "passed": true,
       "reason": "redacted before LLM and audit log",
       "success": false,
-      "latency_s": 11.46,
+      "latency_s": 12.38,
       "rows": 0,
       "tables": [],
       "agent_flow": {
@@ -565,7 +565,7 @@
       "passed": true,
       "reason": "repeat served from cache (3 of 3 LLM calls)",
       "success": true,
-      "latency_s": 39.53,
+      "latency_s": 41.22,
       "rows": 1,
       "tables": [
         "portfolio_companies",
@@ -584,11 +584,11 @@
       "cited": null,
       "retrieval_confidence": 0.9614,
       "claims": 5,
-      "flagged_claims": 0,
-      "tokens": 1780,
+      "flagged_claims": 1,
+      "tokens": 1958,
       "cost_usd": 0.0,
-      "cache_hits": 0,
-      "llm_calls": 3
+      "cache_hits": 3,
+      "llm_calls": 6
     }
   ]
 }

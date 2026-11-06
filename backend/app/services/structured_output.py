@@ -15,7 +15,9 @@ Three layers keep the output well-formed, strongest first:
    stripped), so plain-text endpoints work too.
 
 Transport failures (`LLMError`) are not retried here: the HTTP client already
-retries those with backoff.
+retries those with backoff. The exception is `InvalidJSONReplyError`, a server
+that rejected the model's reply as invalid JSON: that is a bad reply, so it is
+retried with feedback like any other.
 """
 
 from __future__ import annotations
@@ -31,7 +33,7 @@ from pydantic import BaseModel, ValidationError
 from app.core.exceptions import LLMError
 from app.observability.metrics import LLMCallRecord, estimate_tokens, record_llm_call
 from app.services.cache import ResponseCache, stable_key
-from app.services.llm import ChatModel
+from app.services.llm import ChatModel, InvalidJSONReplyError
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -194,16 +196,26 @@ class StructuredOutputExtractor:
         value: T | None = None
         rejection: OutputRejected | None = None
         for number in range(1, self.max_attempts + 1):
-            raw = await self._chat.complete(
-                system=instructions,
-                user=prompt,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                json_mode=self.mode != "prompt",
-                json_schema=response_schema,
-                purpose=purpose,
-            )
             value, rejection = None, None
+            try:
+                raw = await self._chat.complete(
+                    system=instructions,
+                    user=prompt,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    json_mode=self.mode != "prompt",
+                    json_schema=response_schema,
+                    purpose=purpose,
+                )
+            except InvalidJSONReplyError as exc:
+                # The server rejected the reply itself (Groq: json_validate_failed).
+                raw = exc.failed_generation
+                errors = ["the reply was not valid JSON"]
+                attempts.append(
+                    Attempt(number=number, ok=False, errors=tuple(errors), excerpt=raw[:200])
+                )
+                prompt = self._feedback(user, raw, errors)
+                continue
             try:
                 value = schema.model_validate_json(extract_json_text(raw))
                 if validate is not None:

@@ -5,24 +5,25 @@ answer claims labelled faithful or hallucinated against the rows and live data
 they were written from. A hallucinated claim is *caught* when it is marked
 unsupported or partially supported; a faithful claim so marked is a false positive.
 
-- **Run:** 2026-11-05 13:03 UTC
+- **Run:** 2026-11-06 04:32 UTC
 - **Judge model (hybrid):** `qwen2.5:1.5b`
 
 | Mode | Caught | Recall | False positives | Precision | Faithful confirmed | Unverifiable |
 |------|-------:|-------:|----------------:|----------:|-------------------:|-------------:|
-| `heuristic` | 13/16 | 0.81 | 0/20 | 1.00 | 20/20 | 3 |
-| `hybrid` | 14/16 | 0.88 | 0/20 | 1.00 | 20/20 | 1 |
+| `heuristic` | 16/19 | 0.84 | 0/25 | 1.00 | 25/25 | 3 |
+| `hybrid` | 17/19 | 0.90 | 0/25 | 1.00 | 25/25 | 1 |
 
 ## By category (hallucinated claims caught)
 
 | Category | `heuristic` | `hybrid` |
 |----------|---:|---:|
-| fabricated value | 7/7 | 7/7 |
+| fabricated value | 8/8 | 8/8 |
 | invented entity | 1/2 | 2/2 |
 | misattribution | 3/3 | 3/3 |
 | qualitative | 0/2 | 0/2 |
+| wrong bound | 1/1 | 1/1 |
 | wrong count | 1/1 | 1/1 |
-| wrong date | 1/1 | 1/1 |
+| wrong date | 2/2 | 2/2 |
 
 ## Every claim
 
@@ -64,5 +65,13 @@ unsupported or partially supported; a faithful claim so marked is a false positi
 | `net-loss` | Atlas Analytics lost $104M. | faithful | supported | supported |
 | `net-loss` | Beacon Cloud earned $12.5M. | faithful | supported | supported |
 | `net-loss` | Beacon Cloud earned $125M. | hallucinated | unsupported | unsupported |
+| `top-arr-wording` | All five companies exceed $180 million in ARR. | faithful | supported | supported |
+| `top-arr-wording` | The gap between the highest ($274 M) and lowest ($182 M) ARR is roughly $92 million. | faithful | supported | supported |
+| `top-arr-wording` | The top three companies each hold more than $230 million. | faithful | supported | supported |
+| `top-arr-wording` | All five companies exceed $200 million in ARR. | hallucinated | partially_supported | partially_supported |
+| `top-arr-wording` | The gap between the highest and lowest ARR is roughly $120 million. | hallucinated | unsupported | unsupported |
+| `annual-net-income-wording` | Microsoft Corporation reported net income of $133.7B for the year ending June 30, 2026. | faithful | supported | supported |
+| `annual-net-income-wording` | MSFT's latest annual statement is dated 2026‑06‑30. | faithful | supported | supported |
+| `annual-net-income-wording` | Microsoft's latest annual statement is dated June 30, 2025. | hallucinated | unsupported | unsupported |
 
 Bold verdicts are errors: a missed hallucination or a false positive.

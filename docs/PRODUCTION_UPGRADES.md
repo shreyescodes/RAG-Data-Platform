@@ -94,6 +94,12 @@ validate=...)` turns any LLM call into a typed, validated value:
   that raises `OutputRejected`. Any failure is retried, up to
   `LLM_STRUCTURED_MAX_ATTEMPTS` (default 3), with the errors and the rejected
   reply fed back.
+- Some servers check JSON mode themselves: Groq answers HTTP 400
+  `json_validate_failed` when the model writes broken JSON. The client turns
+  that into `InvalidJSONReplyError` carrying the rejected text, and the
+  extractor retries it like any other invalid reply instead of treating it as
+  an outage. The first Groq run caught this: one rejected reply knocked out
+  the claim checker for a whole request.
 - After the last attempt it raises `StructuredOutputError`, whose user-facing
   message says the model did not return a valid structured response. The
   trace has one `sql_attempt_rejected` step per failed attempt, with the
@@ -130,25 +136,43 @@ After the answer is written, `VerificationAgent`:
    the tolerance ($94.0B matches 94,036,000,000). Percentages may also match
    ratios computed from the rows (margins, growth). **A number in a claim
    that names an entity must come from that entity's row**, which catches a
-   correct figure attributed to the wrong company;
-3. sends claims the checks cannot settle (no checkable facts, a mismatch, or
-   support only through a computed ratio) to one LLM-judge call
-   (`VERIFICATION_MODE=hybrid`). The judge never overrides a deterministic
-   mismatch.
+   correct figure attributed to the wrong company. The checks also read the
+   way models actually write:
+   - dates with month names ("June 30, 2026") and typographic hyphens;
+   - ranks and windows ("the top three", "the last 10 days") are not values;
+   - a bound on every row ("all five exceed $180M", "volumes stayed above
+     26M") is checked against each column of a similar magnitude, so a bound
+     that one row breaks is flagged with that row as evidence;
+   - in a comparison ("a gap of $92M", "$17.6B higher") a number may be the
+     difference of two values;
+3. sends claims the checks cannot settle (no checkable facts, a mismatch,
+   support only through a computed ratio or difference, or a bound on a
+   single row or a total) to one LLM-judge call (`VERIFICATION_MODE=hybrid`).
+   The judge also sees the executed SQL, so claims about how rows were chosen
+   ("only listed companies", "the highest close") can be checked. The judge
+   never overrides a deterministic mismatch.
 
 The response's `verification` lists each claim's verdict (`supported`,
 `partially_supported`, `unsupported`, `unverifiable`), reason, confidence and
 evidence (`row:3`, `agg:arr.mean`, `market:NVDA`). The **Fact check** panel
 shows them; row evidence links to the row in the results table.
 
-**What it catches** (`make eval-hallucination`, 36 labelled claims,
+**What it catches** (`make eval-hallucination`, 44 labelled claims,
 hallucinations planted on purpose): the deterministic checks alone catch
-13 of 16 hallucinations with 0 false positives on 20 faithful claims. The 3
-misses are qualitative claims ("churn rises sharply as companies mature")
-with no number to check. They are marked unverifiable and sent to the judge.
-With `qwen2.5:1.5b` as the judge on CPU, 14 of 16 are caught, still with no
-false positives. A larger judge model should do better on the qualitative
-claims; the checks carry the numeric ones regardless of model.
+16 of 19 hallucinations with 0 false positives on 25 faithful claims. The 3
+misses have no number to check: two qualitative claims ("churn rises sharply
+as companies mature") and a sentence-opening invented name. They are marked
+unverifiable and sent to the judge. With `qwen2.5:1.5b` as the judge on CPU,
+17 of 19 are caught, still with no false positives
+([report](evaluation-hallucination.md)). Two cases come from real Groq
+answers: bounds, gaps, month-name dates and typographic hyphens that an
+earlier version flagged on correct answers.
+
+**On live answers the flag rate is higher than on the labelled set**, because
+models add commentary the rows cannot confirm ("the amount is expressed in
+billions", "no other ticker was higher"). A flag means "not shown by the
+evidence", not "false". See the live numbers in
+[evaluation.md](evaluation.md) and read flagged claims with their reasons.
 
 Modes: `off`, `heuristic` (no extra LLM call), `hybrid` (default; the judge
 call happens only when some claim needs it).
@@ -216,19 +240,32 @@ The `ollama-pull` helper downloads `OLLAMA_MODEL` on first start. Alternatives:
 `VLLM_SERVED_NAME`) or `--profile llamacpp` (`LLM_BASE_URL=http://llamacpp:8080/v1`).
 GPU profiles need the NVIDIA Container Toolkit. Model servers are not
 published to the host; only the backend can reach them. For Ollama installed
-on the host instead, use `LLM_BASE_URL=http://host.docker.internal:11434/v1`.
+on the host instead, use `LLM_BASE_URL=http://host.docker.internal:11434/v1`
+(the backend service maps that name to the host, Linux included).
+
+These Compose profiles are validated with `docker compose config` but have not
+been started on a GPU machine; the self-hosted path was tested with Ollama
+running directly on the host.
 
 ### Which model
 
+Only `qwen2.5:1.5b` on CPU has been run against this project
+([report](evaluation-local-llm.md)). The GPU rows are starting points sized
+from the models' download sizes (Q4 quantisation), not measured results:
+run `make eval` on your hardware before relying on one.
+
 | GPU memory | Ollama tag | Notes |
 |-----------|------------|-------|
-| none (CPU) | `qwen2.5:1.5b`, `qwen2.5:3b` | Works end to end, slowly; SQL quality is limited (see below) |
-| 8 GB | `qwen2.5:7b`, `qwen2.5-coder:7b`, `llama3.1:8b` | ~5 GB at Q4; the coder variant is strong at SQL |
+| none (CPU) | `qwen2.5:1.5b` | Tested: works end to end, slowly; SQL quality is limited (see below) |
+| none (CPU) | `qwen2.5:3b` | Untested; slower, likely better SQL |
+| 8 GB | `qwen2.5:7b`, `qwen2.5-coder:7b`, `llama3.1:8b` | ~5 GB at Q4; the coder variant is trained for code and SQL |
 | 12-16 GB | `qwen2.5:14b`, `gpt-oss:20b` | ~9 GB and ~14 GB |
 | 24 GB | `qwen2.5:32b`, `qwen2.5-coder:32b` | ~20 GB at Q4 |
 
-Use `LLM_STRUCTURED_OUTPUT=json_schema` with local servers: constrained
-decoding makes even small models emit valid JSON every time.
+Use `LLM_STRUCTURED_OUTPUT=json_schema` with local servers: the server
+constrains decoding to the schema, so small models return schema-shaped JSON
+far more reliably. A reply cut off by `max_tokens` can still be invalid; the
+extractor retries those.
 
 A CPU-only model can take one to two minutes per answer. The UI waits up to
 5 minutes for a query (`VITE_QUERY_TIMEOUT_MS`, set at build time) and nginx

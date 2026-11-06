@@ -67,6 +67,10 @@ services:
     ports:
       # Loopback only, for direct API access during development.
       - "127.0.0.1:${API_PORT:-8000}:8000"
+    extra_hosts:
+      # Lets LLM_BASE_URL=http://host.docker.internal:11434/v1 reach an LLM
+      # server on the host on Linux too (Docker Desktop maps it already).
+      - "host.docker.internal:host-gateway"
     volumes:
       - backend_data:/app/data
     depends_on:

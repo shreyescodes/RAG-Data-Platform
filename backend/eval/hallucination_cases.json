@@ -116,5 +116,35 @@
       {"text": "Beacon Cloud earned $12.5M.", "label": "faithful", "category": "value"},
       {"text": "Beacon Cloud earned $125M.", "label": "hallucinated", "category": "fabricated value"}
     ]
+  },
+  {
+    "id": "top-arr-wording",
+    "question": "Which 5 portfolio companies have the highest latest ARR?",
+    "rows": [
+      {"name": "Bright Logic", "arr": 274220000.0},
+      {"name": "Beacon Metrics", "arr": 266600000.0},
+      {"name": "Cedar Logic", "arr": 235330000.0},
+      {"name": "Lumen Systems", "arr": 187240000.0},
+      {"name": "Helix Stack", "arr": 182050000.0}
+    ],
+    "claims": [
+      {"text": "All five companies exceed $180 million in ARR.", "label": "faithful", "category": "bound"},
+      {"text": "The gap between the highest ($274 M) and lowest ($182 M) ARR is roughly $92 million.", "label": "faithful", "category": "computed"},
+      {"text": "The top three companies each hold more than $230 million.", "label": "faithful", "category": "bound"},
+      {"text": "All five companies exceed $200 million in ARR.", "label": "hallucinated", "category": "wrong bound"},
+      {"text": "The gap between the highest and lowest ARR is roughly $120 million.", "label": "hallucinated", "category": "fabricated value"}
+    ]
+  },
+  {
+    "id": "annual-net-income-wording",
+    "question": "Which listed company had the highest net income in its latest annual statement?",
+    "rows": [
+      {"name": "Microsoft Corporation", "ticker": "MSFT", "net_income": 133749000000.0, "statement_date": "2026-06-30"}
+    ],
+    "claims": [
+      {"text": "Microsoft Corporation reported net income of $133.7B for the year ending June 30, 2026.", "label": "faithful", "category": "value"},
+      {"text": "MSFT's latest annual statement is dated 2026\u201106\u201130.", "label": "faithful", "category": "value"},
+      {"text": "Microsoft's latest annual statement is dated June 30, 2025.", "label": "hallucinated", "category": "wrong date"}
+    ]
   }
 ]

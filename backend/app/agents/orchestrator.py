@@ -157,6 +157,7 @@ class QueryOrchestrator:
                         answer=analysis.answer,
                         summary=analysis.summary,
                         insights=analysis.insights,
+                        sql=retrieved.sql or "",
                         trace=trace,
                     )
                 flow.verification = (

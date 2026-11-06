@@ -74,7 +74,8 @@ def sql_reply(sql: str, **overrides: Any) -> str:
 class FakeChatModel:
     """Scripted LLM, routed by the call's `purpose`.
 
-    - `replies[purpose]`: raw completions returned in order before the defaults;
+    - `replies[purpose]`: raw completions returned in order before the defaults
+      (a queued exception is raised instead);
     - "sql_generation" / "sql_repair": `sql` wrapped as a valid JSON reply;
     - "analysis": `analysis` (a dict is serialised, a str returned verbatim);
     - "verification": `verification`, or a reply marking every claim supported.
@@ -89,7 +90,7 @@ class FakeChatModel:
         }
     )
     verification: dict[str, Any] | str | None = None
-    replies: dict[str, list[str]] = field(default_factory=dict)
+    replies: dict[str, list[str | Exception]] = field(default_factory=dict)
     # Priced by default, so cost accounting is exercised end to end.
     model: str = "openai/gpt-oss-120b"
     fail_with: LLMError | None = None
@@ -115,10 +116,10 @@ class FakeChatModel:
                 "purpose": purpose,
             }
         )
-        if self.fail_with is not None:
+        reply = self.fail_with or self._reply(user, purpose)
+        if isinstance(reply, Exception):
             record_llm_call(LLMCallRecord(purpose, self.model, 0, 0, 1.0, success=False))
-            raise self.fail_with
-        reply = self._reply(user, purpose)
+            raise reply
         record_llm_call(
             LLMCallRecord(
                 purpose=purpose,
@@ -130,7 +131,7 @@ class FakeChatModel:
         )
         return reply
 
-    def _reply(self, user: str, purpose: str) -> str:
+    def _reply(self, user: str, purpose: str) -> str | Exception:
         queued = self.replies.get(purpose)
         if queued:
             return queued.pop(0)

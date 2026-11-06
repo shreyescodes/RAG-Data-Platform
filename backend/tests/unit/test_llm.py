@@ -1,12 +1,13 @@
 from types import SimpleNamespace
 from typing import Any
 
+import httpx2
 import openai
 import pytest
 
 from app.core.exceptions import LLMError, LLMNotConfiguredError
 from app.observability.metrics import track_request
-from app.services.llm import OpenAICompatibleChatModel
+from app.services.llm import InvalidJSONReplyError, OpenAICompatibleChatModel
 
 
 def _model(api_key: str = "k") -> OpenAICompatibleChatModel:
@@ -71,6 +72,46 @@ async def test_sdk_errors_become_llm_errors(monkeypatch: pytest.MonkeyPatch) -> 
     _stub_create(monkeypatch, model, error=openai.OpenAIError("rate limited"))
     with pytest.raises(LLMError, match="rate limited"):
         await model.complete(system="s", user="u")
+
+
+def _bad_request(**body: Any) -> openai.BadRequestError:
+    request = httpx2.Request("POST", "https://llm.test/v1/chat/completions")
+    return openai.BadRequestError(
+        "Error code: 400", response=httpx2.Response(400, request=request), body=body
+    )
+
+
+async def test_server_side_json_rejection_keeps_the_reply(monkeypatch: pytest.MonkeyPatch) -> None:
+    model = _model()
+    error = _bad_request(code="json_validate_failed", failed_generation='{"verdicts": [')
+    _stub_create(monkeypatch, model, error=error)
+    with track_request() as metrics, pytest.raises(InvalidJSONReplyError) as info:
+        await model.complete(system="s", user="u", json_mode=True)
+    assert info.value.failed_generation == '{"verdicts": ['
+    assert metrics.llm_calls[0].success is False
+
+
+async def test_other_bad_requests_are_plain_llm_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    model = _model()
+    _stub_create(monkeypatch, model, error=_bad_request(code="context_length_exceeded"))
+    with pytest.raises(LLMError) as info:
+        await model.complete(system="s", user="u")
+    assert not isinstance(info.value, InvalidJSONReplyError)
+
+
+async def test_a_reply_cut_off_at_max_tokens_is_logged(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    model = _model()
+
+    async def create(**_: Any) -> SimpleNamespace:
+        choice = SimpleNamespace(message=SimpleNamespace(content='{"a": '), finish_reason="length")
+        return SimpleNamespace(choices=[choice], usage=None)
+
+    assert model._client is not None
+    monkeypatch.setattr(model._client.chat.completions, "create", create)
+    await model.complete(system="s", user="u", max_tokens=50, purpose="verification")
+    assert "cut off at max_tokens=50 (verification)" in caplog.text
 
 
 async def test_empty_completion_is_an_error(monkeypatch: pytest.MonkeyPatch) -> None:

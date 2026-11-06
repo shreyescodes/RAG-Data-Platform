@@ -5,6 +5,7 @@ import pytest
 from pydantic import BaseModel, Field
 
 from app.core.exceptions import LLMError
+from app.services.llm import InvalidJSONReplyError
 from app.services.structured_output import (
     Extraction,
     OutputRejected,
@@ -21,7 +22,7 @@ class Summary(BaseModel):
     score: int = Field(ge=0, le=10)
 
 
-def _llm(*replies: str) -> FakeChatModel:
+def _llm(*replies: str | Exception) -> FakeChatModel:
     return FakeChatModel(replies={"test": list(replies)})
 
 
@@ -135,6 +136,27 @@ async def test_transport_errors_are_not_retried() -> None:
     with pytest.raises(LLMError, match="down"):
         await _extract(llm)
     assert len(llm.calls) == 1
+
+
+async def test_server_side_json_rejections_are_retried_with_feedback() -> None:
+    rejected = InvalidJSONReplyError("400", failed_generation='{"headline": "Fine", "score":')
+    llm = _llm(rejected, '{"headline": "Fine", "score": 3}')
+
+    result = await _extract(llm)
+
+    assert result.value.score == 3
+    assert result.attempts[0].errors == ("the reply was not valid JSON",)
+    retry = llm.calls[1]["user"]
+    assert "the reply was not valid JSON" in retry
+    assert '{"headline": "Fine", "score":' in retry
+
+
+async def test_repeated_server_side_rejections_exhaust_the_attempts() -> None:
+    llm = _llm(*(InvalidJSONReplyError("400") for _ in range(3)))
+    with pytest.raises(StructuredOutputError) as info:
+        await _extract(llm)
+    assert len(info.value.attempts) == 3
+    assert info.value.last_raw == ""
 
 
 def test_max_attempts_must_be_positive() -> None:

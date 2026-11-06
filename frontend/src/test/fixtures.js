@@ -98,7 +98,7 @@ export const successResult = {
         method: 'hybrid',
         reason: '$1M matches no value in the evidence',
         evidence: [
-          { id: 'agg:arr.min', kind: 'aggregate', label: 'min of arr = 1.5e+06', row_index: null, column: 'arr', value: 1500000.5 },
+          { id: 'agg:arr.min', kind: 'aggregate', label: 'min of arr = 1,500,000', row_index: null, column: 'arr', value: 1500000.5 },
         ],
         unsupported_values: ['$1M'],
       },

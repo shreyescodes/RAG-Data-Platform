@@ -23,6 +23,21 @@ from app.observability.metrics import LLMCallRecord, estimate_tokens, record_llm
 logger = logging.getLogger(__name__)
 
 EndpointKind = Literal["local", "remote"]
+
+
+class InvalidJSONReplyError(LLMError):
+    """The server refused the model's reply because it was not valid JSON.
+
+    Groq validates JSON-mode output itself and answers HTTP 400
+    `json_validate_failed`. That is a bad reply, not an outage, so callers that
+    retry on invalid output (the structured-output extractor) should retry.
+    """
+
+    def __init__(self, detail: str, *, failed_generation: str = "") -> None:
+        super().__init__(detail)
+        self.failed_generation = failed_generation
+
+
 # The OpenAI SDK insists on a key; self-hosted servers ignore it.
 LOCAL_PLACEHOLDER_KEY = "not-needed"
 
@@ -142,12 +157,27 @@ class OpenAICompatibleChatModel:
                 max_tokens=max_tokens,
                 response_format=fmt if fmt is not None else openai.omit,  # type: ignore[arg-type]
             )
+        except openai.BadRequestError as exc:
+            self._record(purpose, started, success=False)
+            if exc.code == "json_validate_failed":
+                body = exc.body if isinstance(exc.body, dict) else {}
+                logger.info("LLM reply rejected as invalid JSON (%s)", purpose)
+                raise InvalidJSONReplyError(
+                    str(exc), failed_generation=str(body.get("failed_generation") or "")
+                ) from exc
+            logger.warning("LLM request failed (%s): %s", purpose, exc)
+            raise LLMError(str(exc)) from exc
         except openai.OpenAIError as exc:
             self._record(purpose, started, success=False)
             logger.warning("LLM request failed (%s): %s", purpose, exc)
             raise LLMError(str(exc)) from exc
 
-        content = response.choices[0].message.content if response.choices else None
+        choice = response.choices[0] if response.choices else None
+        content = choice.message.content if choice is not None else None
+        if getattr(choice, "finish_reason", None) == "length":
+            # Reasoning models spend part of the budget thinking; a cut-off JSON
+            # reply fails validation, so a recurring warning means: raise it.
+            logger.warning("LLM reply cut off at max_tokens=%d (%s)", max_tokens, purpose)
         usage = response.usage
         if usage is not None:
             self._record(purpose, started, usage.prompt_tokens, usage.completion_tokens)

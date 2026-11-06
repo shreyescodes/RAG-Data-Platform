@@ -27,8 +27,9 @@ that was run, a sample of its results and optionally live market data.
 
 Answer strictly from the data provided. Do not speculate beyond it: every \
 number, name and date you state must appear in, or follow directly from, the \
-data. If the sample is truncated, say so when it matters. Format numbers for \
-readability (e.g. $1.2B, 4.5%)."""
+data. The user sees every row in a table. If you were given only the first \
+rows, describe what they cover ("over the most recent 25 trading days") rather \
+than calling them a sample. Format numbers for readability (e.g. $1.2B, 4.5%)."""
 
 PURPOSE = "analysis"
 
