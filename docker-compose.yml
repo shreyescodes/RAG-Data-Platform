@@ -3,8 +3,39 @@
 #   docker compose up -d --build
 #   docker compose exec backend python -m app.cli seed
 # The UI is then at http://localhost:8080.
+#
+# Optional: serve the LLM yourself (no API key, no per-token cost). Pick one
+# profile and point the backend at it in .env (see docs/PRODUCTION_UPGRADES.md):
+#   docker compose --profile ollama up -d        # NVIDIA GPU; LLM_BASE_URL=http://ollama:11434/v1
+#   docker compose --profile ollama-cpu up -d    # no GPU (slow; small models only)
+#   docker compose --profile vllm up -d          # NVIDIA GPU; LLM_BASE_URL=http://vllm:8000/v1
+#   docker compose --profile llamacpp up -d      # NVIDIA GPU; LLM_BASE_URL=http://llamacpp:8080/v1
+# The model servers are not published to the host: only the backend reaches them.
 
 name: rag-data-platform
+
+x-gpu: &gpu
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+
+x-ollama: &ollama
+  # Pin a tag in production; Dependabot does not track compose files.
+  image: ollama/ollama:latest
+  environment:
+    OLLAMA_KEEP_ALIVE: 24h
+  volumes:
+    - ollama_models:/root/.ollama
+  healthcheck:
+    test: ["CMD", "ollama", "list"]
+    interval: 10s
+    timeout: 5s
+    retries: 30
+  restart: unless-stopped
 
 services:
   db:
@@ -36,6 +67,10 @@ services:
     ports:
       # Loopback only, for direct API access during development.
       - "127.0.0.1:${API_PORT:-8000}:8000"
+    extra_hosts:
+      # Lets LLM_BASE_URL=http://host.docker.internal:11434/v1 reach an LLM
+      # server on the host on Linux too (Docker Desktop maps it already).
+      - "host.docker.internal:host-gateway"
     volumes:
       - backend_data:/app/data
     depends_on:
@@ -48,6 +83,7 @@ services:
     environment:
       BACKEND_URL: http://backend:8000
       API_KEY: ${API_KEY:-}
+      PROXY_READ_TIMEOUT: ${PROXY_READ_TIMEOUT:-300s}
     ports:
       - "${FRONTEND_PORT:-8080}:80"
     depends_on:
@@ -55,6 +91,75 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # --- Self-hosted LLM (opt-in profiles) ------------------------------------------
+
+  ollama:
+    <<: [*ollama, *gpu]
+    profiles: ["ollama"]
+
+  ollama-cpu:
+    <<: *ollama
+    profiles: ["ollama-cpu"]
+    networks:
+      default:
+        aliases: [ollama]
+
+  # Downloads OLLAMA_MODEL into the shared volume, then exits.
+  ollama-pull:
+    image: ollama/ollama:latest
+    profiles: ["ollama", "ollama-cpu"]
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - until ollama list >/dev/null 2>&1; do sleep 2; done; exec ollama pull "$$OLLAMA_MODEL"
+    restart: "no"
+
+  vllm:
+    <<: *gpu
+    image: vllm/vllm-openai:latest
+    profiles: ["vllm"]
+    # The served name is what LLM_MODEL must be set to.
+    command:
+      - --model=${VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct-AWQ}
+      - --served-model-name=${VLLM_SERVED_NAME:-qwen2.5-7b-instruct}
+      - --max-model-len=${VLLM_MAX_MODEL_LEN:-8192}
+      - --gpu-memory-utilization=${VLLM_GPU_MEMORY:-0.90}
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+    ipc: host
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 60
+    restart: unless-stopped
+
+  llamacpp:
+    <<: *gpu
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    profiles: ["llamacpp"]
+    # -hf downloads a GGUF from Hugging Face on first start; --jinja enables the
+    # model's chat template, which JSON-schema constrained output relies on.
+    command:
+      - -hf
+      - ${LLAMACPP_MODEL:-Qwen/Qwen2.5-7B-Instruct-GGUF:Q4_K_M}
+      - --host=0.0.0.0
+      - --port=8080
+      - --n-gpu-layers=999
+      - --ctx-size=8192
+      - --jinja
+    volumes:
+      - llamacpp_models:/root/.cache/llama.cpp
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   backend_data:
+  ollama_models:
+  hf_cache:
+  llamacpp_models:

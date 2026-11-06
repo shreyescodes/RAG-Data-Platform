@@ -26,9 +26,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN groupadd --system app && useradd --system --gid app --home-dir /app app
 COPY --from=builder /opt/venv /opt/venv
 
-# Bake the embedding model into the image so containers start offline.
+# Bake the embedding and reranking models into the image so containers start
+# offline. Pass --build-arg RERANKER_MODEL= to leave the reranker out.
 ARG EMBEDDING_MODEL=all-MiniLM-L6-v2
+ARG RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L6-v2
 RUN python -c "from sentence_transformers import SentenceTransformer as M; M('${EMBEDDING_MODEL}')" \
+    && if [ -n "${RERANKER_MODEL}" ]; then \
+        python -c "from sentence_transformers import CrossEncoder as C; C('${RERANKER_MODEL}')"; \
+    fi \
     && chmod -R a+rX "$HF_HOME"
 ENV HF_HUB_OFFLINE=1
 

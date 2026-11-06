@@ -25,6 +25,7 @@ Document = dict[str, Any]
 class SearchHit:
     document: Document
     score: float  # cosine similarity in [-1, 1]; higher is closer
+    index: int = -1  # position in `FAISSVectorStore.documents`
 
 
 class FAISSVectorStore:
@@ -41,6 +42,8 @@ class FAISSVectorStore:
         self._lock = threading.RLock()
         self._index: Any | None = None
         self._documents: list[Document] = []
+        # Bumped whenever the contents change, so derived indexes can rebuild.
+        self._generation = 0
         self._load()
 
     # -- paths ---------------------------------------------------------------
@@ -58,6 +61,16 @@ class FAISSVectorStore:
         with self._lock:
             return len(self._documents)
 
+    @property
+    def generation(self) -> int:
+        with self._lock:
+            return self._generation
+
+    def snapshot(self) -> tuple[int, list[Document]]:
+        """The current generation and a copy of the documents, read atomically."""
+        with self._lock:
+            return self._generation, list(self._documents)
+
     def rebuild(self, texts: Sequence[str], documents: Sequence[Document]) -> int:
         """Replace the index contents with `texts` and their `documents`."""
         if len(texts) != len(documents):
@@ -72,6 +85,7 @@ class FAISSVectorStore:
         with self._lock:
             self._index = index
             self._documents = list(documents)
+            self._generation += 1
             self._persist(index, self._documents)
         logger.info("Vector index rebuilt with %d documents", len(documents))
         return len(documents)
@@ -85,7 +99,7 @@ class FAISSVectorStore:
         vector = np.ascontiguousarray(self._embedder.encode([query]), dtype=np.float32)
         scores, ids = index.search(vector, min(k, len(documents)))
         return [
-            SearchHit(document=documents[i], score=float(s))
+            SearchHit(document=documents[i], score=float(s), index=int(i))
             for i, s in zip(ids[0], scores[0], strict=True)
             if 0 <= i < len(documents)
         ]
@@ -136,4 +150,5 @@ class FAISSVectorStore:
 
         self._index = index
         self._documents = documents
+        self._generation += 1
         logger.info("Loaded vector index with %d documents", len(documents))

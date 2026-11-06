@@ -966,3 +966,363 @@ th.num {
   text-align: right;
 }
 
+
+/* ---- Citations ------------------------------------------------------------ */
+.citation-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin: 0 0 1rem;
+  font-size: 0.8125rem;
+}
+.citation-summary dt {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.citation-summary dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+.table-scroll {
+  overflow-x: auto;
+}
+.citation-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+.citation-table caption {
+  text-align: left;
+  margin-top: 0;
+}
+.citation-table th,
+.citation-table td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+  vertical-align: top;
+}
+.citation-table thead th {
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.75rem;
+}
+.citation-table tbody th {
+  font-weight: 400;
+}
+.citation-table .num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.citation-columns {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  margin-top: 0.15rem;
+}
+.via-badge {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.via-retrieved {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+.via-sql_only {
+  border-color: var(--warning-color);
+  color: var(--warning-color);
+}
+.lineage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8125rem;
+}
+.lineage-arrow {
+  color: var(--text-muted);
+  margin: 0 0.5rem;
+}
+.lineage-source {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+.lineage-kind {
+  font-family: var(--font-body);
+  color: var(--text-muted);
+}
+.citation-note {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  margin: 0.75rem 0 0;
+}
+
+/* ---- Fact check --------------------------------------------------------------- */
+.verification-headline {
+  margin: 0 0 0.75rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+.verification-headline.is-verified {
+  color: var(--accent-primary);
+}
+.verification-headline.is-flagged {
+  color: var(--warning-color);
+}
+.claims-details summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+.claim-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.claim {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-left: 2px solid var(--text-muted);
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+.claim--supported {
+  border-left-color: var(--accent-primary);
+}
+.claim--partially_supported {
+  border-left-color: var(--warning-color);
+}
+.claim--unsupported {
+  border-left-color: var(--error-color);
+}
+.claim-head {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+}
+.verdict-chip {
+  flex: none;
+  font-size: 0.7rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.verdict-supported {
+  color: var(--accent-primary);
+}
+.verdict-partially_supported {
+  color: var(--warning-color);
+}
+.verdict-unsupported {
+  color: var(--error-color);
+}
+.verdict-unverifiable {
+  color: var(--text-muted);
+}
+.claim-meta {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  margin-top: 0.3rem;
+}
+.claim-evidence {
+  margin: 0.35rem 0 0;
+  padding-left: 1rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.claim-evidence a {
+  color: var(--accent-primary);
+}
+tr:target td {
+  background: var(--accent-glow);
+}
+
+/* ---- Navigation --------------------------------------------------------------- */
+.nav-tabs {
+  display: flex;
+  gap: 0.25rem;
+}
+.nav-tabs a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.875rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+}
+.nav-tabs a:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+.nav-tabs a[aria-current='page'] {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  box-shadow: inset 0 -2px 0 var(--accent-primary);
+}
+
+/* ---- Observability ------------------------------------------------------------ */
+.observability {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.obs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.segment {
+  background: none;
+  border: none;
+  border-right: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.8125rem;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+}
+.segment:last-child {
+  border-right: none;
+}
+.segment:hover {
+  color: var(--text-primary);
+}
+.segment.is-active {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.obs-updated {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+.obs-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  transition: opacity 0.2s ease;
+}
+/* A refetch keeps the previous render, dimmed: no skeleton, no layout jump. */
+.obs-body.is-refreshing {
+  opacity: 0.55;
+}
+.obs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0;
+}
+.stat-tile {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+}
+.stat-tile dd {
+  margin: 0;
+}
+.stat-tile-value {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 1.625rem;
+  color: var(--text-primary);
+  margin-top: 0.35rem !important;
+}
+.stat-tile-detail {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  margin-top: 0.2rem !important;
+}
+.empty-note {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin: 0;
+}
+.share-col {
+  width: 35%;
+}
+.share-track {
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+}
+.share-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--series-1);
+}
+.query-cell {
+  min-width: 11rem;
+  font-weight: 400;
+  color: var(--text-primary);
+  white-space: normal;
+  max-width: 28rem;
+  overflow-wrap: anywhere;
+}
+.outcome {
+  display: inline-block;
+  margin-right: 0.3rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-family: var(--font-body);
+}
+.outcome-ok {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+.outcome-failed {
+  color: var(--status-critical);
+  border-color: var(--status-critical);
+}
+.outcome-flagged {
+  color: var(--warning-color);
+  border-color: var(--warning-color);
+}
+.endpoint-tag {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+@media (max-width: 900px) {
+  .obs-grid,
+  .kpi-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .obs-grid {
+    grid-template-columns: 1fr;
+  }
+}
+/* Long identifiers (error types, model names) wrap rather than clip. */
+.observability td {
+  overflow-wrap: anywhere;
+}

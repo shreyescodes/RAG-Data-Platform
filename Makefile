@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := help
 .PHONY: help install dev-backend dev-frontend migrate seed index lint format typecheck \
-        test test-backend test-frontend eval check docker-up docker-down clean
+        test test-backend test-frontend eval eval-offline eval-retrieval eval-hallucination \
+        check docker-up docker-up-ollama docker-down clean
 
 BACKEND  := cd backend &&
 FRONTEND := cd frontend &&
@@ -47,13 +48,24 @@ test-frontend: ## Run frontend tests
 
 test: test-backend test-frontend ## Run all tests
 
-eval: ## Score the live pipeline on eval/cases.json (needs seeded DB + LLM key)
+eval: ## Score the live pipeline on eval/cases.json (needs seeded DB + an LLM)
 	$(BACKEND) python -m eval.run
+
+eval-retrieval: ## Dense vs hybrid vs reranked schema search (local models, no DB or LLM)
+	$(BACKEND) python -m eval.retrieval
+
+eval-hallucination: ## Hallucination detector on labelled claims (no DB or LLM)
+	$(BACKEND) python -m eval.hallucination
+
+eval-offline: eval-retrieval eval-hallucination ## Every evaluation that needs no database or LLM
 
 check: lint typecheck test ## Everything CI runs (except Docker builds)
 
 docker-up: ## Build and start the full stack
 	docker compose up -d --build
+
+docker-up-ollama: ## Full stack plus a GPU Ollama server (LLM_BASE_URL=http://ollama:11434/v1)
+	docker compose --profile ollama up -d --build
 
 docker-down: ## Stop the stack (data volumes are kept)
 	docker compose down

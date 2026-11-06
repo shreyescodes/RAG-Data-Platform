@@ -13,6 +13,10 @@ database. The main risks, and the controls for each:
 | Unauthorised or abusive API use | API-key auth, per-IP rate limits, input length limits |
 | Secret leakage | Secrets held as `SecretStr` (masked in logs and reprs); the API key is added by the proxy and never shipped to the browser |
 | Internal detail leaking in errors | Clients only see curated `user_message` strings; stack traces go to logs with a request ID |
+| Telemetry exposing other users' questions | `request_metrics` and `llm_calls` are not queryable by the LLM, store only the redacted question (truncated), and the `/api/metrics/*` endpoints require the API key |
+| A poisoned cache serving unsafe SQL | Only replies that passed validation are cached; cached SQL is re-validated by the SQL safety checks on every replay and re-executed read-only |
+| Prompt injection through result data into the fact check | The LLM judge only labels claims, its output is schema-validated, and deterministic mismatches override it |
+| Data leaving your infrastructure | Point `LLM_BASE_URL` at a local server (Ollama, vLLM, llama.cpp): prompts, rows and answers then never leave your network |
 
 ## Generated SQL
 
@@ -47,6 +51,14 @@ GRANT SELECT ON companies, financial_statements, portfolio_companies,
 ALTER ROLE rag_readonly SET statement_timeout = '15s';
 ```
 
+### Self-correction stays inside the guardrails
+
+Structured-output retries and SQL repair send validation errors or the
+database's error message back to the model. Every reply, including every
+retry and repair, goes through the same validator and read-only execution;
+retries cannot widen what is allowed. The database error text is truncated
+before it is sent.
+
 ## PII redaction
 
 [`pii_redactor.py`](../backend/app/utils/pii_redactor.py) masks the following
@@ -71,6 +83,9 @@ but is not a guarantee, and it does not detect names or addresses.
 - `QUERY_DATABASE_URL` pointing at a SELECT-only role.
 - TLS terminated in front of nginx.
 - `EXPOSE_DOCS=false` if the OpenAPI schema should not be public.
+- For data that must not reach a third party, a local LLM endpoint
+  (`docker compose --profile ollama`); the dashboard then shows
+  `llm_endpoint: local`.
 - `FORWARDED_ALLOW_IPS` restricted to your proxy so clients cannot spoof
   `X-Forwarded-For` to evade rate limits.
 

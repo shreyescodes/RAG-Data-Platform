@@ -77,6 +77,16 @@ jobs:
           path: backend/coverage.xml
           if-no-files-found: ignore
 
+      # Regression gates that need no database or LLM: the hallucination
+      # detector's recall / false-positive bar, and hybrid retrieval never
+      # completing fewer cases than dense retrieval (real local models).
+      - name: Offline evaluations
+        env:
+          DATABASE_URL: sqlite://
+        run: |
+          python -m eval.hallucination --out "$RUNNER_TEMP/evaluation-hallucination.md"
+          python -m eval.retrieval --out "$RUNNER_TEMP/evaluation-retrieval.md"
+
   frontend:
     name: Frontend (lint, tests, build)
     runs-on: ubuntu-latest

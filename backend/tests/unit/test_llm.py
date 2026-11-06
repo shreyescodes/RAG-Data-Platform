@@ -1,11 +1,13 @@
 from types import SimpleNamespace
 from typing import Any
 
+import httpx2
 import openai
 import pytest
 
 from app.core.exceptions import LLMError, LLMNotConfiguredError
-from app.services.llm import OpenAICompatibleChatModel
+from app.observability.metrics import track_request
+from app.services.llm import InvalidJSONReplyError, OpenAICompatibleChatModel
 
 
 def _model(api_key: str = "k") -> OpenAICompatibleChatModel:
@@ -24,6 +26,7 @@ def _stub_create(
     *,
     content: str | None = "ok",
     error: Exception | None = None,
+    usage: SimpleNamespace | None = None,
 ) -> list[dict[str, Any]]:
     calls: list[dict[str, Any]] = []
 
@@ -32,7 +35,7 @@ def _stub_create(
         if error is not None:
             raise error
         message = SimpleNamespace(content=content)
-        return SimpleNamespace(choices=[SimpleNamespace(message=message)])
+        return SimpleNamespace(choices=[SimpleNamespace(message=message)], usage=usage)
 
     assert model._client is not None
     monkeypatch.setattr(model._client.chat.completions, "create", create)
@@ -71,6 +74,46 @@ async def test_sdk_errors_become_llm_errors(monkeypatch: pytest.MonkeyPatch) -> 
         await model.complete(system="s", user="u")
 
 
+def _bad_request(**body: Any) -> openai.BadRequestError:
+    request = httpx2.Request("POST", "https://llm.test/v1/chat/completions")
+    return openai.BadRequestError(
+        "Error code: 400", response=httpx2.Response(400, request=request), body=body
+    )
+
+
+async def test_server_side_json_rejection_keeps_the_reply(monkeypatch: pytest.MonkeyPatch) -> None:
+    model = _model()
+    error = _bad_request(code="json_validate_failed", failed_generation='{"verdicts": [')
+    _stub_create(monkeypatch, model, error=error)
+    with track_request() as metrics, pytest.raises(InvalidJSONReplyError) as info:
+        await model.complete(system="s", user="u", json_mode=True)
+    assert info.value.failed_generation == '{"verdicts": ['
+    assert metrics.llm_calls[0].success is False
+
+
+async def test_other_bad_requests_are_plain_llm_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    model = _model()
+    _stub_create(monkeypatch, model, error=_bad_request(code="context_length_exceeded"))
+    with pytest.raises(LLMError) as info:
+        await model.complete(system="s", user="u")
+    assert not isinstance(info.value, InvalidJSONReplyError)
+
+
+async def test_a_reply_cut_off_at_max_tokens_is_logged(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    model = _model()
+
+    async def create(**_: Any) -> SimpleNamespace:
+        choice = SimpleNamespace(message=SimpleNamespace(content='{"a": '), finish_reason="length")
+        return SimpleNamespace(choices=[choice], usage=None)
+
+    assert model._client is not None
+    monkeypatch.setattr(model._client.chat.completions, "create", create)
+    await model.complete(system="s", user="u", max_tokens=50, purpose="verification")
+    assert "cut off at max_tokens=50 (verification)" in caplog.text
+
+
 async def test_empty_completion_is_an_error(monkeypatch: pytest.MonkeyPatch) -> None:
     model = _model()
     _stub_create(monkeypatch, model, content=None)
@@ -83,3 +126,86 @@ async def test_missing_api_key() -> None:
     with pytest.raises(LLMNotConfiguredError):
         await model.complete(system="s", user="u")
     await model.aclose()  # no-op without a client
+
+
+async def test_json_schema_requests_constrained_decoding(monkeypatch: pytest.MonkeyPatch) -> None:
+    model = _model()
+    calls = _stub_create(monkeypatch, model, content="{}")
+    schema = {"name": "Out", "schema": {"type": "object"}}
+    await model.complete(system="s", user="u", json_schema=schema, purpose="test")
+    assert calls[0]["response_format"] == {
+        "type": "json_schema",
+        "json_schema": {"name": "Out", "schema": {"type": "object"}, "strict": False},
+    }
+
+
+def test_local_endpoints_need_no_key() -> None:
+    local = OpenAICompatibleChatModel(
+        api_key="",
+        base_url="http://localhost:11434/v1",
+        model="m",
+        timeout_seconds=5,
+        max_retries=0,
+    )
+    remote = _model(api_key="")
+    assert (local.endpoint, local.configured) == ("local", True)
+    assert (remote.endpoint, remote.configured) == ("remote", False)
+
+
+async def test_usage_is_recorded_and_estimated_when_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    model = _model()
+    _stub_create(
+        monkeypatch,
+        model,
+        content="x" * 40,
+        usage=SimpleNamespace(prompt_tokens=11, completion_tokens=7),
+    )
+    with track_request() as metrics:
+        await model.complete(system="s", user="u", purpose="analysis")
+    (call,) = metrics.llm_calls
+    assert (call.purpose, call.prompt_tokens, call.completion_tokens) == ("analysis", 11, 7)
+    assert call.estimated is False
+
+    _stub_create(monkeypatch, model, content="x" * 40)
+    with track_request() as metrics:
+        await model.complete(system="s" * 8, user="u" * 8)
+    assert metrics.llm_calls[0].completion_tokens == 10
+    assert metrics.llm_calls[0].estimated is True
+
+
+async def test_failed_calls_are_recorded(monkeypatch: pytest.MonkeyPatch) -> None:
+    model = _model()
+    _stub_create(monkeypatch, model, error=openai.OpenAIError("boom"))
+    with track_request() as metrics, pytest.raises(LLMError):
+        await model.complete(system="s", user="u")
+    assert metrics.llm_calls[0].success is False
+
+
+async def test_probe_lists_models(monkeypatch: pytest.MonkeyPatch) -> None:
+    model = _model()
+    assert model._client is not None
+
+    class Models:
+        async def list(self) -> SimpleNamespace:
+            return SimpleNamespace(data=[SimpleNamespace(id="test-model"), SimpleNamespace(id="x")])
+
+    monkeypatch.setattr(model._client, "with_options", lambda **_: SimpleNamespace(models=Models()))
+    result = await model.probe()
+    assert (result.reachable, result.model_available) == (True, True)
+    assert result.models == ["test-model", "x"]
+
+
+async def test_probe_reports_unreachable_servers(monkeypatch: pytest.MonkeyPatch) -> None:
+    model = _model()
+    assert model._client is not None
+
+    class Models:
+        async def list(self) -> None:
+            raise openai.OpenAIError("connection refused")
+
+    monkeypatch.setattr(model._client, "with_options", lambda **_: SimpleNamespace(models=Models()))
+    result = await model.probe()
+    assert (result.reachable, result.error) == (False, "OpenAIError")
+    assert (await _model(api_key="").probe()).error == "not configured"

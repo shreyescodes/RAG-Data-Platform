@@ -1,7 +1,7 @@
 import { Card } from './Card.jsx'
 import { DatabaseIcon } from './Icons.jsx'
 
-const STAGES = ['retrieval', 'enrichment', 'analysis']
+const STAGES = ['retrieval', 'enrichment', 'analysis', 'verification']
 
 function formatDetail(detail) {
   if (detail === null || detail === undefined) return ''

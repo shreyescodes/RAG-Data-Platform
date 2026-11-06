@@ -8,12 +8,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 from app.agents.base import Agent, Trace
 from app.core.exceptions import LLMError
 from app.schemas import StageStatus
-from app.services.llm import ChatModel
+from app.services.structured_output import StructuredOutputExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -25,20 +25,21 @@ _SYSTEM_PROMPT = """\
 You are a financial data analyst. You are given a user's question, the SQL \
 that was run, a sample of its results and optionally live market data.
 
-Answer strictly from the data provided. Do not speculate beyond it. If the \
-sample is truncated, say so when it matters. Format numbers for readability \
-(e.g. $1.2B, 4.5%).
+Answer strictly from the data provided. Do not speculate beyond it: every \
+number, name and date you state must appear in, or follow directly from, the \
+data. The user sees every row in a table. If you were given only the first \
+rows, describe what they cover ("over the most recent 25 trading days") rather \
+than calling them a sample. Format numbers for readability (e.g. $1.2B, 4.5%)."""
 
-Respond with a JSON object with keys:
-- "answer": a direct one-to-three sentence answer to the question
-- "summary": a short paragraph describing what the data shows
-- "insights": an array of 2-3 short, specific observations"""
+PURPOSE = "analysis"
 
 
-class _AnalysisPayload(BaseModel):
-    answer: str
-    summary: str = ""
-    insights: list[str] = Field(default_factory=list, max_length=5)
+class AnalysisPayload(BaseModel):
+    answer: str = Field(min_length=1, description="A direct one-to-three sentence answer.")
+    summary: str = Field(default="", description="A short paragraph on what the data shows.")
+    insights: list[str] = Field(
+        default_factory=list, max_length=5, description="2-3 short, specific observations."
+    )
 
 
 @dataclass(slots=True)
@@ -57,8 +58,8 @@ def _serialise(data: Any, limit: int) -> str:
 class AnalysisAgent(Agent):
     name = "analysis"
 
-    def __init__(self, chat_model: ChatModel) -> None:
-        self._chat = chat_model
+    def __init__(self, extractor: StructuredOutputExtractor) -> None:
+        self._extractor = extractor
 
     async def run(
         self,
@@ -94,20 +95,25 @@ class AnalysisAgent(Agent):
             prompt += f"\n\nLive data:\n{_serialise(enrichment, MAX_PROMPT_DATA_CHARS // 2)}"
 
         try:
-            completion = await self._chat.complete(
+            extraction = await self._extractor.extract(
+                AnalysisPayload,
                 system=_SYSTEM_PROMPT,
                 user=prompt,
+                purpose=PURPOSE,
                 temperature=0.2,
                 max_tokens=2000,
-                json_mode=True,
             )
-            payload = _AnalysisPayload.model_validate_json(completion)
-        except (LLMError, ValidationError) as exc:
+        except LLMError as exc:  # includes StructuredOutputError after the retries
             logger.warning("Analysis fell back to a deterministic summary: %s", exc)
             self._record(trace, "fallback", type(exc).__name__)
             return self._fallback(rows)
 
-        self._record(trace, "analysis_completed", {"insights": len(payload.insights)})
+        payload = extraction.value
+        self._record(
+            trace,
+            "analysis_completed",
+            {"insights": len(payload.insights), "attempts": len(extraction.attempts)},
+        )
         return AnalysisResult(
             status="completed",
             answer=payload.answer,

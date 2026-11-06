@@ -41,13 +41,13 @@ from sqlalchemy.orm import Session  # noqa: E402
 
 from app.container import ServiceContainer  # noqa: E402
 from app.core.rate_limit import limiter  # noqa: E402
-from app.db.models import Base, QueryLog  # noqa: E402
+from app.db.models import Base, LLMCall, QueryLog, RequestMetric  # noqa: E402
 from app.db.session import get_engine, get_session_factory  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.rag.schema_indexer import SchemaIndexer  # noqa: E402
 from app.rag.vector_store import FAISSVectorStore  # noqa: E402
 from tests.factories import seed_reference_data  # noqa: E402
-from tests.fakes import FakeChatModel, HashingEmbedder  # noqa: E402
+from tests.fakes import FakeChatModel, HashingEmbedder, OverlapReranker  # noqa: E402
 
 API_KEY = os.environ["API_KEY"]
 
@@ -72,6 +72,8 @@ def db(engine: Engine) -> Iterator[Session]:
     with get_session_factory()() as session:
         yield session
         session.execute(delete(QueryLog))
+        session.execute(delete(LLMCall))
+        session.execute(delete(RequestMetric))
         session.commit()
 
 
@@ -86,7 +88,20 @@ def vector_store(tmp_path: Path, embedder: HashingEmbedder) -> FAISSVectorStore:
 
 
 @pytest.fixture
-def indexer(vector_store: FAISSVectorStore) -> SchemaIndexer:
+def reranker() -> OverlapReranker:
+    return OverlapReranker()
+
+
+@pytest.fixture
+def indexer(vector_store: FAISSVectorStore, reranker: OverlapReranker) -> SchemaIndexer:
+    """The production retrieval pipeline (dense + BM25 + rerank) with test models."""
+    indexer = SchemaIndexer(vector_store, hybrid=True, reranker=reranker)
+    indexer.index()
+    return indexer
+
+
+@pytest.fixture
+def dense_indexer(vector_store: FAISSVectorStore) -> SchemaIndexer:
     indexer = SchemaIndexer(vector_store)
     indexer.index()
     return indexer

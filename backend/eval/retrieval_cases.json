@@ -1,0 +1,22 @@
+[
+  {"id": "ident-moving-averages", "question": "Show ma_50 and ma_200 for MSFT over the last month", "tables": ["market_data"]},
+  {"id": "ident-ltv-cac", "question": "Which portfolio companies have an LTV to CAC ratio above 3?", "tables": ["performance_metrics", "portfolio_companies", "companies"]},
+  {"id": "ident-eps", "question": "List EPS by fiscal_year for Microsoft", "tables": ["financial_statements", "companies"]},
+  {"id": "ident-runway", "question": "Which companies have the longest runway_months?", "tables": ["performance_metrics", "portfolio_companies", "companies"]},
+  {"id": "ident-fcf", "question": "What is Amazon's free_cash_flow in its latest annual statement?", "tables": ["financial_statements", "companies"]},
+  {"id": "ident-adj-close", "question": "Highest adj_close in the last week", "tables": ["market_data"]},
+  {"id": "ident-ownership", "question": "Average ownership_percentage by investment_stage", "tables": ["portfolio_companies"]},
+  {"id": "para-burn", "question": "How much cash are portfolio companies burning each month?", "tables": ["performance_metrics", "portfolio_companies", "companies"]},
+  {"id": "para-industries", "question": "Which industries are represented in the dataset?", "tables": ["companies"]},
+  {"id": "para-equity", "question": "Shareholders' equity versus total liabilities for JPM", "tables": ["financial_statements", "companies"]},
+  {"id": "para-mrr", "question": "Monthly recurring revenue trend for Atlas Analytics", "tables": ["performance_metrics", "portfolio_companies", "companies"]},
+  {"id": "para-exits", "question": "Which investments have exited, and when?", "tables": ["portfolio_companies", "companies"]},
+  {"id": "para-volume", "question": "Trading volume spikes for TSLA", "tables": ["market_data"]},
+  {"id": "para-gross-margin", "question": "Gross margin of Apple over the last four quarters", "tables": ["financial_statements", "companies"]},
+  {"id": "para-stake", "question": "Where does the fund own more than 20% of a company?", "tables": ["portfolio_companies", "companies"]},
+  {"id": "disambig-ebitda-multiple", "question": "Average EBITDA multiple of SaaS portfolio companies", "tables": ["performance_metrics", "portfolio_companies"]},
+  {"id": "para-cac", "question": "Customer acquisition cost by investment stage", "tables": ["performance_metrics", "portfolio_companies"]},
+  {"id": "para-bank-assets", "question": "Total assets of companies in the Financial Services sector", "tables": ["financial_statements", "companies"]},
+  {"id": "para-high-low", "question": "Daily high and low prices for NVDA", "tables": ["market_data"]},
+  {"id": "para-customers", "question": "How many customers does each portfolio company have?", "tables": ["performance_metrics", "portfolio_companies", "companies"]}
+]

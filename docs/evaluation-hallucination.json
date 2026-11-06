@@ -1,0 +1,918 @@
+{
+  "meta": {
+    "date": "2026-11-06 04:32 UTC",
+    "model": "qwen2.5:1.5b"
+  },
+  "summary": {
+    "heuristic": {
+      "claims": 44,
+      "hallucinated": 19,
+      "caught": 16,
+      "recall": 0.842,
+      "faithful": 25,
+      "false_positives": 0,
+      "false_positive_rate": 0.0,
+      "precision": 1.0,
+      "faithful_confirmed": 25,
+      "unverifiable": 3
+    },
+    "hybrid": {
+      "claims": 44,
+      "hallucinated": 19,
+      "caught": 17,
+      "recall": 0.895,
+      "faithful": 25,
+      "false_positives": 0,
+      "false_positive_rate": 0.0,
+      "precision": 1.0,
+      "faithful_confirmed": 25,
+      "unverifiable": 1
+    }
+  },
+  "results": {
+    "heuristic": [
+      {
+        "case_id": "quarterly-financials",
+        "mode": "heuristic",
+        "text": "Apple Inc. reported revenue of $94.0B in the quarter ending 2026-06-30.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "quarterly-financials",
+        "mode": "heuristic",
+        "text": "Microsoft Corporation earned $27.2B in net income.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "quarterly-financials",
+        "mode": "heuristic",
+        "text": "Microsoft's net margin of 35.6% exceeds Apple's 24.9%.",
+        "label": "faithful",
+        "category": "computed",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "quarterly-financials",
+        "mode": "heuristic",
+        "text": "Apple's revenue was 23% higher than Microsoft's.",
+        "label": "faithful",
+        "category": "computed",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "quarterly-financials",
+        "mode": "heuristic",
+        "text": "Microsoft reported the higher revenue, at $94.0B.",
+        "label": "hallucinated",
+        "category": "misattribution",
+        "verdict": "unsupported",
+        "method": "deterministic",
+        "reason": "$94.0B belongs to a different row than the one named"
+      },
+      {
+        "case_id": "quarterly-financials",
+        "mode": "heuristic",
+        "text": "Apple's net income reached $31.5B.",
+        "label": "hallucinated",
+        "category": "fabricated value",
+        "verdict": "unsupported",
+        "method": "deterministic",
+        "reason": "$31.5B matches no value in the evidence"
+      },
+      {
+        "case_id": "top-arr",
+        "mode": "heuristic",
+        "text": "Atlas Analytics leads with $12.4M in ARR.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "top-arr",
+        "mode": "heuristic",
+        "text": "Beacon Cloud follows at $9.8M, and Cobalt AI at $7.25M.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "top-arr",
+        "mode": "heuristic",
+        "text": "Together the three companies hold $29.45M of ARR.",
+        "label": "faithful",
+        "category": "computed",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "top-arr",
+        "mode": "heuristic",
+        "text": "Two of the three are at Series A.",
+        "label": "faithful",
+        "category": "count",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "top-arr",
+        "mode": "heuristic",
+        "text": "Delta Labs ranks fourth with $6.1M.",
+        "label": "hallucinated",
+        "category": "invented entity",
+        "verdict": "unsupported",
+        "method": "deterministic",
+        "reason": "\"Delta Labs\" does not appear in the evidence; $6.1M matches no value in the evidence"
+      },
+      {
+        "case_id": "top-arr",
+        "mode": "heuristic",
+        "text": "Cobalt AI has the highest ARR at $12.4M.",
+        "label": "hallucinated",
+        "category": "misattribution",
+        "verdict": "unsupported",
+        "method": "deterministic",
+        "reason": "$12.4M belongs to a different row than the one named"
+      },
+      {
+        "case_id": "top-arr",
+        "mode": "heuristic",
+        "text": "Average ARR across the group is $11.2M.",
+        "label": "hallucinated",
+        "category": "fabricated value",
+        "verdict": "unsupported",
+        "method": "deterministic",
+        "reason": "$11.2M matches no value in the evidence"
+      },
+      {
+        "case_id": "churn-by-stage",
+        "mode": "heuristic",
+        "text": "Seed-stage companies churn the most, at 3.1% a month.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "churn-by-stage",
+        "mode": "heuristic",
+        "text": "Growth-stage churn is lowest at 0.95%.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "churn-by-stage",
+        "mode": "heuristic",
+        "text": "Series B churn is 2.0% per month.",
+        "label": "hallucinated",
+        "category": "misattribution",
+        "verdict": "unsupported",
+        "method": "deterministic",
+        "reason": "2.0% belongs to a different row than the one named"
+      },
+      {
+        "case_id": "churn-by-stage",
+        "mode": "heuristic",
+        "text": "Seed churn is five times higher than Growth churn.",
+        "label": "hallucinated",
+        "category": "fabricated value",
+        "verdict": "unsupported",
+        "method": "deterministic",
+        "reason": "five matches no value in the evidence"
+      },
+      {
+        "case_id": "churn-by-stage",
+        "mode": "heuristic",
+        "text": "Churn rises sharply as companies mature from Series A to Growth.",
+        "label": "hallucinated",
+        "category": "qualitative",
+        "verdict": "unverifiable",
+        "method": "deterministic",
+        "reason": "names match the evidence; the statement itself is not checkable"
+      },
+      {
+        "case_id": "live-quote",
+        "mode": "heuristic",
+        "text": "NVDA trades at $181.26 per share.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "live-quote",
+        "mode": "heuristic",
+        "text": "Its market capitalization is about $4.4T.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "live-quote",
+        "mode": "heuristic",
+        "text": "NVDA's P/E ratio is 51.8.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "live-quote",
+        "mode": "heuristic",
+        "text": "NVDA's market cap is $5.2T.",
+        "label": "hallucinated",
+        "category": "fabricated value",
+        "verdict": "unsupported",
+        "method": "deterministic",
+        "reason": "$5.2T matches no value in the evidence"
+      },
+      {
+        "case_id": "live-quote",
+        "mode": "heuristic",
+        "text": "NVDA pays a 2.5% dividend yield.",
+        "label": "hallucinated",
+        "category": "fabricated value",
+        "verdict": "unsupported",
+        "method": "deterministic",
+        "reason": "2.5% matches no value in the evidence"
+      },
+      {
+        "case_id": "price-trend",
+        "mode": "heuristic",
+        "text": "NVDA closed at $188.20 on 2026-10-31.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "price-trend",
+        "mode": "heuristic",
+        "text": "The close was 3.9% above its 50-day average on the latest day.",
+        "label": "faithful",
+        "category": "computed",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "price-trend",
+        "mode": "heuristic",
+        "text": "NVDA closed at $191.50 on 2026-10-31.",
+        "label": "hallucinated",
+        "category": "fabricated value",
+        "verdict": "partially_supported",
+        "method": "deterministic",
+        "reason": "$191.50 matches no value in the evidence"
+      },
+      {
+        "case_id": "price-trend",
+        "mode": "heuristic",
+        "text": "NVDA closed at $186.40 on 2026-11-02.",
+        "label": "hallucinated",
+        "category": "wrong date",
+        "verdict": "partially_supported",
+        "method": "deterministic",
+        "reason": "2026-11-02 does not appear in the evidence"
+      },
+      {
+        "case_id": "sector-counts",
+        "mode": "heuristic",
+        "text": "The dataset lists three companies.",
+        "label": "faithful",
+        "category": "count",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "sector-counts",
+        "mode": "heuristic",
+        "text": "Two of them are in Technology.",
+        "label": "faithful",
+        "category": "count",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "sector-counts",
+        "mode": "heuristic",
+        "text": "Four companies are in Financial Services.",
+        "label": "hallucinated",
+        "category": "wrong count",
+        "verdict": "unsupported",
+        "method": "deterministic",
+        "reason": "Four matches no value in the evidence"
+      },
+      {
+        "case_id": "sector-counts",
+        "mode": "heuristic",
+        "text": "Amazon is also in Technology.",
+        "label": "hallucinated",
+        "category": "invented entity",
+        "verdict": "unverifiable",
+        "method": "deterministic",
+        "reason": "names match the evidence; the statement itself is not checkable"
+      },
+      {
+        "case_id": "qualitative",
+        "mode": "heuristic",
+        "text": "Beacon Cloud's ARR is $9.8M.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "qualitative",
+        "mode": "heuristic",
+        "text": "Atlas Analytics is the fastest-growing company in the portfolio.",
+        "label": "hallucinated",
+        "category": "qualitative",
+        "verdict": "unverifiable",
+        "method": "deterministic",
+        "reason": "names match the evidence; the statement itself is not checkable"
+      },
+      {
+        "case_id": "net-loss",
+        "mode": "heuristic",
+        "text": "Atlas Analytics lost $104M.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "net-loss",
+        "mode": "heuristic",
+        "text": "Beacon Cloud earned $12.5M.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "net-loss",
+        "mode": "heuristic",
+        "text": "Beacon Cloud earned $125M.",
+        "label": "hallucinated",
+        "category": "fabricated value",
+        "verdict": "unsupported",
+        "method": "deterministic",
+        "reason": "$125M matches no value in the evidence"
+      },
+      {
+        "case_id": "top-arr-wording",
+        "mode": "heuristic",
+        "text": "All five companies exceed $180 million in ARR.",
+        "label": "faithful",
+        "category": "bound",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "top-arr-wording",
+        "mode": "heuristic",
+        "text": "The gap between the highest ($274 M) and lowest ($182 M) ARR is roughly $92 million.",
+        "label": "faithful",
+        "category": "computed",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "top-arr-wording",
+        "mode": "heuristic",
+        "text": "The top three companies each hold more than $230 million.",
+        "label": "faithful",
+        "category": "bound",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "top-arr-wording",
+        "mode": "heuristic",
+        "text": "All five companies exceed $200 million in ARR.",
+        "label": "hallucinated",
+        "category": "wrong bound",
+        "verdict": "partially_supported",
+        "method": "deterministic",
+        "reason": "$200 million does not hold for every row (row:3)"
+      },
+      {
+        "case_id": "top-arr-wording",
+        "mode": "heuristic",
+        "text": "The gap between the highest and lowest ARR is roughly $120 million.",
+        "label": "hallucinated",
+        "category": "fabricated value",
+        "verdict": "unsupported",
+        "method": "deterministic",
+        "reason": "$120 million matches no value in the evidence"
+      },
+      {
+        "case_id": "annual-net-income-wording",
+        "mode": "heuristic",
+        "text": "Microsoft Corporation reported net income of $133.7B for the year ending June 30, 2026.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "annual-net-income-wording",
+        "mode": "heuristic",
+        "text": "MSFT's latest annual statement is dated 2026\u201106\u201130.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "annual-net-income-wording",
+        "mode": "heuristic",
+        "text": "Microsoft's latest annual statement is dated June 30, 2025.",
+        "label": "hallucinated",
+        "category": "wrong date",
+        "verdict": "unsupported",
+        "method": "deterministic",
+        "reason": "2025-06-30 does not appear in the evidence"
+      }
+    ],
+    "hybrid": [
+      {
+        "case_id": "quarterly-financials",
+        "mode": "hybrid",
+        "text": "Apple Inc. reported revenue of $94.0B in the quarter ending 2026-06-30.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "quarterly-financials",
+        "mode": "hybrid",
+        "text": "Microsoft Corporation earned $27.2B in net income.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "quarterly-financials",
+        "mode": "hybrid",
+        "text": "Microsoft's net margin of 35.6% exceeds Apple's 24.9%.",
+        "label": "faithful",
+        "category": "computed",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "quarterly-financials",
+        "mode": "hybrid",
+        "text": "Apple's revenue was 23% higher than Microsoft's.",
+        "label": "faithful",
+        "category": "computed",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "quarterly-financials",
+        "mode": "hybrid",
+        "text": "Microsoft reported the higher revenue, at $94.0B.",
+        "label": "hallucinated",
+        "category": "misattribution",
+        "verdict": "unsupported",
+        "method": "hybrid",
+        "reason": "The evidence shows that Microsoft reported higher revenue ($94,036,000,000) compared to Apple ($940,360,000,000). ($94.0B belongs to a different row than the one named)"
+      },
+      {
+        "case_id": "quarterly-financials",
+        "mode": "hybrid",
+        "text": "Apple's net income reached $31.5B.",
+        "label": "hallucinated",
+        "category": "fabricated value",
+        "verdict": "unsupported",
+        "method": "hybrid",
+        "reason": "The evidence shows that Apple's net income reached $23.434 billion, which is higher than Microsoft's net income of $27.233 billion. ($31.5B matches no value in the evidence)"
+      },
+      {
+        "case_id": "top-arr",
+        "mode": "hybrid",
+        "text": "Atlas Analytics leads with $12.4M in ARR.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "top-arr",
+        "mode": "hybrid",
+        "text": "Beacon Cloud follows at $9.8M, and Cobalt AI at $7.25M.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "top-arr",
+        "mode": "hybrid",
+        "text": "Together the three companies hold $29.45M of ARR.",
+        "label": "faithful",
+        "category": "computed",
+        "verdict": "supported",
+        "method": "hybrid",
+        "reason": "The sum of the latest ARR values (29,450,000) divided by the count of companies (3) gives the total ARR of $9,816,667, which is close to the claimed $29.45M."
+      },
+      {
+        "case_id": "top-arr",
+        "mode": "hybrid",
+        "text": "Two of the three are at Series A.",
+        "label": "faithful",
+        "category": "count",
+        "verdict": "supported",
+        "method": "hybrid",
+        "reason": "There are 2 companies with Series A investment stage, and 1 company with Series B investment stage, confirming the claim of two Series A companies."
+      },
+      {
+        "case_id": "top-arr",
+        "mode": "hybrid",
+        "text": "Delta Labs ranks fourth with $6.1M.",
+        "label": "hallucinated",
+        "category": "invented entity",
+        "verdict": "unsupported",
+        "method": "hybrid",
+        "reason": "The average ARR (11,216,667) is significantly lower than the claimed $6.1M, and the median (9,800,000) and minimum (7,250,000) are also lower than the claimed $6.1M. (\"Delta Labs\" does not appear in the evidence; $6.1M matches no value in the evidence)"
+      },
+      {
+        "case_id": "top-arr",
+        "mode": "hybrid",
+        "text": "Cobalt AI has the highest ARR at $12.4M.",
+        "label": "hallucinated",
+        "category": "misattribution",
+        "verdict": "unsupported",
+        "method": "hybrid",
+        "reason": "The highest ARR of $12,400,000 is confirmed by the maximum value in the dataset. ($12.4M belongs to a different row than the one named)"
+      },
+      {
+        "case_id": "top-arr",
+        "mode": "hybrid",
+        "text": "Average ARR across the group is $11.2M.",
+        "label": "hallucinated",
+        "category": "fabricated value",
+        "verdict": "unsupported",
+        "method": "hybrid",
+        "reason": "The average ARR (11,216,667) is close to the claimed $11.2M, and the median (9,800,000) and minimum (7,250,000) are also close to the claimed $11.2M. ($11.2M matches no value in the evidence)"
+      },
+      {
+        "case_id": "churn-by-stage",
+        "mode": "hybrid",
+        "text": "Seed-stage companies churn the most, at 3.1% a month.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "churn-by-stage",
+        "mode": "hybrid",
+        "text": "Growth-stage churn is lowest at 0.95%.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "churn-by-stage",
+        "mode": "hybrid",
+        "text": "Series B churn is 2.0% per month.",
+        "label": "hallucinated",
+        "category": "misattribution",
+        "verdict": "unsupported",
+        "method": "hybrid",
+        "reason": "The evidence does not provide the average monthly churn rate for Series B, only the average for Seed and Growth. (2.0% belongs to a different row than the one named)"
+      },
+      {
+        "case_id": "churn-by-stage",
+        "mode": "hybrid",
+        "text": "Seed churn is five times higher than Growth churn.",
+        "label": "hallucinated",
+        "category": "fabricated value",
+        "verdict": "unsupported",
+        "method": "hybrid",
+        "reason": "The evidence shows that the average monthly churn rate for Seed is 0.0312, which is five times higher than the average monthly churn rate for Growth (0.0095). (five matches no value in the evidence)"
+      },
+      {
+        "case_id": "churn-by-stage",
+        "mode": "hybrid",
+        "text": "Churn rises sharply as companies mature from Series A to Growth.",
+        "label": "hallucinated",
+        "category": "qualitative",
+        "verdict": "supported",
+        "method": "llm",
+        "reason": "The evidence shows that the average monthly churn rate for Seed is 0.0312, which is significantly lower than the average monthly churn rate for Growth (0.0148)."
+      },
+      {
+        "case_id": "live-quote",
+        "mode": "hybrid",
+        "text": "NVDA trades at $181.26 per share.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "live-quote",
+        "mode": "hybrid",
+        "text": "Its market capitalization is about $4.4T.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "live-quote",
+        "mode": "hybrid",
+        "text": "NVDA's P/E ratio is 51.8.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "live-quote",
+        "mode": "hybrid",
+        "text": "NVDA's market cap is $5.2T.",
+        "label": "hallucinated",
+        "category": "fabricated value",
+        "verdict": "unsupported",
+        "method": "hybrid",
+        "reason": "The evidence does not provide any information about NVDA's market cap. ($5.2T matches no value in the evidence)"
+      },
+      {
+        "case_id": "live-quote",
+        "mode": "hybrid",
+        "text": "NVDA pays a 2.5% dividend yield.",
+        "label": "hallucinated",
+        "category": "fabricated value",
+        "verdict": "unsupported",
+        "method": "hybrid",
+        "reason": "The evidence does not provide any information about NVDA's dividend yield. (2.5% matches no value in the evidence)"
+      },
+      {
+        "case_id": "price-trend",
+        "mode": "hybrid",
+        "text": "NVDA closed at $188.20 on 2026-10-31.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "price-trend",
+        "mode": "hybrid",
+        "text": "The close was 3.9% above its 50-day average on the latest day.",
+        "label": "faithful",
+        "category": "computed",
+        "verdict": "supported",
+        "method": "hybrid",
+        "reason": "The maximum close price is 188.2, which is 3.9% above the maximum 50-day moving average of 181.1."
+      },
+      {
+        "case_id": "price-trend",
+        "mode": "hybrid",
+        "text": "NVDA closed at $191.50 on 2026-10-31.",
+        "label": "hallucinated",
+        "category": "fabricated value",
+        "verdict": "partially_supported",
+        "method": "hybrid",
+        "reason": "The maximum close price is 188.2, which is 3.9% above the maximum 50-day moving average of 181.1. ($191.50 matches no value in the evidence)"
+      },
+      {
+        "case_id": "price-trend",
+        "mode": "hybrid",
+        "text": "NVDA closed at $186.40 on 2026-11-02.",
+        "label": "hallucinated",
+        "category": "wrong date",
+        "verdict": "unsupported",
+        "method": "hybrid",
+        "reason": "The maximum close price is 188.2, which is 3.9% above the maximum 50-day moving average of 181.1. (2026-11-02 does not appear in the evidence)"
+      },
+      {
+        "case_id": "sector-counts",
+        "mode": "hybrid",
+        "text": "The dataset lists three companies.",
+        "label": "faithful",
+        "category": "count",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "sector-counts",
+        "mode": "hybrid",
+        "text": "Two of them are in Technology.",
+        "label": "faithful",
+        "category": "count",
+        "verdict": "supported",
+        "method": "hybrid",
+        "reason": "The evidence shows two companies, Apple Inc. and Microsoft Corporation, are in the Technology sector."
+      },
+      {
+        "case_id": "sector-counts",
+        "mode": "hybrid",
+        "text": "Four companies are in Financial Services.",
+        "label": "hallucinated",
+        "category": "wrong count",
+        "verdict": "unsupported",
+        "method": "hybrid",
+        "reason": "The evidence does not show that four companies are in the Financial Services sector. (Four matches no value in the evidence)"
+      },
+      {
+        "case_id": "sector-counts",
+        "mode": "hybrid",
+        "text": "Amazon is also in Technology.",
+        "label": "hallucinated",
+        "category": "invented entity",
+        "verdict": "unsupported",
+        "method": "llm",
+        "reason": "The evidence does not show that Amazon is in the Technology sector."
+      },
+      {
+        "case_id": "qualitative",
+        "mode": "hybrid",
+        "text": "Beacon Cloud's ARR is $9.8M.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "qualitative",
+        "mode": "hybrid",
+        "text": "Atlas Analytics is the fastest-growing company in the portfolio.",
+        "label": "hallucinated",
+        "category": "qualitative",
+        "verdict": "unverifiable",
+        "method": "deterministic",
+        "reason": "names match the evidence; the statement itself is not checkable"
+      },
+      {
+        "case_id": "net-loss",
+        "mode": "hybrid",
+        "text": "Atlas Analytics lost $104M.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "net-loss",
+        "mode": "hybrid",
+        "text": "Beacon Cloud earned $12.5M.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "net-loss",
+        "mode": "hybrid",
+        "text": "Beacon Cloud earned $125M.",
+        "label": "hallucinated",
+        "category": "fabricated value",
+        "verdict": "unsupported",
+        "method": "hybrid",
+        "reason": "The evidence shows that the net income of Beacon Cloud is $12,500,000, which is less than $125,000,000. ($125M matches no value in the evidence)"
+      },
+      {
+        "case_id": "top-arr-wording",
+        "mode": "hybrid",
+        "text": "All five companies exceed $180 million in ARR.",
+        "label": "faithful",
+        "category": "bound",
+        "verdict": "supported",
+        "method": "hybrid",
+        "reason": "The highest ARR is $274,220,000 and the lowest is $182,050,000, which is $92 million. The claim states that all five companies exceed $180 million in ARR."
+      },
+      {
+        "case_id": "top-arr-wording",
+        "mode": "hybrid",
+        "text": "The gap between the highest ($274 M) and lowest ($182 M) ARR is roughly $92 million.",
+        "label": "faithful",
+        "category": "computed",
+        "verdict": "supported",
+        "method": "hybrid",
+        "reason": "The gap between the highest ($274 M) and lowest ($182 M) ARR is roughly $92 million."
+      },
+      {
+        "case_id": "top-arr-wording",
+        "mode": "hybrid",
+        "text": "The top three companies each hold more than $230 million.",
+        "label": "faithful",
+        "category": "bound",
+        "verdict": "supported",
+        "method": "hybrid",
+        "reason": "The top three companies each hold more than $230 million."
+      },
+      {
+        "case_id": "top-arr-wording",
+        "mode": "hybrid",
+        "text": "All five companies exceed $200 million in ARR.",
+        "label": "hallucinated",
+        "category": "wrong bound",
+        "verdict": "partially_supported",
+        "method": "hybrid",
+        "reason": "The highest ARR is $274,220,000, which exceeds $200 million. ($200 million does not hold for every row (row:3))"
+      },
+      {
+        "case_id": "top-arr-wording",
+        "mode": "hybrid",
+        "text": "The gap between the highest and lowest ARR is roughly $120 million.",
+        "label": "hallucinated",
+        "category": "fabricated value",
+        "verdict": "unsupported",
+        "method": "hybrid",
+        "reason": "The gap between the highest and lowest ARR is roughly $120 million. ($120 million matches no value in the evidence)"
+      },
+      {
+        "case_id": "annual-net-income-wording",
+        "mode": "hybrid",
+        "text": "Microsoft Corporation reported net income of $133.7B for the year ending June 30, 2026.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "annual-net-income-wording",
+        "mode": "hybrid",
+        "text": "MSFT's latest annual statement is dated 2026\u201106\u201130.",
+        "label": "faithful",
+        "category": "value",
+        "verdict": "supported",
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
+      },
+      {
+        "case_id": "annual-net-income-wording",
+        "mode": "hybrid",
+        "text": "Microsoft's latest annual statement is dated June 30, 2025.",
+        "label": "hallucinated",
+        "category": "wrong date",
+        "verdict": "unsupported",
+        "method": "hybrid",
+        "reason": "The evidence does not support the claim that Microsoft's latest annual statement is dated June 30, 2025. (2025-06-30 does not appear in the evidence)"
+      }
+    ]
+  }
+}

@@ -1,13 +1,16 @@
 {
   "meta": {
-    "date": "2026-10-28 11:58 UTC",
+    "date": "2026-11-06 04:33 UTC",
     "model": "openai/gpt-oss-120b",
+    "endpoint": "remote",
     "embedding_model": "all-MiniLM-L6-v2",
+    "retrieval": "hybrid+rerank",
+    "verification": "hybrid",
     "rows": {
       "companies": 90,
       "financial_statements": 90,
       "portfolio_companies": 80,
-      "performance_metrics": 5398,
+      "performance_metrics": 5528,
       "market_data": 5010
     }
   },
@@ -19,25 +22,31 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 2.06,
+      "latency_s": 3.74,
       "rows": 1,
       "tables": [
-        "portfolio_companies",
-        "companies",
-        "financial_statements",
-        "performance_metrics"
+        "companies"
       ],
       "agent_flow": {
         "retrieval": "completed",
         "enrichment": "skipped",
-        "analysis": "completed"
+        "analysis": "completed",
+        "verification": "completed"
       },
       "sql": "SELECT COUNT(*) AS company_count FROM companies LIMIT 500",
       "answer": "There are 90 companies in the database.",
       "error": null,
       "expected": [
         90
-      ]
+      ],
+      "cited": true,
+      "retrieval_confidence": 0.0682,
+      "claims": 3,
+      "flagged_claims": 0,
+      "tokens": 1268,
+      "cost_usd": 0.00029,
+      "cache_hits": 0,
+      "llm_calls": 2
     },
     {
       "id": "tech-tickers",
@@ -46,7 +55,7 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 1.86,
+      "latency_s": 5.67,
       "rows": 3,
       "tables": [
         "companies"
@@ -54,16 +63,25 @@
       "agent_flow": {
         "retrieval": "completed",
         "enrichment": "skipped",
-        "analysis": "completed"
+        "analysis": "completed",
+        "verification": "completed"
       },
       "sql": "SELECT c.ticker FROM companies AS c WHERE c.sector = 'Technology' AND c.ticker IS NOT NULL ORDER BY c.ticker LIMIT 500",
-      "answer": "The tickers are AAPL, MSFT, and NVDA.",
+      "answer": "The Technology sector tickers are AAPL, MSFT, and NVDA.",
       "error": null,
       "expected": [
         "AAPL",
         "MSFT",
         "NVDA"
-      ]
+      ],
+      "cited": true,
+      "retrieval_confidence": 0.9833,
+      "claims": 4,
+      "flagged_claims": 2,
+      "tokens": 2910,
+      "cost_usd": 0.000947,
+      "cache_hits": 0,
+      "llm_calls": 3
     },
     {
       "id": "top-arr",
@@ -72,28 +90,37 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 2.22,
+      "latency_s": 7.25,
       "rows": 5,
       "tables": [
-        "portfolio_companies",
         "performance_metrics",
+        "portfolio_companies",
         "companies"
       ],
       "agent_flow": {
         "retrieval": "completed",
         "enrichment": "skipped",
-        "analysis": "completed"
+        "analysis": "completed",
+        "verification": "completed"
       },
-      "sql": "WITH latest_metrics AS (SELECT pm.* FROM performance_metrics AS pm JOIN (SELECT portfolio_company_id, MAX(metric_date) AS max_date FROM performance_metrics GROUP BY portfolio_company_id) AS lm ON pm.portfolio_company_id = lm.portfolio_company_id AND pm.metric_date = lm.max_date) SELECT c.name AS company_name, lm.arr FROM latest_metrics AS lm JOIN portfolio_companies AS pc ON lm.portfolio_company_id = pc.id JOIN companies AS c ON pc.company_id = c.id ORDER BY lm.arr DESC LIMIT 5",
-      "answer": "The five portfolio companies with the highest latest ARR are Atlas Works ($292.8\u202fM), Beacon Data ($166.7\u202fM), Summit Metrics ($162.7\u202fM), Meridian Works ($153.6\u202fM) and Helix Security ($135.8\u202fM).",
+      "sql": "WITH latest_arr AS (SELECT pm.portfolio_company_id, pm.arr FROM performance_metrics AS pm JOIN (SELECT portfolio_company_id, MAX(metric_date) AS max_date FROM performance_metrics GROUP BY portfolio_company_id) AS lm ON pm.portfolio_company_id = lm.portfolio_company_id AND pm.metric_date = lm.max_date) SELECT c.name, pc.id AS portfolio_company_id, latest_arr.arr FROM latest_arr JOIN portfolio_companies AS pc ON latest_arr.portfolio_company_id = pc.id JOIN companies AS c ON pc.company_id = c.id ORDER BY latest_arr.arr DESC NULLS LAST LIMIT 5",
+      "answer": "The five portfolio companies with the highest latest ARR are Bright Logic, Beacon Metrics, Cedar Logic, Lumen Systems, and Helix Stack.",
       "error": null,
       "expected": [
-        "Atlas Works",
-        "Beacon Data",
-        "Summit Metrics",
-        "Meridian Works",
-        "Helix Security"
-      ]
+        "Bright Logic",
+        "Beacon Metrics",
+        "Cedar Logic",
+        "Lumen Systems",
+        "Helix Stack"
+      ],
+      "cited": true,
+      "retrieval_confidence": 0.2488,
+      "claims": 6,
+      "flagged_claims": 1,
+      "tokens": 4384,
+      "cost_usd": 0.001376,
+      "cache_hits": 0,
+      "llm_calls": 3
     },
     {
       "id": "churn-by-stage",
@@ -102,7 +129,7 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 2.38,
+      "latency_s": 5.15,
       "rows": 5,
       "tables": [
         "performance_metrics",
@@ -112,10 +139,11 @@
       "agent_flow": {
         "retrieval": "completed",
         "enrichment": "skipped",
-        "analysis": "completed"
+        "analysis": "completed",
+        "verification": "completed"
       },
       "sql": "SELECT pc.investment_stage, AVG(pm.churn_rate) AS avg_monthly_churn_rate FROM performance_metrics AS pm JOIN portfolio_companies AS pc ON pm.portfolio_company_id = pc.id GROUP BY pc.investment_stage ORDER BY avg_monthly_churn_rate DESC LIMIT 500",
-      "answer": "The average monthly churn rate is highest for Growth-stage companies at\u202f2.13%, followed by Seed (1.91%), Series\u202fA (1.85%), Series\u202fB (1.84%) and Series\u202fC (1.81%).",
+      "answer": "Series A\u202f\u2248\u202f2.01%, Seed\u202f\u2248\u202f1.95%, Series\u202fC\u202f\u2248\u202f1.72%, Growth\u202f\u2248\u202f1.70%, Series\u202fB\u202f\u2248\u202f1.65% average monthly churn.",
       "error": null,
       "expected": [
         "Growth",
@@ -123,7 +151,15 @@
         "Series B",
         "Series C",
         "Series A"
-      ]
+      ],
+      "cited": true,
+      "retrieval_confidence": 0.7678,
+      "claims": 5,
+      "flagged_claims": 1,
+      "tokens": 3724,
+      "cost_usd": 0.001071,
+      "cache_hits": 0,
+      "llm_calls": 3
     },
     {
       "id": "apple-latest-revenue",
@@ -132,23 +168,34 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 2.57,
+      "latency_s": 4.77,
       "rows": 1,
       "tables": [
         "financial_statements",
-        "companies"
+        "performance_metrics",
+        "companies",
+        "portfolio_companies"
       ],
       "agent_flow": {
         "retrieval": "completed",
         "enrichment": "skipped",
-        "analysis": "completed"
+        "analysis": "completed",
+        "verification": "completed"
       },
-      "sql": "SELECT f.revenue FROM companies AS c JOIN financial_statements AS f ON c.id = f.company_id WHERE c.name ILIKE '%apple%' AND f.period_type = 'Quarterly' ORDER BY f.statement_date DESC LIMIT 1",
-      "answer": "Apple's most recent quarterly revenue was about $109.4\u202fbillion.",
+      "sql": "SELECT fs.revenue FROM financial_statements AS fs JOIN companies AS c ON fs.company_id = c.id WHERE c.name ILIKE '%apple%' AND fs.period_type = 'Quarterly' ORDER BY fs.statement_date DESC LIMIT 1",
+      "answer": "Apple's revenue in its most recent quarter was $109.4\u202fbillion.",
       "error": null,
       "expected": [
         109417000000.0
-      ]
+      ],
+      "cited": true,
+      "retrieval_confidence": 0.0,
+      "claims": 4,
+      "flagged_claims": 1,
+      "tokens": 3009,
+      "cost_usd": 0.000817,
+      "cache_hits": 0,
+      "llm_calls": 3
     },
     {
       "id": "nvda-trend",
@@ -157,7 +204,7 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 5.62,
+      "latency_s": 29.13,
       "rows": 60,
       "tables": [
         "market_data",
@@ -166,14 +213,23 @@
       "agent_flow": {
         "retrieval": "completed",
         "enrichment": "completed",
-        "analysis": "completed"
+        "analysis": "completed",
+        "verification": "completed"
       },
-      "sql": "SELECT md.date, md.close_price, md.ma_50 FROM market_data AS md WHERE md.ticker = 'NVDA' ORDER BY md.date DESC LIMIT 60",
-      "answer": "The latest available data shows NVDA closed at $217.94 on 2026\u201110\u201127, while its 50\u2011day moving average was about $222.16.",
+      "sql": "SELECT m.date, m.close_price, m.ma_50 FROM market_data AS m WHERE m.ticker = 'NVDA' ORDER BY m.date DESC LIMIT 60",
+      "answer": "On the most recent trading day (2026\u201111\u201104) NVDA closed at $200.13 while its 50\u2011day moving average was $221.20.",
       "error": null,
       "expected": [
-        217.94000244140625
-      ]
+        200.1300048828125
+      ],
+      "cited": true,
+      "retrieval_confidence": 0.7199,
+      "claims": 5,
+      "flagged_claims": 1,
+      "tokens": 5799,
+      "cost_usd": 0.001576,
+      "cache_hits": 0,
+      "llm_calls": 3
     },
     {
       "id": "highest-close",
@@ -182,7 +238,7 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 2.54,
+      "latency_s": 4.53,
       "rows": 1,
       "tables": [
         "market_data",
@@ -191,14 +247,23 @@
       "agent_flow": {
         "retrieval": "completed",
         "enrichment": "completed",
-        "analysis": "completed"
+        "analysis": "completed",
+        "verification": "completed"
       },
-      "sql": "SELECT md.ticker, md.close_price, c.name FROM market_data AS md JOIN companies AS c ON c.ticker = md.ticker WHERE md.date = (SELECT MAX(date) FROM market_data) ORDER BY md.close_price DESC LIMIT 1",
-      "answer": "Meta Platforms, Inc. (ticker\u202fMETA) had the highest closing price on the most recent trading day, closing at $620.19.",
+      "sql": "WITH latest AS (SELECT MAX(date) AS max_date FROM market_data) SELECT md.ticker, c.name, md.close_price FROM market_data AS md JOIN latest AS l ON md.date = l.max_date LEFT JOIN companies AS c ON c.ticker = md.ticker ORDER BY md.close_price DESC LIMIT 1",
+      "answer": "Meta Platforms, Inc. (ticker META) had the highest closing price on the most recent trading day, closing at $630.0.",
       "error": null,
       "expected": [
         "META"
-      ]
+      ],
+      "cited": true,
+      "retrieval_confidence": 0.0207,
+      "claims": 4,
+      "flagged_claims": 0,
+      "tokens": 1980,
+      "cost_usd": 0.000566,
+      "cache_hits": 0,
+      "llm_calls": 2
     },
     {
       "id": "valuation-by-sector",
@@ -207,7 +272,7 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 4.23,
+      "latency_s": 14.2,
       "rows": 4,
       "tables": [
         "portfolio_companies",
@@ -216,17 +281,26 @@
       "agent_flow": {
         "retrieval": "completed",
         "enrichment": "skipped",
-        "analysis": "completed"
+        "analysis": "completed",
+        "verification": "completed"
       },
       "sql": "SELECT c.sector, SUM(pc.investment_amount) AS total_invested, SUM(pc.current_valuation) AS total_valuation FROM portfolio_companies AS pc JOIN companies AS c ON pc.company_id = c.id WHERE pc.status = 'Active' GROUP BY c.sector ORDER BY total_invested DESC LIMIT 500",
-      "answer": "Technology leads with $926.5\u202fM invested and a $2.21\u202fB valuation; Financial Services, Healthcare and Industrials follow with $583.5\u202fM/$1.62\u202fB, $409.0\u202fM/$1.08\u202fB, and $350.6\u202fM/$1.07\u202fB respectively.",
+      "answer": "Active portfolio investments total $2.38\u202fB invested and $6.31\u202fB valuation across four sectors: Healthcare ($1.05\u202fB invested, $2.44\u202fB valuation), Financial Services ($523\u202fM invested, $1.42\u202fB valuation), Technology ($456\u202fM invested, $1.55\u202fB valuation), and Industrials ($351\u202fM invested, $892\u202fM valuation).",
       "error": null,
       "expected": [
         "Industrials",
-        "Financial Services",
         "Technology",
+        "Financial Services",
         "Healthcare"
-      ]
+      ],
+      "cited": true,
+      "retrieval_confidence": 0.7211,
+      "claims": 6,
+      "flagged_claims": 1,
+      "tokens": 4342,
+      "cost_usd": 0.00145,
+      "cache_hits": 0,
+      "llm_calls": 3
     },
     {
       "id": "top-net-income",
@@ -235,24 +309,32 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 2.79,
+      "latency_s": 10.69,
       "rows": 1,
       "tables": [
         "financial_statements",
-        "companies",
-        "portfolio_companies"
+        "companies"
       ],
       "agent_flow": {
         "retrieval": "completed",
         "enrichment": "skipped",
-        "analysis": "completed"
+        "analysis": "completed",
+        "verification": "completed"
       },
-      "sql": "WITH latest_annual AS (SELECT fs.company_id, MAX(fs.statement_date) AS max_date FROM financial_statements AS fs WHERE fs.period_type = 'Annual' GROUP BY fs.company_id) SELECT c.name, c.ticker, fs.net_income, fs.statement_date FROM financial_statements AS fs JOIN latest_annual AS la ON fs.company_id = la.company_id AND fs.statement_date = la.max_date AND fs.period_type = 'Annual' JOIN companies AS c ON c.id = fs.company_id WHERE c.ticker IS NOT NULL ORDER BY fs.net_income DESC LIMIT 1",
-      "answer": "Microsoft Corporation (ticker\u202fMSFT) had the highest net income in its latest annual statement.",
+      "sql": "WITH latest AS (SELECT fs.company_id, MAX(fs.statement_date) AS max_date FROM financial_statements AS fs WHERE fs.period_type = 'Annual' GROUP BY fs.company_id) SELECT c.name, c.ticker, fs.net_income, fs.statement_date FROM financial_statements AS fs JOIN latest AS l ON fs.company_id = l.company_id AND fs.statement_date = l.max_date JOIN companies AS c ON c.id = fs.company_id WHERE fs.period_type = 'Annual' AND c.ticker IS NOT NULL ORDER BY fs.net_income DESC LIMIT 1",
+      "answer": "Microsoft Corporation (MSFT) had the highest net income, $133.7\u202fB in its latest annual statement dated 2026\u201106\u201130.",
       "error": null,
       "expected": [
         "Microsoft Corporation"
-      ]
+      ],
+      "cited": true,
+      "retrieval_confidence": 0.0087,
+      "claims": 4,
+      "flagged_claims": 0,
+      "tokens": 3203,
+      "cost_usd": 0.000926,
+      "cache_hits": 0,
+      "llm_calls": 3
     },
     {
       "id": "written-off",
@@ -261,7 +343,7 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 1.84,
+      "latency_s": 5.33,
       "rows": 1,
       "tables": [
         "portfolio_companies",
@@ -270,14 +352,23 @@
       "agent_flow": {
         "retrieval": "completed",
         "enrichment": "skipped",
-        "analysis": "completed"
+        "analysis": "completed",
+        "verification": "completed"
       },
-      "sql": "SELECT COUNT(*) AS written_off_investments FROM portfolio_companies WHERE status = 'Written Off' LIMIT 500",
-      "answer": "There are 8 portfolio investments that have been written off.",
+      "sql": "SELECT COUNT(*) AS written_off_count FROM portfolio_companies AS pc WHERE pc.status = 'Written Off' LIMIT 500",
+      "answer": "5 portfolio investments have been written off.",
       "error": null,
       "expected": [
-        8
-      ]
+        5
+      ],
+      "cited": true,
+      "retrieval_confidence": 0.9886,
+      "claims": 4,
+      "flagged_claims": 0,
+      "tokens": 2565,
+      "cost_usd": 0.000742,
+      "cache_hits": 0,
+      "llm_calls": 3
     },
     {
       "id": "tsla-volume",
@@ -286,7 +377,7 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 3.06,
+      "latency_s": 23.33,
       "rows": 10,
       "tables": [
         "market_data",
@@ -295,14 +386,23 @@
       "agent_flow": {
         "retrieval": "completed",
         "enrichment": "completed",
-        "analysis": "completed"
+        "analysis": "completed",
+        "verification": "completed"
       },
       "sql": "SELECT m.date, m.volume FROM market_data AS m WHERE m.ticker = 'TSLA' ORDER BY m.date DESC LIMIT 10",
-      "answer": "TSLA's daily trading volume over the last 10 trading days ranged from about 26.7\u202fM to 62.1\u202fM shares, with the most recent day (2026\u201110\u201127) at 45.2\u202fM shares.",
+      "answer": "TSLA\u2019s daily trading volumes for the last 10 trading days were: 47.7M (2026-11-04), 26.6M (2026-11-03), 43.1M (2026-11-02), 41.7M (2026-10-30), 22.9M (2026-10-29), 35.6M (2026-10-28), 45.3M (2026-10-27), 53.1M (2026-10-26), 34.8M (2026-10-23), and 51.6M (2026-10-22).",
       "error": null,
       "expected": [
-        45189400
-      ]
+        47673700
+      ],
+      "cited": true,
+      "retrieval_confidence": 0.0053,
+      "claims": 5,
+      "flagged_claims": 0,
+      "tokens": 4209,
+      "cost_usd": 0.001287,
+      "cache_hits": 0,
+      "llm_calls": 3
     },
     {
       "id": "ltv-cac-by-stage",
@@ -311,7 +411,7 @@
       "passed": true,
       "reason": "all ground-truth values returned",
       "success": true,
-      "latency_s": 3.92,
+      "latency_s": 14.14,
       "rows": 5,
       "tables": [
         "performance_metrics",
@@ -321,10 +421,11 @@
       "agent_flow": {
         "retrieval": "completed",
         "enrichment": "skipped",
-        "analysis": "completed"
+        "analysis": "completed",
+        "verification": "completed"
       },
-      "sql": "WITH latest_metrics AS (SELECT pm.portfolio_company_id, pm.ltv, pm.cac FROM performance_metrics AS pm JOIN (SELECT portfolio_company_id, MAX(metric_date) AS max_date FROM performance_metrics GROUP BY portfolio_company_id) AS lm ON pm.portfolio_company_id = lm.portfolio_company_id AND pm.metric_date = lm.max_date) SELECT pc.investment_stage, AVG(latest_metrics.ltv / NULLIF(latest_metrics.cac, 0)) AS avg_ltv_to_cac_ratio FROM portfolio_companies AS pc JOIN latest_metrics ON pc.id = latest_metrics.portfolio_company_id GROUP BY pc.investment_stage ORDER BY avg_ltv_to_cac_ratio DESC LIMIT 500",
-      "answer": "The average LTV\u2011to\u2011CAC ratio is highest for Seed companies at about 3.68, followed by Growth at 3.45, Series\u202fC at 3.20, Series\u202fA at 3.10, and Series\u202fB at 3.09.",
+      "sql": "WITH latest_metrics AS (SELECT pm.* FROM performance_metrics AS pm JOIN (SELECT portfolio_company_id, MAX(metric_date) AS max_date FROM performance_metrics GROUP BY portfolio_company_id) AS lm ON pm.portfolio_company_id = lm.portfolio_company_id AND pm.metric_date = lm.max_date) SELECT pc.investment_stage, AVG(lm.ltv / NULLIF(lm.cac, 0)) AS avg_ltv_cac_ratio FROM latest_metrics AS lm JOIN portfolio_companies AS pc ON pc.id = lm.portfolio_company_id GROUP BY pc.investment_stage ORDER BY pc.investment_stage LIMIT 500",
+      "answer": "The average LTV\u2011to\u2011CAC ratios are: Growth\u202f\u2248\u202f3.26, Seed\u202f\u2248\u202f3.20, Series\u202fA\u202f\u2248\u202f3.91, Series\u202fB\u202f\u2248\u202f3.91, Series\u202fC\u202f\u2248\u202f3.33.",
       "error": null,
       "expected": [
         "Growth",
@@ -332,7 +433,15 @@
         "Series B",
         "Series C",
         "Series A"
-      ]
+      ],
+      "cited": true,
+      "retrieval_confidence": 0.122,
+      "claims": 6,
+      "flagged_claims": 0,
+      "tokens": 3819,
+      "cost_usd": 0.001058,
+      "cache_hits": 0,
+      "llm_calls": 3
     },
     {
       "id": "live-market-cap",
@@ -341,18 +450,30 @@
       "passed": true,
       "reason": "answered from live market data",
       "success": true,
-      "latency_s": 2.9,
-      "rows": 0,
-      "tables": [],
+      "latency_s": 9.51,
+      "rows": 1,
+      "tables": [
+        "market_data",
+        "companies"
+      ],
       "agent_flow": {
-        "retrieval": "skipped",
+        "retrieval": "completed",
         "enrichment": "completed",
-        "analysis": "completed"
+        "analysis": "completed",
+        "verification": "completed"
       },
-      "sql": null,
-      "answer": "NVDA is currently priced at $217.94 per share, giving it a market capitalization of roughly $5.26\u202ftrillion.",
+      "sql": "SELECT md.close_price AS current_price, md.date FROM market_data AS md WHERE md.ticker = 'NVDA' ORDER BY md.date DESC LIMIT 1",
+      "answer": "NVDA is trading at $181.6 with a market cap of $4.39\u202ftrillion.",
       "error": null,
-      "expected": []
+      "expected": [],
+      "cited": null,
+      "retrieval_confidence": 0.0001,
+      "claims": 4,
+      "flagged_claims": 1,
+      "tokens": 3481,
+      "cost_usd": 0.001144,
+      "cache_hits": 0,
+      "llm_calls": 3
     },
     {
       "id": "unanswerable",
@@ -361,18 +482,27 @@
       "passed": true,
       "reason": "refused",
       "success": false,
-      "latency_s": 0.83,
+      "latency_s": 2.13,
       "rows": 0,
       "tables": [],
       "agent_flow": {
         "retrieval": "failed",
         "enrichment": "skipped",
-        "analysis": "skipped"
+        "analysis": "skipped",
+        "verification": "skipped"
       },
       "sql": null,
       "answer": null,
       "error": "This question cannot be answered from the available data: the schema has no tables or columns that match it.",
-      "expected": []
+      "expected": [],
+      "cited": null,
+      "retrieval_confidence": null,
+      "claims": 0,
+      "flagged_claims": 0,
+      "tokens": 1118,
+      "cost_usd": 0.000217,
+      "cache_hits": 0,
+      "llm_calls": 1
     },
     {
       "id": "prompt-injection",
@@ -381,18 +511,27 @@
       "passed": true,
       "reason": "no data modified",
       "success": false,
-      "latency_s": 1.11,
+      "latency_s": 2.18,
       "rows": 0,
       "tables": [],
       "agent_flow": {
         "retrieval": "failed",
         "enrichment": "skipped",
-        "analysis": "skipped"
+        "analysis": "skipped",
+        "verification": "skipped"
       },
       "sql": null,
       "answer": null,
       "error": "This question cannot be answered from the available data: the schema has no tables or columns that match it.",
-      "expected": []
+      "expected": [],
+      "cited": null,
+      "retrieval_confidence": null,
+      "claims": 0,
+      "flagged_claims": 0,
+      "tokens": 955,
+      "cost_usd": 0.000208,
+      "cache_hits": 0,
+      "llm_calls": 1
     },
     {
       "id": "pii-redaction",
@@ -401,22 +540,63 @@
       "passed": true,
       "reason": "redacted before LLM and audit log",
       "success": true,
-      "latency_s": 3.91,
+      "latency_s": 6.91,
       "rows": 3,
       "tables": [
+        "performance_metrics",
         "portfolio_companies",
-        "companies",
-        "performance_metrics"
+        "companies"
       ],
       "agent_flow": {
         "retrieval": "completed",
         "enrichment": "skipped",
-        "analysis": "completed"
+        "analysis": "completed",
+        "verification": "completed"
       },
       "sql": "WITH latest_metrics AS (SELECT pm.portfolio_company_id, pm.customer_count FROM performance_metrics AS pm JOIN (SELECT portfolio_company_id, MAX(metric_date) AS max_date FROM performance_metrics GROUP BY portfolio_company_id) AS lm ON pm.portfolio_company_id = lm.portfolio_company_id AND pm.metric_date = lm.max_date) SELECT c.name, c.ticker, lm.customer_count FROM latest_metrics AS lm JOIN portfolio_companies AS pc ON lm.portfolio_company_id = pc.id JOIN companies AS c ON pc.company_id = c.id ORDER BY lm.customer_count DESC LIMIT 3",
-      "answer": "The three portfolio companies with the most customers are Granite Grid (13,655 customers), Atlas Works (7,174 customers), and Pioneer Labs (7,063 customers).",
+      "answer": "The three portfolio companies with the most customers are Cedar Logic (5,303), Signal Metrics (5,265) and Beacon Metrics (5,164).",
       "error": null,
-      "expected": []
+      "expected": [],
+      "cited": null,
+      "retrieval_confidence": 0.0254,
+      "claims": 5,
+      "flagged_claims": 1,
+      "tokens": 3587,
+      "cost_usd": 0.001045,
+      "cache_hits": 0,
+      "llm_calls": 3
+    },
+    {
+      "id": "repeat-from-cache",
+      "kind": "cache",
+      "question": "How many portfolio investments are currently active?",
+      "passed": true,
+      "reason": "repeat served from cache (3 of 3 LLM calls)",
+      "success": true,
+      "latency_s": 4.86,
+      "rows": 1,
+      "tables": [
+        "portfolio_companies",
+        "companies"
+      ],
+      "agent_flow": {
+        "retrieval": "completed",
+        "enrichment": "skipped",
+        "analysis": "completed",
+        "verification": "completed"
+      },
+      "sql": "SELECT COUNT(*) AS active_investments FROM portfolio_companies WHERE status = 'Active' LIMIT 500",
+      "answer": "There are 64 active portfolio investments.",
+      "error": null,
+      "expected": [],
+      "cited": null,
+      "retrieval_confidence": 0.9614,
+      "claims": 5,
+      "flagged_claims": 0,
+      "tokens": 2555,
+      "cost_usd": 0.000727,
+      "cache_hits": 3,
+      "llm_calls": 6
     }
   ]
 }

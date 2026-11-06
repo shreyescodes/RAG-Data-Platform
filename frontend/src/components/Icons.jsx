@@ -92,3 +92,30 @@ export function ClockIcon() {
     </Svg>
   )
 }
+
+export function BookIcon() {
+  return (
+    <Svg>
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </Svg>
+  )
+}
+
+export function ShieldIcon() {
+  return (
+    <Svg>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <polyline points="9 12 11 14 15 10" />
+    </Svg>
+  )
+}
+
+export function GaugeIcon() {
+  return (
+    <Svg>
+      <path d="M12 14l4-4" />
+      <path d="M3.34 19a10 10 0 1 1 17.32 0" />
+    </Svg>
+  )
+}

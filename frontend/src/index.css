@@ -25,6 +25,8 @@
   --series-1: #3987e5;
   --series-2: #d95926;
   --series-3: #199e70;
+  /* Status colors mean good/bad and are never used as a series hue. */
+  --status-critical: #d03b3b;
   --error-bg: rgba(239, 68, 68, 0.1);
   
   /* Typography */

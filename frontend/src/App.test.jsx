@@ -3,16 +3,30 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App.jsx'
 import { EXAMPLE_QUERIES } from './constants.js'
-import { failedResult, history, stats, successResult } from './test/fixtures.js'
+import {
+  failedResult,
+  history,
+  metricsRecent,
+  metricsSummary,
+  metricsTimeseries,
+  stats,
+  successResult,
+} from './test/fixtures.js'
 import { jsonResponse, mockFetch } from './test/mockFetch.js'
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  window.location.hash = ''
+})
 
 function setup(queryHandler = successResult) {
   const fetch = mockFetch({
     'GET /api/stats': stats,
     'GET /api/history': history,
     'POST /api/query': queryHandler,
+    'GET /api/metrics/summary': metricsSummary,
+    'GET /api/metrics/timeseries': metricsTimeseries,
+    'GET /api/metrics/recent': metricsRecent,
   })
   const user = userEvent.setup()
   render(<App />)
@@ -32,12 +46,17 @@ describe('App', () => {
 
     await user.type(screen.getByLabelText(/ask a question/i), 'Top companies by ARR{Enter}')
 
-    expect(await screen.findByText('Atlas Analytics has the highest ARR.')).toBeInTheDocument()
+    expect(await screen.findByText('Atlas Analytics has the highest ARR.', { selector: '.answer-text' })).toBeInTheDocument()
     expect(screen.getByText(successResult.sql)).toBeInTheDocument()
     expect(screen.getByText('1.83 s')).toBeInTheDocument()
     expect(screen.getByText('12,000,000')).toBeInTheDocument()
     expect(screen.getByText('Data (2 rows)')).toBeInTheDocument()
     expect(screen.getByText('Reasoning steps (1)')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Fact check' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Sources' })).toBeInTheDocument()
+    expect(screen.getByText('3 (1 from cache)')).toBeInTheDocument()
+    expect(screen.getByText('openai/gpt-oss-120b (remote)')).toBeInTheDocument()
+    expect(document.getElementById('result-row-0')).toHaveTextContent('Atlas Analytics')
 
     const queryCall = fetch.mock.calls.find(([, init]) => init?.method === 'POST')
     expect(JSON.parse(queryCall[1].body)).toEqual({ query: 'Top companies by ARR' })
@@ -50,7 +69,7 @@ describe('App', () => {
   it('runs a suggested query on click', async () => {
     const { fetch, user } = setup()
     await user.click(screen.getByRole('button', { name: EXAMPLE_QUERIES[1] }))
-    await screen.findByText('Atlas Analytics has the highest ARR.')
+    await screen.findByText('Atlas Analytics has the highest ARR.', { selector: '.answer-text' })
     const queryCall = fetch.mock.calls.find(([, init]) => init?.method === 'POST')
     expect(JSON.parse(queryCall[1].body).query).toBe(EXAMPLE_QUERIES[1])
   })
@@ -100,5 +119,16 @@ describe('App', () => {
     expect(await screen.findByText('Live market data')).toBeInTheDocument()
     expect(screen.getByText('3.8T')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'AAPL 10-K' })).toHaveAttribute('href', 'https://sec.test/10k')
+  })
+
+  it('switches to the observability dashboard and back', async () => {
+    const { user } = setup()
+    await user.click(screen.getByRole('link', { name: 'Observability' }))
+    expect(await screen.findByLabelText('Key metrics')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Observability' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.queryByLabelText(/ask a question/i)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: 'Query' }))
+    expect(await screen.findByLabelText(/ask a question/i)).toBeInTheDocument()
   })
 })

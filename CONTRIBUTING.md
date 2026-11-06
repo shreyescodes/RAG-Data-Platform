@@ -15,7 +15,10 @@ setup.
    `fix/history-pagination`.
 2. Make the change with tests. Bug fixes should include a test that fails
    without the fix.
-3. Run `make check` (lint, format check, `mypy --strict`, all tests).
+3. Run `make check` (lint, format check, `mypy --strict`, all tests). If you
+   touch retrieval or the fact check, also run `make eval-offline`; CI fails
+   if hybrid retrieval falls below dense retrieval or the hallucination
+   detector's recall or false-positive rate regresses.
 4. Commit using [Conventional Commits](https://www.conventionalcommits.org/)
    (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`). Pre-commit runs
    ruff and eslint on staged files.
@@ -31,6 +34,10 @@ setup.
   `user_message` that is safe to show clients.
 - Inject external services (LLM, HTTP, market data) so tests can replace them
   with the fakes in `tests/fakes.py`. Tests must not hit the network.
+- Get structured LLM output through `StructuredOutputExtractor` with a Pydantic
+  model (fields the code needs are required), never by parsing free text.
+- Tables that are not domain data set `info={"queryable": False}` so the LLM
+  can never see or query them.
 
 **Database changes**
 
