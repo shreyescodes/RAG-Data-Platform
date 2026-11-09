@@ -1,6 +1,7 @@
 # RAG Data Platform
 
 [![CI](https://github.com/shreyescodes/RAG-Data-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/shreyescodes/RAG-Data-Platform/actions/workflows/ci.yml)
+[![Deploy](https://github.com/shreyescodes/RAG-Data-Platform/actions/workflows/deploy.yml/badge.svg)](https://github.com/shreyescodes/RAG-Data-Platform/actions/workflows/deploy.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![Node 20.19+](https://img.shields.io/badge/node-20.19%2B-green.svg)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
@@ -17,6 +18,10 @@ read-only guardrails, optionally enriches the result with live market and SEC
 EDGAR data, summarises the outcome and checks the summary against the data.
 Every request's tokens, cost and latency are recorded for the observability
 dashboard. The LLM can be a hosted API or a model on your own GPU.
+
+<!-- After the first deploy, uncomment and fill in:
+**Live demo: <https://YOUR-SUBDOMAIN.duckdns.org>** (status: <https://stats.uptimerobot.com/YOUR-PAGE>)
+-->
 
 ```text
 "Average monthly churn rate by investment stage"
@@ -246,7 +251,7 @@ How to use and tune each new capability: [docs/PRODUCTION_UPGRADES.md](docs/PROD
 | SQL safety | sqlglot |
 | Enrichment | yfinance, SEC EDGAR JSON APIs (httpx) |
 | Frontend   | React 19, Vite 7, Vitest, Testing Library |
-| Ops        | Docker, nginx, GitHub Actions, Dependabot, pre-commit |
+| Ops        | Docker, nginx, Caddy (TLS), GitHub Actions CI/CD, GHCR, Trivy, Dependabot, pre-commit |
 
 ## Quick start (Docker)
 
@@ -276,6 +281,21 @@ docker compose exec backend python -m app.cli seed
 
 vLLM and llama.cpp profiles, recommended models per GPU size and the health
 check are in [docs/PRODUCTION_UPGRADES.md](docs/PRODUCTION_UPGRADES.md#5-local-llm-on-your-own-gpu).
+
+## Production deployment
+
+The live instance runs on a free Oracle Cloud arm64 VM. Every green commit on
+`main` is deployed by [deploy.yml](.github/workflows/deploy.yml):
+
+- Native arm64 image builds are pushed to GHCR with an SBOM and provenance,
+  then scanned with Trivy.
+- [deploy/deploy.sh](deploy/deploy.sh) runs over SSH. It waits for the
+  healthchecks and rolls back automatically if they fail.
+- A public smoke test runs last.
+
+Caddy terminates TLS in front of nginx. Only ports 80/443 are exposed, and
+secrets stay on the server. Setup, operations, rollback and backups are
+covered in [docs/deployment.md](docs/deployment.md).
 
 ## Local development
 
@@ -443,6 +463,7 @@ docs/                  # architecture, security, evaluation report, screenshots
 - Evaluation reports: [live](docs/evaluation.md), [local LLM](docs/evaluation-local-llm.md),
   [retrieval](docs/evaluation-retrieval.md), [hallucination](docs/evaluation-hallucination.md)
 - [Security](docs/security.md): threat model and controls
+- [Deployment](docs/deployment.md): production setup, CI/CD, rollback, backups, monitoring
 - [Contributing](CONTRIBUTING.md)
 
 ## Limitations

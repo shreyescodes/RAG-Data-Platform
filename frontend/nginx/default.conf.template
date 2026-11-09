@@ -3,7 +3,7 @@
 # defined as environment variables.
 
 server {
-    listen 80;
+    listen 8080;
     server_name _;
     root /usr/share/nginx/html;
     server_tokens off;
@@ -15,6 +15,13 @@ server {
 
     gzip on;
     gzip_types text/css application/javascript application/json image/svg+xml;
+
+    # Admin routes are never proxied: nginx attaches the API key to everything
+    # it forwards, so anything reachable here is effectively public. Call them
+    # on the backend directly (127.0.0.1:8000 on the host) with the key instead.
+    location = /api/index-schema {
+        return 403;
+    }
 
     # The API key is attached here, server-side, so it never reaches the browser.
     location /api/ {

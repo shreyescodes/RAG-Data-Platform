@@ -21,3 +21,8 @@ updates:
   - package-ecosystem: docker
     directories: [/backend, /frontend]
     schedule: { interval: monthly }
+
+  # Image tags pinned in docker-compose*.yml (postgres, caddy, ...).
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule: { interval: monthly }

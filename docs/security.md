@@ -77,6 +77,9 @@ but is not a guarantee, and it does not detect names or addresses.
 
 ## Deployment checklist
 
+[docker-compose.prod.yml](../docker-compose.prod.yml) and
+[deployment.md](deployment.md) apply every item below except the local LLM.
+
 - `ENVIRONMENT=production`. Startup then fails without `API_KEY` or with
   wildcard CORS.
 - A long random `API_KEY`, e.g. `python -c "import secrets; print(secrets.token_urlsafe(32))"`.

@@ -1,0 +1,165 @@
+name: Deploy
+
+# Continuous deployment to the production VM. Runs after CI passes on main
+# (or by hand from the Actions tab):
+#   1. build arm64 images natively and push them to GHCR, tagged sha-<commit>
+#   2. scan them for critical, fixable vulnerabilities (blocks the deploy)
+#   3. copy the compose files to the server and run deploy/deploy.sh, which
+#      waits for healthchecks and rolls back by itself on failure
+#   4. smoke-test the public URL; roll back if it fails
+#
+# Setup (Settings -> Environments -> "production"), see docs/deployment.md:
+#   secrets: SSH_HOST, SSH_USER, SSH_PRIVATE_KEY, SSH_KNOWN_HOSTS
+#   variables: DOMAIN
+# Application secrets (Groq key, API key, DB password) live only in the
+# server's .env; they never pass through GitHub.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time, and never cancel one half-way.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  images:
+    name: Build, push and scan images (arm64)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    # Native Arm runner (free for public repositories): the VM is Ampere A1,
+    # and building torch layers under QEMU emulation would be very slow.
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      sha: ${{ steps.meta.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Image names
+        id: meta
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "tag=sha-$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+          # GHCR names must be lowercase.
+          echo "prefix=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.prefix }}-backend:${{ steps.meta.outputs.tag }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.meta.outputs.sha }}
+          # Supply-chain metadata: an SBOM and build provenance are attached to the image.
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha,scope=backend-arm64
+          cache-to: type=gha,mode=max,scope=backend-arm64
+
+      - name: Frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.prefix }}-frontend:${{ steps.meta.outputs.tag }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.meta.outputs.sha }}
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha,scope=frontend-arm64
+          cache-to: type=gha,mode=max,scope=frontend-arm64
+
+      # Pinned to a commit, not a tag: a moved tag cannot change what runs here.
+      - name: Scan backend image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.meta.outputs.prefix }}-backend:${{ steps.meta.outputs.tag }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Scan frontend image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.meta.outputs.prefix }}-frontend:${{ steps.meta.outputs.tag }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+  deploy:
+    name: Deploy to production
+    needs: images
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://${{ vars.DOMAIN }}
+    env:
+      TAG: ${{ needs.images.outputs.tag }}
+      DOMAIN: ${{ vars.DOMAIN }}
+      SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.images.outputs.sha }}
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # Pinned host key: the job refuses to talk to an impostor server.
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Upload compose files and scripts
+        run: |
+          ssh "$SSH_TARGET" 'mkdir -p /opt/rag/deploy'
+          scp docker-compose.yml docker-compose.prod.yml "$SSH_TARGET:/opt/rag/"
+          scp deploy/*.sh deploy/Caddyfile "$SSH_TARGET:/opt/rag/deploy/"
+          ssh "$SSH_TARGET" 'chmod +x /opt/rag/deploy/*.sh'
+
+      - name: Deploy ${{ needs.images.outputs.tag }}
+        id: deploy
+        run: ssh "$SSH_TARGET" "/opt/rag/deploy/deploy.sh '$TAG'"
+
+      - name: Smoke test the public URL
+        run: |
+          curl -fsS --retry 10 --retry-delay 6 --retry-all-errors "https://$DOMAIN/api/health"
+          echo
+          # HTTP must redirect to HTTPS, and admin routes must not be reachable.
+          test "$(curl -s -o /dev/null -w '%{http_code}' "http://$DOMAIN/")" = 308
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST "https://$DOMAIN/api/index-schema")" = 403
+          test "$(curl -s -o /dev/null -w '%{http_code}' "https://$DOMAIN/")" = 200
+
+      - name: Roll back
+        if: failure() && steps.deploy.outcome == 'success'
+        run: ssh "$SSH_TARGET" '/opt/rag/deploy/deploy.sh rollback'
