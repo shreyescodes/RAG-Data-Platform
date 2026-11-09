@@ -10,14 +10,14 @@
     "truth_sql": "SELECT ticker FROM companies WHERE sector = 'Technology' AND ticker IS NOT NULL"
   },
   {
-    "id": "top-arr",
-    "question": "Which 5 portfolio companies have the highest latest ARR?",
-    "truth_sql": "SELECT c.name FROM companies c JOIN portfolio_companies p ON p.company_id = c.id JOIN performance_metrics m ON m.portfolio_company_id = p.id WHERE m.metric_date = (SELECT max(m2.metric_date) FROM performance_metrics m2 WHERE m2.portfolio_company_id = p.id) ORDER BY m.arr DESC LIMIT 5"
+    "id": "berkshire-top-holdings",
+    "question": "What were Berkshire Hathaway's 5 largest holdings by value in its latest 13F filing?",
+    "truth_sql": "SELECT h.value_usd FROM fund_holdings h JOIN funds f ON f.id = h.fund_id WHERE f.name ILIKE 'berkshire%' AND h.report_date = (SELECT max(h2.report_date) FROM fund_holdings h2 WHERE h2.fund_id = h.fund_id) ORDER BY h.value_usd DESC LIMIT 5"
   },
   {
-    "id": "churn-by-stage",
-    "question": "Average monthly churn rate by investment stage",
-    "truth_sql": "SELECT p.investment_stage FROM performance_metrics m JOIN portfolio_companies p ON p.id = m.portfolio_company_id GROUP BY 1"
+    "id": "positions-by-fund",
+    "question": "How many positions did each fund report in its latest 13F filing?",
+    "truth_sql": "SELECT f.name FROM fund_holdings h JOIN funds f ON f.id = h.fund_id WHERE h.report_date = (SELECT max(h2.report_date) FROM fund_holdings h2 WHERE h2.fund_id = h.fund_id) GROUP BY f.name"
   },
   {
     "id": "apple-latest-revenue",
@@ -35,9 +35,9 @@
     "truth_sql": "SELECT ticker FROM market_data WHERE date = (SELECT max(date) FROM market_data) ORDER BY close_price DESC LIMIT 1"
   },
   {
-    "id": "valuation-by-sector",
-    "question": "Total capital invested and total current valuation by sector for active portfolio investments",
-    "truth_sql": "SELECT c.sector FROM portfolio_companies p JOIN companies c ON c.id = p.company_id WHERE p.status = 'Active' GROUP BY c.sector"
+    "id": "fund-value-by-sector",
+    "question": "Total value of fund holdings in the companies we track, by sector, for the latest quarter",
+    "truth_sql": "SELECT c.sector FROM fund_holdings h JOIN companies c ON c.ticker = h.ticker WHERE h.report_date = (SELECT max(report_date) FROM fund_holdings) GROUP BY c.sector"
   },
   {
     "id": "top-net-income",
@@ -45,9 +45,9 @@
     "truth_sql": "SELECT c.name FROM financial_statements f JOIN companies c ON c.id = f.company_id WHERE f.period_type = 'Annual' AND f.statement_date = (SELECT max(f2.statement_date) FROM financial_statements f2 WHERE f2.company_id = f.company_id AND f2.period_type = 'Annual') ORDER BY f.net_income DESC LIMIT 1"
   },
   {
-    "id": "written-off",
-    "question": "How many portfolio investments have been written off?",
-    "truth_sql": "SELECT count(*) FROM portfolio_companies WHERE status = 'Written Off'"
+    "id": "funds-holding-nvda",
+    "question": "How many funds held NVIDIA shares in the most recent quarter?",
+    "truth_sql": "SELECT count(DISTINCT fund_id) FROM fund_holdings WHERE ticker = 'NVDA' AND put_call IS NULL AND report_date = (SELECT max(report_date) FROM fund_holdings)"
   },
   {
     "id": "tsla-volume",
@@ -55,9 +55,9 @@
     "truth_sql": "SELECT volume FROM market_data WHERE ticker = 'TSLA' ORDER BY date DESC LIMIT 1"
   },
   {
-    "id": "ltv-cac-by-stage",
-    "question": "What is the average LTV to CAC ratio for each investment stage, based on each company's latest metrics?",
-    "truth_sql": "SELECT p.investment_stage FROM portfolio_companies p GROUP BY 1"
+    "id": "largest-single-position",
+    "question": "Which fund had the largest single position by value in the most recent quarter, and in which stock?",
+    "truth_sql": "SELECT f.name FROM fund_holdings h JOIN funds f ON f.id = h.fund_id WHERE h.report_date = (SELECT max(report_date) FROM fund_holdings) ORDER BY h.value_usd DESC LIMIT 1"
   },
   {
     "id": "live-market-cap",
@@ -78,12 +78,12 @@
   {
     "id": "pii-redaction",
     "kind": "pii",
-    "question": "Email the 3 portfolio companies with the most customers to jane.doe@example.com",
+    "question": "Email Berkshire Hathaway's 3 largest holdings to jane.doe@example.com",
     "pii": "jane.doe@example.com"
   },
   {
     "id": "repeat-from-cache",
     "kind": "cache",
-    "question": "How many portfolio investments are currently active?"
+    "question": "How many funds are in the database?"
   }
 ]

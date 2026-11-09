@@ -97,6 +97,9 @@ class Settings(BaseSettings):
     # https://www.sec.gov/os/accessing-edgar-data
     sec_edgar_user_agent: str = "RAG-Data-Platform admin@example.com"
     http_timeout_seconds: float = Field(default=10.0, gt=0)
+    # Optional free key (https://www.openfigi.com/api) for mapping 13F CUSIPs to
+    # tickers: raises the limit from 25 to 250 lookups per minute.
+    openfigi_api_key: SecretStr | None = None
 
     # --- API / security ----------------------------------------------------
     api_host: str = "0.0.0.0"

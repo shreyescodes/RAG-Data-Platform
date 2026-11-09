@@ -5,7 +5,8 @@
 #   less server-setup.sh && sudo bash server-setup.sh <deploy-user>
 #
 # Installs Docker, opens ports 80/443 in the host firewall, creates /opt/rag
-# owned by the deploy user, and schedules the nightly backup.
+# owned by the deploy user, and schedules the weekday data refresh and the
+# nightly backup.
 set -euo pipefail
 
 deploy_user=${1:?usage: server-setup.sh <deploy-user>}
@@ -52,10 +53,14 @@ if command -v netfilter-persistent >/dev/null; then
     netfilter-persistent save
 fi
 
-# --- Nightly backup at 03:00 UTC -------------------------------------------------------
-cron_line="0 3 * * * cd $app_dir && ./deploy/backup.sh >> $app_dir/backups/backup.log 2>&1"
-( crontab -u "$deploy_user" -l 2>/dev/null | grep -v 'deploy/backup.sh' || true; echo "$cron_line" ) \
-    | crontab -u "$deploy_user" -
+# --- Scheduled jobs (UTC) ----------------------------------------------------------------
+# 22:30 Mon-Fri: add new prices, statements and 13F filings after the US close.
+# 03:00 daily: database backup.
+refresh_line="30 22 * * 1-5 cd $app_dir && ./deploy/compose.sh exec -T backend python -m app.cli refresh >> $app_dir/backups/refresh.log 2>&1"
+backup_line="0 3 * * * cd $app_dir && ./deploy/backup.sh >> $app_dir/backups/backup.log 2>&1"
+( crontab -u "$deploy_user" -l 2>/dev/null | grep -v -e 'deploy/backup.sh' -e 'app.cli refresh' || true
+  echo "$refresh_line"
+  echo "$backup_line" ) | crontab -u "$deploy_user" -
 
 # Security updates install themselves (Ubuntu default; make sure it is on).
 apt-get install -y unattended-upgrades >/dev/null

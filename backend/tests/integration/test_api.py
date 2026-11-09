@@ -345,7 +345,7 @@ def test_stats(client: TestClient, auth_headers: dict[str, str], fake_llm: FakeC
     body = client.get("/api/stats", headers=auth_headers).json()
     assert body["queries"] == {"total": 2, "successful": 1, "success_rate": 50.0}
     assert body["database"]["companies"] == 3
-    assert body["database"]["performance_metrics"] == 1
+    assert body["database"]["fund_holdings"] == 1
     assert body["vector_store"]["total_documents"] > 0
 
 

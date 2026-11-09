@@ -15,12 +15,12 @@ describe('CitationsPanel', () => {
 
     const table = screen.getByRole('table', { name: /tables shown to the sql generator/i })
     const [, metrics, companies] = within(table).getAllByRole('row')
-    expect(within(metrics).getByText('performance_metrics')).toBeInTheDocument()
+    expect(within(metrics).getByText('fund_holdings')).toBeInTheDocument()
     expect(within(metrics).getByText('retrieved')).toBeInTheDocument()
     expect(within(metrics).getByText('91%')).toBeInTheDocument()
     expect(within(metrics).getByText('0.62')).toBeInTheDocument()
     expect(within(metrics).getByText('7.4')).toBeInTheDocument()
-    expect(within(metrics).getByText('arr, mrr')).toBeInTheDocument()
+    expect(within(metrics).getByText('value_usd, shares')).toBeInTheDocument()
     expect(within(companies).getByText('join')).toBeInTheDocument()
     expect(within(companies).getByText('no')).toBeInTheDocument()
 
@@ -30,7 +30,7 @@ describe('CitationsPanel', () => {
 
   it('shows column lineage and row identity', () => {
     render(<CitationsPanel citations={successResult.citations} />)
-    expect(screen.getByText('performance_metrics.arr')).toBeInTheDocument()
+    expect(screen.getByText('fund_holdings.value_usd')).toBeInTheDocument()
     expect(screen.getByText('Each row is identified by name.')).toBeInTheDocument()
   })
 
@@ -42,7 +42,7 @@ describe('CitationsPanel', () => {
           aggregated: true,
           key_columns: ['investment_stage'],
           output_columns: [
-            { output_column: 'avg', sources: ['performance_metrics.churn_rate'], derivation: 'aggregate' },
+            { output_column: 'avg', sources: ['fund_holdings.portfolio_pct'], derivation: 'aggregate' },
           ],
           live_sources: [
             { kind: 'market_data', ticker: 'AAPL', label: 'AAPL quote (Yahoo Finance)', url: 'https://y.test' },

@@ -46,8 +46,8 @@ Set `QUERY_DATABASE_URL` to a role that can only read the domain tables:
 CREATE ROLE rag_readonly LOGIN PASSWORD 'change-me';
 GRANT CONNECT ON DATABASE rag_data TO rag_readonly;
 GRANT USAGE ON SCHEMA public TO rag_readonly;
-GRANT SELECT ON companies, financial_statements, portfolio_companies,
-                performance_metrics, market_data TO rag_readonly;
+GRANT SELECT ON companies, financial_statements, market_data,
+                funds, fund_holdings TO rag_readonly;
 ALTER ROLE rag_readonly SET statement_timeout = '15s';
 ```
 

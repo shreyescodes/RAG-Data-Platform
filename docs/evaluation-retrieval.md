@@ -5,25 +5,25 @@ no database or LLM involved. A case is *complete* when every table a correct
 query needs reaches the SQL generator. The *table budget* caps how many tables
 search may pick before foreign-key expansion; small budgets stress the ranking.
 
-- **Run:** 2026-11-04 19:05 UTC
+- **Run:** 2026-11-09 09:26 UTC
 - **Embeddings:** `all-MiniLM-L6-v2`  ·  **Reranker:** `cross-encoder/ms-marco-MiniLM-L6-v2` (shortlist 12)
 - **Cases:** 32 (12 from `cases.json`, 20 from `retrieval_cases.json`)
 - **Production default:** table budget 4
 
 | Table budget | Mode | Complete | Recall | MRR | Tables in prompt | p50 latency |
 |-------------:|------|---------:|-------:|----:|-----------------:|------------:|
-| 1 | `dense` | 28/32 | 0.953 | 0.938 | 2.12 | 29.7 ms |
-| 1 | `hybrid` | 29/32 | 0.964 | 0.969 | 2.12 | 45.0 ms |
-| 1 | `dense+rerank` | 32/32 | 1.000 | 0.969 | 2.22 | 460.1 ms |
-| 1 | `hybrid+rerank` | 32/32 | 1.000 | 0.969 | 2.22 | 549.3 ms |
-| 2 | `dense` | 30/32 | 0.974 | 0.969 | 2.34 | 37.1 ms |
-| 2 | `hybrid` | 32/32 | 1.000 | 0.969 | 2.50 | 43.1 ms |
-| 2 | `dense+rerank` | 32/32 | 1.000 | 0.969 | 2.25 | 672.9 ms |
-| 2 | `hybrid+rerank` | 32/32 | 1.000 | 0.969 | 2.31 | 590.5 ms |
-| 4 | `dense` | 31/32 | 0.984 | 0.969 | 2.59 | 23.4 ms |
-| 4 | `hybrid` | 32/32 | 1.000 | 0.969 | 2.59 | 27.1 ms |
-| 4 | `dense+rerank` | 32/32 | 1.000 | 0.969 | 2.25 | 510.0 ms |
-| 4 | `hybrid+rerank` | 32/32 | 1.000 | 0.969 | 2.31 | 519.9 ms |
+| 1 | `dense` | 32/32 | 1.000 | 0.969 | 2.38 | 11.9 ms |
+| 1 | `hybrid` | 32/32 | 1.000 | 1.000 | 2.31 | 13.1 ms |
+| 1 | `dense+rerank` | 32/32 | 1.000 | 0.969 | 2.38 | 444.3 ms |
+| 1 | `hybrid+rerank` | 32/32 | 1.000 | 0.969 | 2.38 | 484.1 ms |
+| 2 | `dense` | 32/32 | 1.000 | 0.984 | 2.50 | 17.4 ms |
+| 2 | `hybrid` | 32/32 | 1.000 | 1.000 | 2.62 | 17.4 ms |
+| 2 | `dense+rerank` | 32/32 | 1.000 | 0.984 | 2.41 | 572.6 ms |
+| 2 | `hybrid+rerank` | 32/32 | 1.000 | 0.984 | 2.50 | 555.2 ms |
+| 4 | `dense` | 32/32 | 1.000 | 0.984 | 2.59 | 20.8 ms |
+| 4 | `hybrid` | 32/32 | 1.000 | 1.000 | 2.66 | 17.7 ms |
+| 4 | `dense+rerank` | 32/32 | 1.000 | 0.984 | 2.41 | 529.2 ms |
+| 4 | `hybrid+rerank` | 32/32 | 1.000 | 0.984 | 2.53 | 521.4 ms |
 
 Latency is the search alone, CPU only, on the machine that ran the evaluation.
 
@@ -31,110 +31,110 @@ Latency is the search alone, CPU only, on the machine that ran the evaluation.
 
 | Case | Needs | `dense` | `hybrid` | `dense+rerank` | `hybrid+rerank` |
 |------|-------|---|---|---|---|
-| `count-companies` | companies | pass · RR 0.00 · 2t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `count-companies` | companies | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
 | `tech-tickers` | companies | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
-| `top-arr` | companies, performance_metrics, portfolio_companies | **miss** · RR 1.00 · 2t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `churn-by-stage` | performance_metrics, portfolio_companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `berkshire-top-holdings` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `positions-by-fund` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `apple-latest-revenue` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `nvda-trend` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `highest-close` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `valuation-by-sector` | companies, portfolio_companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `fund-value-by-sector` | companies, fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `top-net-income` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `written-off` | portfolio_companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `funds-holding-nvda` | fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `tsla-volume` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `ltv-cac-by-stage` | portfolio_companies | pass · RR 0.00 · 3t | pass · RR 0.00 · 3t | pass · RR 0.00 · 3t | pass · RR 0.00 · 3t |
+| `largest-single-position` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `ident-moving-averages` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `ident-ltv-cac` | companies, performance_metrics, portfolio_companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `ident-eps` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `ident-runway` | companies, performance_metrics, portfolio_companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `ident-fcf` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `ident-adj-close` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `ident-ownership` | portfolio_companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `para-burn` | companies, performance_metrics, portfolio_companies | **miss** · RR 1.00 · 2t | **miss** · RR 1.00 · 2t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `para-industries` | companies | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
 | `para-equity` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `para-mrr` | companies, performance_metrics, portfolio_companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `para-exits` | companies, portfolio_companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `para-volume` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `para-gross-margin` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `para-stake` | companies, portfolio_companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `disambig-ebitda-multiple` | performance_metrics, portfolio_companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `para-cac` | performance_metrics, portfolio_companies | **miss** · RR 1.00 · 2t | **miss** · RR 1.00 · 2t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `para-bank-assets` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `para-high-low` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `para-customers` | companies, performance_metrics, portfolio_companies | **miss** · RR 1.00 · 2t | **miss** · RR 1.00 · 2t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `ident-portfolio-pct` | fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `ident-put-call` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `ident-cusip` | fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `ident-accession` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `para-fund-stakes` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `para-biggest-bets` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `para-sold` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `para-institutional-sector` | companies, fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `para-filers` | funds | pass · RR 0.00 · 3t | pass · RR 1.00 · 1t | pass · RR 0.00 · 3t | pass · RR 0.00 · 3t |
+| `para-options` | fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 
 ## Per case, table budget 2
 
 | Case | Needs | `dense` | `hybrid` | `dense+rerank` | `hybrid+rerank` |
 |------|-------|---|---|---|---|
-| `count-companies` | companies | pass · RR 0.50 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
-| `tech-tickers` | companies | pass · RR 1.00 · 1t | pass · RR 1.00 · 2t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
-| `top-arr` | companies, performance_metrics, portfolio_companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `churn-by-stage` | performance_metrics, portfolio_companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `count-companies` | companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `tech-tickers` | companies | pass · RR 1.00 · 1t | pass · RR 1.00 · 3t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `berkshire-top-holdings` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `positions-by-fund` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `apple-latest-revenue` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t |
 | `nvda-trend` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `highest-close` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `valuation-by-sector` | companies, portfolio_companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `fund-value-by-sector` | companies, fund_holdings | pass · RR 1.00 · 4t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `top-net-income` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `written-off` | portfolio_companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `funds-holding-nvda` | fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `tsla-volume` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `ltv-cac-by-stage` | portfolio_companies | pass · RR 0.50 · 3t | pass · RR 0.00 · 3t | pass · RR 0.00 · 3t | pass · RR 0.00 · 3t |
-| `ident-moving-averages` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `ident-ltv-cac` | companies, performance_metrics, portfolio_companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `largest-single-position` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `ident-moving-averages` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `ident-eps` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `ident-runway` | companies, performance_metrics, portfolio_companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `ident-fcf` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 3t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `ident-fcf` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `ident-adj-close` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `ident-ownership` | portfolio_companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 3t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `para-burn` | companies, performance_metrics, portfolio_companies | **miss** · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `para-industries` | companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
-| `para-equity` | companies, financial_statements | pass · RR 1.00 · 3t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `para-mrr` | companies, performance_metrics, portfolio_companies | pass · RR 1.00 · 4t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `para-exits` | companies, portfolio_companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `para-equity` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `para-volume` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `para-gross-margin` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `para-stake` | companies, portfolio_companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `disambig-ebitda-multiple` | performance_metrics, portfolio_companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 4t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `para-cac` | performance_metrics, portfolio_companies | **miss** · RR 1.00 · 2t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `para-bank-assets` | companies, financial_statements | pass · RR 1.00 · 3t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `para-gross-margin` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t | pass · RR 1.00 · 3t | pass · RR 1.00 · 4t |
+| `para-bank-assets` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `para-high-low` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `para-customers` | companies, performance_metrics, portfolio_companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `ident-portfolio-pct` | fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `ident-put-call` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `ident-cusip` | fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `ident-accession` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `para-fund-stakes` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `para-biggest-bets` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `para-sold` | fund_holdings, funds | pass · RR 1.00 · 4t | pass · RR 1.00 · 4t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `para-institutional-sector` | companies, fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `para-filers` | funds | pass · RR 0.50 · 3t | pass · RR 1.00 · 3t | pass · RR 0.50 · 3t | pass · RR 0.50 · 3t |
+| `para-options` | fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 
 ## Per case, table budget 4
 
 | Case | Needs | `dense` | `hybrid` | `dense+rerank` | `hybrid+rerank` |
 |------|-------|---|---|---|---|
-| `count-companies` | companies | pass · RR 0.50 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
-| `tech-tickers` | companies | pass · RR 1.00 · 1t | pass · RR 1.00 · 2t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
-| `top-arr` | companies, performance_metrics, portfolio_companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `churn-by-stage` | performance_metrics, portfolio_companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `count-companies` | companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 3t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `tech-tickers` | companies | pass · RR 1.00 · 1t | pass · RR 1.00 · 3t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `berkshire-top-holdings` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `positions-by-fund` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `apple-latest-revenue` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t |
 | `nvda-trend` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `highest-close` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `valuation-by-sector` | companies, portfolio_companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `top-net-income` | companies, financial_statements | pass · RR 1.00 · 3t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `written-off` | portfolio_companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `fund-value-by-sector` | companies, fund_holdings | pass · RR 1.00 · 4t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `top-net-income` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `funds-holding-nvda` | fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `tsla-volume` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `ltv-cac-by-stage` | portfolio_companies | pass · RR 0.50 · 3t | pass · RR 0.00 · 3t | pass · RR 0.00 · 3t | pass · RR 0.00 · 3t |
-| `ident-moving-averages` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `ident-ltv-cac` | companies, performance_metrics, portfolio_companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `largest-single-position` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `ident-moving-averages` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `ident-eps` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `ident-runway` | companies, performance_metrics, portfolio_companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `ident-fcf` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 3t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `ident-fcf` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `ident-adj-close` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `ident-ownership` | portfolio_companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 3t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `para-burn` | companies, performance_metrics, portfolio_companies | pass · RR 1.00 · 4t | pass · RR 1.00 · 4t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `para-industries` | companies | pass · RR 1.00 · 4t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
-| `para-equity` | companies, financial_statements | pass · RR 1.00 · 3t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `para-mrr` | companies, performance_metrics, portfolio_companies | pass · RR 1.00 · 5t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `para-exits` | companies, portfolio_companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `para-equity` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `para-volume` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `para-gross-margin` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `para-stake` | companies, portfolio_companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `disambig-ebitda-multiple` | performance_metrics, portfolio_companies | pass · RR 1.00 · 4t | pass · RR 1.00 · 5t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `para-cac` | performance_metrics, portfolio_companies | **miss** · RR 1.00 · 2t | pass · RR 1.00 · 4t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `para-bank-assets` | companies, financial_statements | pass · RR 1.00 · 3t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `para-gross-margin` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t | pass · RR 1.00 · 3t | pass · RR 1.00 · 5t |
+| `para-bank-assets` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `para-high-low` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `para-customers` | companies, performance_metrics, portfolio_companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `ident-portfolio-pct` | fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `ident-put-call` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `ident-cusip` | fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `ident-accession` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `para-fund-stakes` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `para-biggest-bets` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `para-sold` | fund_holdings, funds | pass · RR 1.00 · 4t | pass · RR 1.00 · 4t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `para-institutional-sector` | companies, fund_holdings | pass · RR 1.00 · 4t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `para-filers` | funds | pass · RR 0.50 · 3t | pass · RR 1.00 · 3t | pass · RR 0.50 · 3t | pass · RR 0.50 · 3t |
+| `para-options` | fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 

@@ -31,6 +31,7 @@ fails its health checks.
 | Containers | `no-new-privileges`, memory limits, log rotation, healthchecks, `restart: unless-stopped` |
 | Migrations | Applied by the backend entrypoint on start (`alembic upgrade head`) |
 | Rollback | Automatic on failed health or smoke checks; manual with one command |
+| Fresh data | Weekdays at 22:30 UTC, `app.cli refresh` adds new prices, statements and 13F filings; stored rows are skipped |
 | Backups | Nightly `pg_dump` (custom format), 7 days kept |
 | Monitoring | UptimeRobot on `/api/health`, which checks the database too; JSON logs with request IDs; the in-app Observability dashboard |
 
@@ -72,7 +73,7 @@ About an hour, most of it waiting on the cloud console.
    ```
    This installs Docker, opens 80/443 in the host firewall (Oracle's Ubuntu
    image blocks them even when the Security List allows them), creates
-   `/opt/rag` and schedules the nightly backup.
+   `/opt/rag`, and schedules the weekday data refresh and the nightly backup.
 
 ### 3. The deploy key
 
@@ -118,7 +119,7 @@ openssl rand -base64 32 | tr -d '/+=' | cut -c1-32
 
 ```bash
 cd /opt/rag
-./deploy/compose.sh exec backend python -m app.cli seed      # ~2 minutes
+./deploy/compose.sh exec backend python -m app.cli seed      # ~10-15 minutes; real data only
 ./deploy/create-readonly-role.sh "$(openssl rand -base64 32 | tr -d '/+=' | cut -c1-32)"
 # copy the printed password into QUERY_DATABASE_URL in .env, then:
 ./deploy/compose.sh up -d backend
@@ -141,6 +142,7 @@ Every command runs on the VM from `/opt/rag`.
 | Logs | `./deploy/compose.sh logs -f backend` (JSON; filter by `request_id`) |
 | Roll back | `./deploy/deploy.sh rollback`, or `./deploy/deploy.sh sha-<commit>` for any earlier build |
 | Rebuild schema index | `curl -X POST -H "X-API-Key: $(sed -n 's/^API_KEY=//p' .env)" http://127.0.0.1:8000/api/index-schema` |
+| Refresh data now | `./deploy/compose.sh exec backend python -m app.cli refresh` |
 | Backup now | `./deploy/backup.sh` |
 | Restore | See the header of [deploy/backup.sh](../deploy/backup.sh) |
 | Change a setting | Edit `.env`, then `./deploy/compose.sh up -d` |

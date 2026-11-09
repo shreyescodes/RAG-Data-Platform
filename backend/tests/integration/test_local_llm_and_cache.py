@@ -64,7 +64,8 @@ def test_repeated_and_similar_questions_hit_the_caches(
     assert again["usage"]["cost_usd"] == 0
     assert len(fake_llm.calls) == calls_after_first
 
-    similar = _ask(client, auth_headers, "list all the companies")
+    # Same retrieved schema as the first question, so the same cache scope.
+    similar = _ask(client, auth_headers, "please list all companies")
     # Similar question: the SQL is reused; the analysis is fresh text, so new calls.
     generated = next(s for s in similar["trace"] if s["step"] == "sql_generated")["detail"]
     assert generated["cache"] == "semantic"

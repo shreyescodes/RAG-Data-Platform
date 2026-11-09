@@ -6,7 +6,7 @@
 [![Node 20.19+](https://img.shields.io/badge/node-20.19%2B-green.svg)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
-Ask questions about financial data in plain English and get back an answer,
+Ask questions about real financial data in plain English and get back an answer,
 the SQL that produced it, the underlying rows, citations for every table and
 column used, a fact check of every claim in the answer, and a trace of how the
 system got there.
@@ -24,7 +24,7 @@ dashboard. The LLM can be a hosted API or a model on your own GPU.
 -->
 
 ```text
-"Average monthly churn rate by investment stage"
+"Which stocks did Berkshire Hathaway buy last quarter?"
         │
         ▼
  PII redaction ─► hybrid schema search ─► structured SQL generation ─► SQL validation ─► read-only execution
@@ -40,20 +40,12 @@ dashboard. The LLM can be a hosted API or a model on your own GPU.
 All screenshots below come from one live session on 28 October 2026. The
 stack was:
 
-- PostgreSQL 16 holding real Yahoo Finance data for 10 large caps (5,010
-  daily prices and 90 financial statements), plus the synthetic PE portfolio.
+- PostgreSQL 16 holding real Yahoo Finance data (daily prices and financial
+  statements).
 - Groq `openai/gpt-oss-120b` as the LLM.
 - The UI in this repo, driven by a headless browser.
 
 No responses were mocked or edited.
-
-![Home: suggested queries, recent query history and dataset size](docs/screenshots/home.webp)
-
-**Portfolio question → multi-join SQL → bar chart.** The model wrote a CTE that
-picks each company's latest metrics, then joined three tables. The chart is
-inferred from the result shape, and the hover tooltip is shown.
-
-![Top 5 portfolio companies by ARR, with generated SQL and agent trace](docs/screenshots/query-bar-chart.webp)
 
 **Time series.** NVDA's real closing price with its 50- and 200-day moving
 averages (computed during ingestion), plotted on one shared axis. The live
@@ -78,32 +70,27 @@ row…" produces no SQL. Had it produced a <code>DELETE</code>, the SQL validato
 and the read-only transaction would each have rejected it
 (<a href="backend/tests/unit/test_sql_validator.py">tested</a>).<br><br>
 <img src="docs/screenshots/guardrail-injection.webp" alt="Prompt-injection attempt refused"></td>
-<td><b>Agent trace.</b> Every step is recorded: retrieved tables, generated SQL,
-the normalised SQL that actually ran (with the enforced <code>LIMIT</code>), and
-row counts.<br><br>
-<img src="docs/screenshots/agent-trace.webp" alt="Expanded reasoning steps for a query"></td>
+<td><b>Knowing what it can't answer.</b> CEO pay isn't in the schema, so the
+SQL generator declines instead of guessing, and the trace shows where the
+pipeline stopped.<br><br>
+<img src="docs/screenshots/guardrail-unanswerable.webp" alt="Unanswerable question refused with the agent trace"></td>
 </tr>
 </table>
 
 Interactive OpenAPI docs are served at `/docs`
 ([screenshot](docs/screenshots/api-docs.webp)).
 
-**Added in the production upgrade** (screenshots from 6 November 2026, same
-stack, same headless browser, nothing edited):
+Every answer also shows:
 
-<table>
-<tr>
-<td width="50%"><b>Fact check.</b> Each sentence of the answer is checked against
-the rows: every figure is matched to a cell, "all five above $180M" is checked
-against the whole column, and "about $8 million more" is matched to the
-$7.6M gap between two rows. Evidence links jump to the row.<br><br>
-<img src="docs/screenshots/fact-check.webp" alt="Fact check panel: four claims, each supported, with the rows that support them"></td>
-<td width="50%"><b>Sources.</b> The tables the SQL generator was shown, with
-their reranker, embedding, BM25 and fused scores, whether the SQL used them,
-and which table and column each result column came from.<br><br>
-<img src="docs/screenshots/sources.webp" alt="Sources panel: retrieval scores per table and the lineage of each result column"></td>
-</tr>
-</table>
+- **Fact check.** Each sentence of the answer is checked against the rows:
+  every figure is matched to a cell, "all five above $1.5B" is checked against
+  the whole column, and "roughly $741 million" is matched to the gap between
+  two rows. Evidence links jump to the row.
+- **Sources.** The tables the SQL generator was shown, with their reranker,
+  embedding, BM25 and fused scores, whether the SQL used them, and which table
+  and column each result column came from.
+- **Agent trace.** Every step: retrieved tables, generated SQL, the normalised
+  SQL that actually ran (with the enforced `LIMIT`), and row counts.
 
 **Observability.** Tokens, cost, latency per stage and failures from every
 request, stored in PostgreSQL. This capture covers a day of evaluation runs on
@@ -138,8 +125,10 @@ with its reason.
 
 The full reports, including every generated SQL statement and answer, are in
 [docs/evaluation.md](docs/evaluation.md) and
-[docs/evaluation-local-llm.md](docs/evaluation-local-llm.md). Re-run with
-`make eval`. The local run proves the self-hosted path end to end on a laptop
+[docs/evaluation-local-llm.md](docs/evaluation-local-llm.md). These runs used
+the previous dataset, which still included a generated private-equity
+portfolio; the cases now target the real SEC 13F holdings, so re-run with
+`make eval` after seeding to refresh them. The local run proves the self-hosted path end to end on a laptop
 with no GPU. A 1.5B model is far weaker at SQL than a 120B one. Its 3
 misses: a misspelt column the repair attempt could not fix, `name = 'Apple'`
 where the prompt asks for `ILIKE`, and sorting by date instead of by closing
@@ -263,7 +252,7 @@ cp .env.example .env
 # Edit .env and set at least LLM_API_KEY, API_KEY and POSTGRES_PASSWORD
 
 docker compose up -d --build
-docker compose exec backend python -m app.cli seed   # ~2 minutes; needs internet for Yahoo Finance
+docker compose exec backend python -m app.cli seed   # ~10 minutes; downloads Yahoo Finance and SEC data
 ```
 
 Open <http://localhost:8080>. The nginx container serves the UI and proxies
@@ -309,7 +298,7 @@ pip install torch --index-url https://download.pytorch.org/whl/cpu   # CPU-only 
 pip install -r requirements-dev.txt
 cp ../.env.example ../.env      # set DATABASE_URL and LLM_API_KEY
 alembic upgrade head
-python -m app.cli seed          # add --skip-market to work offline
+python -m app.cli seed          # real data from Yahoo Finance and SEC EDGAR (~10 min)
 uvicorn app.main:app --reload   # http://localhost:8000/docs
 
 # Frontend (second terminal)
@@ -322,22 +311,26 @@ The Vite dev server proxies `/api` to `localhost:8000` and adds `X-API-Key`
 from `API_KEY` in the root `.env`. `make help` lists shortcuts for all of the
 above.
 
-### Demo data
+### Data
 
-`python -m app.cli seed` loads:
+Every row is real, public data. `python -m app.cli seed` loads:
 
 | Table | Source | Typical size |
 |-------|--------|--------------|
-| `companies` | Yahoo Finance (10 large caps) + synthetic private companies | ~90 |
-| `market_data` | Yahoo Finance daily OHLCV with 50/200-day moving averages | ~5,000 |
-| `financial_statements` | Yahoo Finance quarterly and annual statements | ~90 |
-| `portfolio_companies` | Synthetic PE investments, one per private company | 80 |
-| `performance_metrics` | Synthetic monthly SaaS metrics per investment | ~5,400 |
+| `companies` | Yahoo Finance: 50 of the largest US-listed companies across all sectors | 50 |
+| `market_data` | Yahoo Finance daily OHLCV with 50/200-day moving averages, 2 years | ~25,000 |
+| `financial_statements` | Yahoo Finance quarterly and annual statements | ~450 |
+| `funds` | SEC EDGAR: 10 well-known 13F filers (Berkshire Hathaway, Bridgewater, ARK, Pershing Square, Duquesne, Soros, Tiger Global, Third Point, Appaloosa, Baupost) | 10 |
+| `fund_holdings` | SEC Form 13F: each fund's quarter-end positions for the last 8 quarters, with shares, value and portfolio weight | ~15,000 |
 
-The synthetic portfolio is seeded and deterministic, and internally consistent:
-MRR equals ARR/12, customers equal ARR/ARPA, LTV is derived from margin and
-churn, and metrics stop at exit or write-off. Run `python -m app.cli seed --help`
-for options, including `--excel` to import your own workbook.
+13F filings identify securities by CUSIP. The loader maps them to tickers with
+[OpenFIGI](https://www.openfigi.com/api), including CINS codes for
+foreign-incorporated issuers, so holdings join to `companies` and
+`market_data`. It also detects filers that still report values in thousands of
+dollars. `python -m app.cli refresh` adds new prices, statements and filings
+and skips what is already stored; production runs it every weekday after the
+US close. Run `python -m app.cli seed --help` for options, including `--excel`
+to import your own workbook.
 
 ## Configuration
 
@@ -385,7 +378,7 @@ Interactive docs are served at `/docs`. All endpoints except health require
 ```bash
 curl -s localhost:8000/api/query \
   -H "X-API-Key: $API_KEY" -H "Content-Type: application/json" \
-  -d '{"query": "Which 5 portfolio companies have the highest latest ARR?"}'
+  -d '{"query": "What were Berkshire Hathaway'"'"'s 5 largest holdings in its latest 13F filing?"}'
 ```
 
 The response includes `answer`, `summary`, `insights`, `sql`, `data`,
@@ -443,7 +436,7 @@ backend/
     services/          # LLM client, structured output, caches, Yahoo Finance, SEC EDGAR
     observability/     # per-request metrics, pricing, aggregation for the dashboard
     db/                # models, sessions, repositories, read-only executor
-    ingestion/         # Yahoo Finance loader, synthetic portfolio, Excel import
+    ingestion/         # Yahoo Finance and SEC 13F loaders, Excel import
     core/              # config, logging, security, exceptions, rate limiting
     utils/             # PII redaction
   alembic/             # migrations

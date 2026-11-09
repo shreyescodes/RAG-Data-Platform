@@ -11,10 +11,10 @@ from sqlalchemy.orm import Session
 from app.db.models import (
     Company,
     FinancialStatement,
+    Fund,
+    FundHolding,
     LLMCall,
     MarketData,
-    PerformanceMetric,
-    PortfolioCompany,
     QueryLog,
     RequestMetric,
 )
@@ -89,7 +89,7 @@ class MetricsRepository:
 
 
 def count_rows_by_table(session: Session) -> dict[str, int]:
-    models = (Company, FinancialStatement, PortfolioCompany, PerformanceMetric, MarketData)
+    models = (Company, FinancialStatement, MarketData, Fund, FundHolding)
     return {
         model.__tablename__: session.scalar(select(func.count()).select_from(model)) or 0
         for model in models

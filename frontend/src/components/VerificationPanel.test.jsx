@@ -31,11 +31,11 @@ describe('VerificationPanel', () => {
 
   it('links row evidence to the results table', () => {
     render(<VerificationPanel report={report} />)
-    expect(screen.getByRole('link', { name: 'Row 1 · name: Atlas Analytics' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Row 1 · name: Apple Inc.' })).toHaveAttribute(
       'href',
       '#result-row-0',
     )
-    expect(screen.getByText('min of arr = 1,500,000').tagName).toBe('SPAN')
+    expect(screen.getByText('min of value_usd = 27,543,790,976').tagName).toBe('SPAN')
   })
 
   it('reports clean answers and a degraded judge', () => {

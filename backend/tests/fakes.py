@@ -85,8 +85,8 @@ class FakeChatModel:
     analysis: dict[str, Any] | str = field(
         default_factory=lambda: {
             "answer": "There are three companies.",
-            "summary": "Apple, Microsoft and a private company.",
-            "insights": ["Two companies are listed.", "One is private."],
+            "summary": "Apple, JPMorgan Chase and Microsoft.",
+            "insights": ["Two are in Technology.", "One is a bank."],
         }
     )
     verification: dict[str, Any] | str | None = None

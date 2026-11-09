@@ -6,20 +6,14 @@ import datetime as dt
 
 from sqlalchemy.orm import Session
 
-from app.db.models import (
-    Company,
-    FinancialStatement,
-    MarketData,
-    PerformanceMetric,
-    PortfolioCompany,
-)
+from app.db.models import Company, FinancialStatement, Fund, FundHolding, MarketData
 
 
 def seed_reference_data(session: Session) -> None:
     apple = Company(name="Apple Inc.", ticker="AAPL", sector="Technology")
     microsoft = Company(name="Microsoft Corporation", ticker="MSFT", sector="Technology")
-    private = Company(name="Atlas Analytics", sector="Technology")
-    session.add_all([apple, microsoft, private])
+    jpmorgan = Company(name="JPMorgan Chase & Co.", ticker="JPM", sector="Financial Services")
+    session.add_all([apple, microsoft, jpmorgan])
     session.flush()
 
     session.add_all(
@@ -44,23 +38,23 @@ def seed_reference_data(session: Session) -> None:
         ]
     )
 
-    investment = PortfolioCompany(
-        company_id=private.id,
-        investment_date=dt.date(2021, 3, 1),
-        investment_amount=10e6,
-        ownership_percentage=20.0,
-        investment_stage="Series A",
-        status="Active",
-    )
-    session.add(investment)
+    berkshire = Fund(cik=1067983, name="BERKSHIRE HATHAWAY INC")
+    session.add(berkshire)
     session.flush()
     session.add(
-        PerformanceMetric(
-            portfolio_company_id=investment.id,
-            metric_date=dt.date(2026, 9, 1),
-            arr=12e6,
-            mrr=1e6,
-            churn_rate=0.012,
+        FundHolding(
+            fund_id=berkshire.id,
+            report_date=dt.date(2026, 6, 30),
+            filing_date=dt.date(2026, 8, 14),
+            accession_number="0001193125-26-352200",
+            issuer_name="APPLE INC",
+            title_of_class="COM",
+            cusip="037833100",
+            ticker="AAPL",
+            shares=280_000_000,
+            share_type="SH",
+            value_usd=70.4e9,
+            portfolio_pct=23.5,
         )
     )
     session.commit()

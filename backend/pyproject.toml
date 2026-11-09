@@ -53,7 +53,7 @@ exclude = ["^alembic/", "^\\.venv/"]
 files = ["app", "tests", "eval"]
 
 [[tool.mypy.overrides]]
-module = ["faiss", "faiss.*", "pandas", "pandas.*", "yfinance", "yfinance.*", "sentence_transformers", "sentence_transformers.*", "slowapi", "slowapi.*"]
+module = ["faiss", "faiss.*", "pandas", "pandas.*", "yfinance", "yfinance.*", "sentence_transformers", "sentence_transformers.*", "slowapi", "slowapi.*", "defusedxml", "defusedxml.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

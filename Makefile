@@ -24,7 +24,7 @@ dev-frontend: ## Run the Vite dev server on :5173 (proxies /api to :8000)
 migrate: ## Apply database migrations
 	$(BACKEND) alembic upgrade head
 
-seed: ## Load market data, generate the demo portfolio and index the schema
+seed: ## Load real market data and SEC 13F fund holdings, then index the schema
 	$(BACKEND) python -m app.cli seed
 
 index: ## Rebuild the schema vector index
