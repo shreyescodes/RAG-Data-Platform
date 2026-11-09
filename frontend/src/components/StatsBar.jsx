@@ -3,7 +3,7 @@ import { formatCell } from '../utils/format.js'
 const ITEMS = [
   ['Companies', (s) => s.database?.companies],
   ['Statements', (s) => s.database?.financial_statements],
-  ['Portfolio metrics', (s) => s.database?.performance_metrics],
+  ['Fund holdings', (s) => s.database?.fund_holdings],
   ['Price points', (s) => s.database?.market_data],
 ]
 

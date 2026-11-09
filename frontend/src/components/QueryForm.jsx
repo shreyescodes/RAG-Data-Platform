@@ -23,7 +23,7 @@ export function QueryForm({ value, onChange, onSubmit, onCancel, loading }) {
           id="query-input"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Ask about revenue, ARR, churn, stock prices…"
+          placeholder="Ask about revenue, stock prices, fund holdings…"
           rows={1}
           maxLength={MAX_LENGTH}
           disabled={loading}

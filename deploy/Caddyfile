@@ -1,0 +1,25 @@
+# TLS edge for production. Caddy obtains and renews a Let's Encrypt
+# certificate for $DOMAIN automatically and redirects HTTP to HTTPS.
+# With DOMAIN=localhost it uses a locally trusted certificate instead
+# (handy for a rehearsal on your own machine).
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	# nginx serves the SPA and proxies /api to the backend (adding the API key).
+	# Caddy ignores X-Forwarded-For sent by clients and sets it to the real
+	# client address, which the backend then uses for rate limiting.
+	reverse_proxy frontend:8080
+
+	log {
+		output stdout
+		format json
+	}
+}

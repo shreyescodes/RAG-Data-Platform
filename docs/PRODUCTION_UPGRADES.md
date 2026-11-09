@@ -56,13 +56,13 @@ to keep hybrid search at about 30 ms.
   "retrieval_mode": "hybrid+rerank",
   "retrieval_confidence": 0.93,          // cross-encoder probability of the best table
   "generation_confidence": 0.9,          // the SQL generator's own estimate
-  "sql": "SELECT c.name, m.arr FROM ...", // exactly what ran
-  "sql_explanation": "Joins each company's latest metrics ...",
-  "tables": [{"table": "performance_metrics", "via": "retrieved", "used_in_sql": true,
+  "sql": "SELECT f.name, h.value_usd FROM ...", // exactly what ran
+  "sql_explanation": "Joins each fund's latest 13F positions ...",
+  "tables": [{"table": "fund_holdings", "via": "retrieved", "used_in_sql": true,
               "dense_score": 0.61, "sparse_score": 7.4, "fused_score": 1.0,
-              "rerank_score": 0.93, "matched_columns": ["arr"]}],
-  "columns_referenced": ["companies.name", "performance_metrics.arr", ...],
-  "output_columns": [{"output_column": "arr", "sources": ["performance_metrics.arr"],
+              "rerank_score": 0.93, "matched_columns": ["value_usd"]}],
+  "columns_referenced": ["funds.name", "fund_holdings.value_usd", ...],
+  "output_columns": [{"output_column": "value_usd", "sources": ["fund_holdings.value_usd"],
                       "derivation": "column"}],
   "key_columns": ["name"],              // identify the source row behind each result row
   "aggregated": false,
@@ -160,10 +160,11 @@ shows them; row evidence links to the row in the results table.
 **What it catches** (`make eval-hallucination`, 44 labelled claims,
 hallucinations planted on purpose): the deterministic checks alone catch
 16 of 19 hallucinations with 0 false positives on 25 faithful claims. The 3
-misses have no number to check: two qualitative claims ("churn rises sharply
-as companies mature") and a sentence-opening invented name. They are marked
-unverifiable and sent to the judge. With `qwen2.5:1.5b` as the judge on CPU,
-17 of 19 are caught, still with no false positives
+misses have no number to check, such as the qualitative claim
+"concentration falls steadily from Soros to ARK to Tiger Global" when the
+rows show it rising. They are marked unverifiable and sent to the judge. With
+`qwen2.5:1.5b` as the judge on CPU, 18 of 19 are caught, still with no false
+positives
 ([report](evaluation-hallucination.md)). Two cases come from real Groq
 answers: bounds, gaps, month-name dates and typographic hyphens that an
 earlier version flagged on correct answers.

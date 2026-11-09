@@ -21,6 +21,7 @@ sqlglot==30.25.0
 
 # External data and ingestion
 httpx==0.28.1
+defusedxml==0.7.1  # safe parsing of SEC 13F XML
 yfinance==1.7.0
 pandas==3.1.0
 openpyxl==3.1.5

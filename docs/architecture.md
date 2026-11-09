@@ -179,11 +179,12 @@ keeps a single well-understood ORM path while not blocking the event loop.
 
 | Table | Description |
 |-------|-------------|
-| `companies` | Public and private companies; `ticker` is NULL for private ones |
-| `financial_statements` | Quarterly and annual income statement, balance sheet and cash flow |
-| `portfolio_companies` | PE investments: amount, valuation, ownership, stage, status |
-| `performance_metrics` | Monthly ARR, MRR, customers, churn, CAC, LTV, burn, runway, multiples |
-| `market_data` | Daily OHLCV with 50- and 200-day moving averages |
+| `companies` | 50 large US-listed companies: ticker, sector, industry, description (Yahoo Finance) |
+| `financial_statements` | Quarterly and annual income statement, balance sheet and cash flow (Yahoo Finance) |
+| `market_data` | Daily OHLCV with 50- and 200-day moving averages (Yahoo Finance) |
+| `funds` | 13F filers: name and SEC CIK |
+| `fund_holdings` | Quarter-end positions from SEC Form 13F: ticker, shares, value, portfolio weight, filing provenance |
+| `security_identifiers` | CUSIP to ticker lookups from OpenFIGI, cached (not queryable) |
 | `query_logs` | Audit trail (not queryable by the LLM) |
 | `request_metrics` | Per-query outcome, tokens, cost, cache hits, latency by stage (not queryable) |
 | `llm_calls` | Per-completion purpose, model, tokens, cost, latency, cache hit (not queryable) |

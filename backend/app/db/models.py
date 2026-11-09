@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import BigInteger, Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -33,8 +33,8 @@ class Company(Base):
     __table_args__ = {
         "info": {
             "description": (
-                "Master list of companies (public and private) with ticker, "
-                "sector and industry classification."
+                "Large US-listed public companies with ticker, sector, industry "
+                "and a business description (source: Yahoo Finance)."
             )
         }
     }
@@ -45,7 +45,7 @@ class Company(Base):
         String(20),
         unique=True,
         index=True,
-        info=_col_info("Stock ticker symbol, e.g. AAPL. NULL for private companies."),
+        info=_col_info("Stock ticker symbol, e.g. AAPL or BRK-B."),
     )
     sector: Mapped[str | None] = mapped_column(String(100))
     industry: Mapped[str | None] = mapped_column(String(100))
@@ -54,7 +54,6 @@ class Company(Base):
     created_at: Mapped[dt.datetime | None] = mapped_column(DateTime, default=utcnow)
 
     financials: Mapped[list[FinancialStatement]] = relationship(back_populates="company")
-    portfolios: Mapped[list[PortfolioCompany]] = relationship(back_populates="company")
 
 
 class FinancialStatement(Base):
@@ -64,7 +63,8 @@ class FinancialStatement(Base):
             "description": (
                 "Quarterly or annual financial statements per company: income "
                 "statement (revenue, profit, EPS), balance sheet (assets, "
-                "liabilities, equity) and cash flow figures in USD."
+                "liabilities, equity) and cash flow figures in USD, as reported "
+                "(source: Yahoo Finance)."
             ),
             "natural_key": ("company_id", "statement_date", "period_type"),
         }
@@ -106,104 +106,13 @@ class FinancialStatement(Base):
     company: Mapped[Company] = relationship(back_populates="financials")
 
 
-class PortfolioCompany(Base):
-    __tablename__ = "portfolio_companies"
-    __table_args__ = {
-        "info": {
-            "description": (
-                "Private-equity fund investments: one row per investment in a "
-                "company, with amount invested, current valuation, ownership, "
-                "stage and status."
-            )
-        }
-    }
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
-    investment_date: Mapped[dt.date] = mapped_column(Date)
-    exit_date: Mapped[dt.date | None] = mapped_column(Date)
-    investment_amount: Mapped[float | None] = mapped_column(
-        Float, info=_col_info("Capital invested, USD.")
-    )
-    current_valuation: Mapped[float | None] = mapped_column(
-        Float, info=_col_info("Latest valuation of the fund's stake, USD.")
-    )
-    ownership_percentage: Mapped[float | None] = mapped_column(
-        Float, info=_col_info("Fund ownership, 0-100.")
-    )
-    investment_stage: Mapped[str | None] = mapped_column(
-        String(50), info=_col_info("Seed, Series A, Series B, Series C or Growth.")
-    )
-    status: Mapped[str | None] = mapped_column(
-        String(50), info=_col_info("Active, Exited or Written Off.")
-    )
-    notes: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[dt.datetime | None] = mapped_column(DateTime, default=utcnow)
-
-    company: Mapped[Company] = relationship(back_populates="portfolios")
-    metrics: Mapped[list[PerformanceMetric]] = relationship(back_populates="portfolio_company")
-
-
-class PerformanceMetric(Base):
-    __tablename__ = "performance_metrics"
-    __table_args__ = {
-        "info": {
-            "description": (
-                "Monthly SaaS operating metrics for portfolio companies: ARR, "
-                "MRR, customers, churn, CAC, LTV, burn, runway and valuation "
-                "multiples."
-            ),
-            "natural_key": ("portfolio_company_id", "metric_date"),
-        }
-    }
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    portfolio_company_id: Mapped[int] = mapped_column(
-        ForeignKey("portfolio_companies.id"), index=True
-    )
-    metric_date: Mapped[dt.date] = mapped_column(Date)
-
-    # Growth
-    arr: Mapped[float | None] = mapped_column(
-        Float, info=_col_info("Annual recurring revenue, USD.")
-    )
-    mrr: Mapped[float | None] = mapped_column(
-        Float, info=_col_info("Monthly recurring revenue, USD.")
-    )
-    customer_count: Mapped[int | None] = mapped_column(Integer)
-    churn_rate: Mapped[float | None] = mapped_column(
-        Float, info=_col_info("Monthly customer churn as a fraction, e.g. 0.02 = 2%.")
-    )
-
-    # Efficiency
-    cac: Mapped[float | None] = mapped_column(
-        Float, info=_col_info("Customer acquisition cost, USD.")
-    )
-    ltv: Mapped[float | None] = mapped_column(
-        Float, info=_col_info("Customer lifetime value, USD.")
-    )
-    burn_rate: Mapped[float | None] = mapped_column(
-        Float, info=_col_info("Net monthly cash burn, USD.")
-    )
-    runway_months: Mapped[float | None] = mapped_column(Float)
-
-    # Valuation
-    revenue_multiple: Mapped[float | None] = mapped_column(Float)
-    ebitda_multiple: Mapped[float | None] = mapped_column(Float)
-
-    notes: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[dt.datetime | None] = mapped_column(DateTime, default=utcnow)
-
-    portfolio_company: Mapped[PortfolioCompany] = relationship(back_populates="metrics")
-
-
 class MarketData(Base):
     __tablename__ = "market_data"
     __table_args__ = {
         "info": {
             "description": (
                 "Daily stock prices (OHLCV) per ticker with 50- and 200-day "
-                "moving averages. Join to companies on ticker."
+                "moving averages (source: Yahoo Finance). Join to companies on ticker."
             ),
             "related_tables": ("companies",),
             "natural_key": ("ticker", "date"),
@@ -233,6 +142,106 @@ class MarketData(Base):
     created_at: Mapped[dt.datetime | None] = mapped_column(DateTime, default=utcnow)
 
 
+class Fund(Base):
+    __tablename__ = "funds"
+    __table_args__ = {
+        "info": {
+            "description": (
+                "Directory of the investment managers that file SEC Form 13F: one row "
+                "per filer with its registered name and SEC CIK number."
+            )
+        }
+    }
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cik: Mapped[int] = mapped_column(
+        Integer, unique=True, info=_col_info("SEC Central Index Key of the filer.")
+    )
+    name: Mapped[str] = mapped_column(
+        String(255), unique=True, info=_col_info("Filer name as registered with the SEC.")
+    )
+    created_at: Mapped[dt.datetime | None] = mapped_column(DateTime, default=utcnow)
+
+    holdings: Mapped[list[FundHolding]] = relationship(back_populates="fund")
+
+
+class FundHolding(Base):
+    __tablename__ = "fund_holdings"
+    __table_args__ = {
+        "info": {
+            "description": (
+                "Stock portfolio holdings of investment funds (Berkshire Hathaway, "
+                "Bridgewater, ARK, Pershing Square and other hedge funds) from their "
+                "quarterly SEC 13F filings: which stocks and listed options each fund "
+                "owns, shares held, market value in USD and portfolio weight, so its "
+                "biggest bets and what it bought or sold between quarters. One row per "
+                "fund, quarter and security. Join to companies (sector) or market_data "
+                "on ticker."
+            ),
+            "related_tables": ("companies",),
+            "natural_key": ("fund_id", "report_date", "cusip", "put_call"),
+        }
+    }
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    fund_id: Mapped[int] = mapped_column(ForeignKey("funds.id"), index=True)
+    report_date: Mapped[dt.date] = mapped_column(
+        Date, info=_col_info("Quarter-end date the positions are reported as of.")
+    )
+    filing_date: Mapped[dt.date | None] = mapped_column(
+        Date, info=_col_info("Date the 13F was filed (up to 45 days after quarter end).")
+    )
+    accession_number: Mapped[str] = mapped_column(
+        String(25), info=_col_info("SEC accession number of the filing.")
+    )
+    issuer_name: Mapped[str] = mapped_column(
+        String(255), info=_col_info("Issuer name as written in the filing, often abbreviated.")
+    )
+    title_of_class: Mapped[str | None] = mapped_column(
+        String(100), info=_col_info("Security class, e.g. 'COM' or 'CL A'.")
+    )
+    cusip: Mapped[str] = mapped_column(String(9), info=_col_info("CUSIP of the security."))
+    ticker: Mapped[str | None] = mapped_column(
+        String(20),
+        index=True,
+        info=_col_info("Ticker of the held security; NULL if it could not be identified."),
+    )
+    shares: Mapped[int | None] = mapped_column(
+        BigInteger, info=_col_info("Shares held (principal amount when share_type is PRN).")
+    )
+    share_type: Mapped[str | None] = mapped_column(
+        String(3), info=_col_info("'SH' for shares, 'PRN' for principal amount.")
+    )
+    put_call: Mapped[str | None] = mapped_column(
+        String(4), info=_col_info("'Put' or 'Call' for option positions; NULL for stock.")
+    )
+    value_usd: Mapped[float | None] = mapped_column(
+        Float, info=_col_info("Market value of the position at quarter end, USD.")
+    )
+    portfolio_pct: Mapped[float | None] = mapped_column(
+        Float,
+        info=_col_info("Position value as a percentage of the fund's total that quarter, 0-100."),
+    )
+    created_at: Mapped[dt.datetime | None] = mapped_column(DateTime, default=utcnow)
+
+    fund: Mapped[Fund] = relationship(back_populates="holdings")
+
+
+class SecurityIdentifier(Base):
+    """CUSIP -> ticker lookups (OpenFIGI), cached so refreshes only ask about new CUSIPs.
+
+    A NULL ticker records that the lookup found nothing. Never exposed to the LLM.
+    """
+
+    __tablename__ = "security_identifiers"
+    __table_args__ = {"info": {"queryable": False}}
+
+    cusip: Mapped[str] = mapped_column(String(9), primary_key=True)
+    ticker: Mapped[str | None] = mapped_column(String(20))
+    name: Mapped[str | None] = mapped_column(String(255))
+    looked_up_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class QueryLog(Base):
     """Audit trail of platform queries. Never exposed to the LLM."""
 
@@ -257,9 +266,9 @@ class QueryLog(Base):
 QUERYABLE_MODELS: tuple[type[Base], ...] = (
     Company,
     FinancialStatement,
-    PortfolioCompany,
-    PerformanceMetric,
     MarketData,
+    Fund,
+    FundHolding,
 )
 
 

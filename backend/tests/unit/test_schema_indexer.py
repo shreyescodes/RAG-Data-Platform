@@ -1,4 +1,5 @@
 import numpy as np
+from sqlalchemy import Column, Float, ForeignKey, Integer, MetaData, String, Table
 
 from app.rag.schema_indexer import SchemaIndexer, build_schema_catalog
 from app.rag.vector_store import FAISSVectorStore
@@ -26,15 +27,41 @@ def test_index_is_idempotent(indexer: SchemaIndexer) -> None:
     assert first == second
 
 
+FUND_QUESTION = "which stocks does each fund hold, shares and portfolio weight"
+
+
 def test_finds_tables_by_meaning(indexer: SchemaIndexer) -> None:
-    names = [t.name for t in indexer.find_relevant_tables("monthly churn rate and ARR", 1)]
-    assert names[0] == "performance_metrics"
+    names = [t.name for t in indexer.find_relevant_tables(FUND_QUESTION, 1)]
+    assert names[0] == "fund_holdings"
 
 
-def test_expands_foreign_keys_transitively(indexer: SchemaIndexer) -> None:
-    names = [t.name for t in indexer.find_relevant_tables("ARR churn rate customers", 1)]
-    # performance_metrics -> portfolio_companies -> companies
-    assert names == ["performance_metrics", "portfolio_companies", "companies"]
+def test_expands_foreign_keys_and_declared_relations(indexer: SchemaIndexer) -> None:
+    names = [t.name for t in indexer.find_relevant_tables(FUND_QUESTION, 1)]
+    # fund_holdings -> funds (foreign key) and companies (declared ticker join)
+    assert names == ["fund_holdings", "companies", "funds"]
+
+
+def test_expands_foreign_keys_transitively(vector_store) -> None:
+    metadata = MetaData()
+    Table("regions", metadata, Column("id", Integer, primary_key=True), Column("name", String))
+    Table(
+        "stores",
+        metadata,
+        Column("id", Integer, primary_key=True),
+        Column("region_id", Integer, ForeignKey("regions.id")),
+    )
+    Table(
+        "sales",
+        metadata,
+        Column("id", Integer, primary_key=True),
+        Column("store_id", Integer, ForeignKey("stores.id")),
+        Column("amount", Float),
+        info={"description": "Daily sales amount per store."},
+    )
+    indexer = SchemaIndexer(vector_store, catalog=build_schema_catalog(metadata))
+    indexer.index()
+    names = [t.name for t in indexer.find_relevant_tables("daily sales amount", 1)]
+    assert names == ["sales", "stores", "regions"]
 
 
 def test_returns_nothing_for_empty_index(vector_store) -> None:
@@ -75,15 +102,15 @@ def test_bm25_recovers_identifiers_dense_retrieval_misses(tmp_path) -> None:
     dense.index()
     hybrid = SchemaIndexer(store, hybrid=True)
 
-    question = "runway_months and burn_rate"
-    assert "performance_metrics" not in dense.search(question, 2).table_names
+    question = "portfolio_pct and put_call"
+    assert "fund_holdings" not in dense.search(question, 2).table_names
     result = hybrid.search(question, 2)
-    assert "performance_metrics" in result.table_names
-    top_sparse = [c for c in result.candidates if c.sparse_rank in (1, 2, 3)]
-    assert {c.table for c in top_sparse} == {"performance_metrics"}
-    runway = next(c for c in result.candidates if c.document.endswith("runway_months"))
-    assert runway.dense_rank is None  # beyond the dense search depth
-    assert runway.fused_score is not None
+    assert "fund_holdings" in result.table_names
+    top_sparse = [c for c in result.candidates if c.sparse_rank in (1, 2)]
+    assert {c.table for c in top_sparse} == {"fund_holdings"}
+    weight = next(c for c in result.candidates if c.document.endswith("portfolio_pct"))
+    assert weight.dense_rank is None  # beyond the dense search depth
+    assert weight.fused_score is not None
 
 
 def test_reranker_decides_the_final_order(dense_indexer: SchemaIndexer) -> None:
@@ -104,10 +131,10 @@ def test_reranker_decides_the_final_order(dense_indexer: SchemaIndexer) -> None:
 
 
 def test_trace_detail_reports_every_score(indexer: SchemaIndexer) -> None:
-    detail = indexer.search("monthly churn rate and ARR", 1).trace_detail()
+    detail = indexer.search(FUND_QUESTION, 1).trace_detail()
 
     assert detail["mode"] == "hybrid+rerank"
-    assert detail["tables"] == ["performance_metrics", "portfolio_companies", "companies"]
+    assert detail["tables"] == ["fund_holdings", "companies", "funds"]
     first = detail["candidates"][0]
     assert set(first) >= {
         "document",
@@ -123,7 +150,7 @@ def test_trace_detail_reports_every_score(indexer: SchemaIndexer) -> None:
     assert first["final_rank"] == 1
     scores = detail["table_scores"]
     assert [s["via"] for s in scores] == ["retrieved", "foreign_key", "foreign_key"]
-    assert "churn_rate" in scores[0]["matched_columns"]
+    assert "shares" in scores[0]["matched_columns"]
     assert set(detail["timings_ms"]) == {"dense", "sparse", "rerank"}
 
 
@@ -131,9 +158,9 @@ def test_reranker_failure_degrades_to_fused_ranking(
     indexer: SchemaIndexer, reranker: OverlapReranker
 ) -> None:
     reranker.error = OSError("model weights not found")
-    result = indexer.search("monthly churn rate and ARR", 1)
+    result = indexer.search(FUND_QUESTION, 1)
 
-    assert result.table_names[0] == "performance_metrics"
+    assert result.table_names[0] == "fund_holdings"
     assert result.degraded == "reranker unavailable (OSError)"
     assert result.trace_detail()["degraded"] == result.degraded
     assert all(c.rerank_score is None for c in result.candidates)

@@ -46,8 +46,8 @@ Set `QUERY_DATABASE_URL` to a role that can only read the domain tables:
 CREATE ROLE rag_readonly LOGIN PASSWORD 'change-me';
 GRANT CONNECT ON DATABASE rag_data TO rag_readonly;
 GRANT USAGE ON SCHEMA public TO rag_readonly;
-GRANT SELECT ON companies, financial_statements, portfolio_companies,
-                performance_metrics, market_data TO rag_readonly;
+GRANT SELECT ON companies, financial_statements, market_data,
+                funds, fund_holdings TO rag_readonly;
 ALTER ROLE rag_readonly SET statement_timeout = '15s';
 ```
 
@@ -76,6 +76,9 @@ such as `1000000` survive. Redaction is pattern-based. It reduces exposure
 but is not a guarantee, and it does not detect names or addresses.
 
 ## Deployment checklist
+
+[docker-compose.prod.yml](../docker-compose.prod.yml) and
+[deployment.md](deployment.md) apply every item below except the local LLM.
 
 - `ENVIRONMENT=production`. Startup then fails without `API_KEY` or with
   wildcard CORS.

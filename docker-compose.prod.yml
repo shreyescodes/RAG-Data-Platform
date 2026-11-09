@@ -1,0 +1,83 @@
+# Production override, applied on top of docker-compose.yml:
+#   ./deploy/compose.sh up -d          # wraps the two -f flags and env files
+#
+# Differences from the base file:
+#   - Prebuilt images from GHCR (tagged by commit) instead of local builds.
+#   - Caddy terminates TLS (automatic Let's Encrypt) and is the only service
+#     published to the internet; nginx and the API stay on the private network.
+#   - A fixed subnet, so the API trusts X-Forwarded-For only from the proxies
+#     (per-IP rate limits cannot be dodged by sending a fake header).
+#   - Production settings forced here, so a stray value in .env cannot weaken them.
+#   - Log rotation, memory limits and no-new-privileges on every service.
+#
+# Requires Docker Compose >= 2.24 (for !reset).
+
+x-hardening: &hardening
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+  security_opt:
+    - no-new-privileges:true
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+
+services:
+  db:
+    <<: *hardening
+    mem_limit: 1g
+
+  backend:
+    <<: *hardening
+    image: ${IMAGE_PREFIX:-ghcr.io/shreyescodes/rag-data-platform}-backend:${IMAGE_TAG:?set IMAGE_TAG (deploy/compose.sh reads it from .deploy.env)}
+    build: !reset null
+    mem_limit: 4g
+    environment:
+      ENVIRONMENT: production
+      EXPOSE_DOCS: "false"
+      ALLOWED_ORIGINS: https://${DOMAIN:?set DOMAIN in .env}
+      # Only Caddy and nginx (on this subnet) may set X-Forwarded-For.
+      FORWARDED_ALLOW_IPS: 172.28.0.0/24
+      # Public demo: keep one visitor from using up the LLM quota.
+      RATE_LIMIT_QUERY: ${RATE_LIMIT_QUERY:-10/minute}
+    # The loopback port from the base file is kept on purpose: admin calls
+    # (POST /api/index-schema) are made over SSH to 127.0.0.1:8000 with the key.
+
+  frontend:
+    <<: *hardening
+    image: ${IMAGE_PREFIX:-ghcr.io/shreyescodes/rag-data-platform}-frontend:${IMAGE_TAG:?set IMAGE_TAG}
+    build: !reset null
+    mem_limit: 256m
+    # Reached only through Caddy.
+    ports: !reset []
+
+  caddy:
+    <<: *hardening
+    image: caddy:2.11-alpine
+    mem_limit: 256m
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env (Let's Encrypt expiry notices)}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # certificates: keep this volume, or you hit Let's Encrypt rate limits
+      - caddy_config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

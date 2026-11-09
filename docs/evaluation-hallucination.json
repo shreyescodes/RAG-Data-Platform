@@ -1,6 +1,6 @@
 {
   "meta": {
-    "date": "2026-11-06 04:32 UTC",
+    "date": "2026-11-09 09:11 UTC",
     "model": "qwen2.5:1.5b"
   },
   "summary": {
@@ -19,8 +19,8 @@
     "hybrid": {
       "claims": 44,
       "hallucinated": 19,
-      "caught": 17,
-      "recall": 0.895,
+      "caught": 18,
+      "recall": 0.947,
       "faithful": 25,
       "false_positives": 0,
       "false_positive_rate": 0.0,
@@ -92,9 +92,9 @@
         "reason": "$31.5B matches no value in the evidence"
       },
       {
-        "case_id": "top-arr",
+        "case_id": "top-holdings",
         "mode": "heuristic",
-        "text": "Atlas Analytics leads with $12.4M in ARR.",
+        "text": "Apple Inc. is the largest holding at $65.95B.",
         "label": "faithful",
         "category": "value",
         "verdict": "supported",
@@ -102,9 +102,9 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "top-arr",
+        "case_id": "top-holdings",
         "mode": "heuristic",
-        "text": "Beacon Cloud follows at $9.8M, and Cobalt AI at $7.25M.",
+        "text": "American Express Company follows at $51.28B.",
         "label": "faithful",
         "category": "value",
         "verdict": "supported",
@@ -112,9 +112,9 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "top-arr",
+        "case_id": "top-holdings",
         "mode": "heuristic",
-        "text": "Together the three companies hold $29.45M of ARR.",
+        "text": "Together the five positions are worth $205.44B.",
         "label": "faithful",
         "category": "computed",
         "verdict": "supported",
@@ -122,9 +122,9 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "top-arr",
+        "case_id": "top-holdings",
         "mode": "heuristic",
-        "text": "Two of the three are at Series A.",
+        "text": "Two of the five are in Financial Services.",
         "label": "faithful",
         "category": "count",
         "verdict": "supported",
@@ -132,39 +132,39 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "top-arr",
+        "case_id": "top-holdings",
         "mode": "heuristic",
-        "text": "Delta Labs ranks fourth with $6.1M.",
+        "text": "Microsoft Corporation ranks sixth with $15.2B.",
         "label": "hallucinated",
         "category": "invented entity",
         "verdict": "unsupported",
         "method": "deterministic",
-        "reason": "\"Delta Labs\" does not appear in the evidence; $6.1M matches no value in the evidence"
+        "reason": "\"Microsoft Corporation\" does not appear in the evidence; $15.2B matches no value in the evidence"
       },
       {
-        "case_id": "top-arr",
+        "case_id": "top-holdings",
         "mode": "heuristic",
-        "text": "Cobalt AI has the highest ARR at $12.4M.",
+        "text": "Alphabet Inc. is the largest holding at $65.95B.",
         "label": "hallucinated",
         "category": "misattribution",
         "verdict": "unsupported",
         "method": "deterministic",
-        "reason": "$12.4M belongs to a different row than the one named"
+        "reason": "$65.95B belongs to a different row than the one named"
       },
       {
-        "case_id": "top-arr",
+        "case_id": "top-holdings",
         "mode": "heuristic",
-        "text": "Average ARR across the group is $11.2M.",
+        "text": "The average position among the five is worth $52.3B.",
         "label": "hallucinated",
         "category": "fabricated value",
-        "verdict": "unsupported",
+        "verdict": "partially_supported",
         "method": "deterministic",
-        "reason": "$11.2M matches no value in the evidence"
+        "reason": "$52.3B matches no value in the evidence"
       },
       {
-        "case_id": "churn-by-stage",
+        "case_id": "concentration-by-fund",
         "mode": "heuristic",
-        "text": "Seed-stage companies churn the most, at 3.1% a month.",
+        "text": "Berkshire Hathaway is the most concentrated, with 22.04% in its top position.",
         "label": "faithful",
         "category": "value",
         "verdict": "supported",
@@ -172,9 +172,9 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "churn-by-stage",
+        "case_id": "concentration-by-fund",
         "mode": "heuristic",
-        "text": "Growth-stage churn is lowest at 0.95%.",
+        "text": "Soros Fund Management is the least concentrated at 3.46%.",
         "label": "faithful",
         "category": "value",
         "verdict": "supported",
@@ -182,19 +182,19 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "churn-by-stage",
+        "case_id": "concentration-by-fund",
         "mode": "heuristic",
-        "text": "Series B churn is 2.0% per month.",
+        "text": "Tiger Global's largest position is 7.54% of its portfolio.",
         "label": "hallucinated",
         "category": "misattribution",
         "verdict": "unsupported",
         "method": "deterministic",
-        "reason": "2.0% belongs to a different row than the one named"
+        "reason": "7.54% belongs to a different row than the one named"
       },
       {
-        "case_id": "churn-by-stage",
+        "case_id": "concentration-by-fund",
         "mode": "heuristic",
-        "text": "Seed churn is five times higher than Growth churn.",
+        "text": "Berkshire's top position is five times the size of Tiger Global's.",
         "label": "hallucinated",
         "category": "fabricated value",
         "verdict": "unsupported",
@@ -202,9 +202,9 @@
         "reason": "five matches no value in the evidence"
       },
       {
-        "case_id": "churn-by-stage",
+        "case_id": "concentration-by-fund",
         "mode": "heuristic",
-        "text": "Churn rises sharply as companies mature from Series A to Growth.",
+        "text": "Concentration falls steadily from Soros to ARK to Tiger Global.",
         "label": "hallucinated",
         "category": "qualitative",
         "verdict": "unverifiable",
@@ -344,7 +344,7 @@
       {
         "case_id": "qualitative",
         "mode": "heuristic",
-        "text": "Beacon Cloud's ARR is $9.8M.",
+        "text": "ARK's Advanced Micro Devices, Inc. position is worth $822.8M.",
         "label": "faithful",
         "category": "value",
         "verdict": "supported",
@@ -354,7 +354,7 @@
       {
         "case_id": "qualitative",
         "mode": "heuristic",
-        "text": "Atlas Analytics is the fastest-growing company in the portfolio.",
+        "text": "Tesla, Inc. is the best-performing stock in ARK's portfolio.",
         "label": "hallucinated",
         "category": "qualitative",
         "verdict": "unverifiable",
@@ -362,9 +362,9 @@
         "reason": "names match the evidence; the statement itself is not checkable"
       },
       {
-        "case_id": "net-loss",
+        "case_id": "position-change",
         "mode": "heuristic",
-        "text": "Atlas Analytics lost $104M.",
+        "text": "Chevron Corporation's position lost $3.47B in value.",
         "label": "faithful",
         "category": "value",
         "verdict": "supported",
@@ -372,9 +372,9 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "net-loss",
+        "case_id": "position-change",
         "mode": "heuristic",
-        "text": "Beacon Cloud earned $12.5M.",
+        "text": "Apple Inc.'s position gained $8.11B.",
         "label": "faithful",
         "category": "value",
         "verdict": "supported",
@@ -382,19 +382,19 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "net-loss",
+        "case_id": "position-change",
         "mode": "heuristic",
-        "text": "Beacon Cloud earned $125M.",
+        "text": "Apple Inc.'s position gained $81.1B.",
         "label": "hallucinated",
         "category": "fabricated value",
         "verdict": "unsupported",
         "method": "deterministic",
-        "reason": "$125M matches no value in the evidence"
+        "reason": "$81.1B matches no value in the evidence"
       },
       {
-        "case_id": "top-arr-wording",
+        "case_id": "top-holdings-wording",
         "mode": "heuristic",
-        "text": "All five companies exceed $180 million in ARR.",
+        "text": "All five positions exceed $1.5 billion.",
         "label": "faithful",
         "category": "bound",
         "verdict": "supported",
@@ -402,9 +402,9 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "top-arr-wording",
+        "case_id": "top-holdings-wording",
         "mode": "heuristic",
-        "text": "The gap between the highest ($274 M) and lowest ($182 M) ARR is roughly $92 million.",
+        "text": "The gap between the largest ($2.33 B) and smallest ($1.59 B) position is roughly $741 million.",
         "label": "faithful",
         "category": "computed",
         "verdict": "supported",
@@ -412,9 +412,9 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "top-arr-wording",
+        "case_id": "top-holdings-wording",
         "mode": "heuristic",
-        "text": "The top three companies each hold more than $230 million.",
+        "text": "The top three positions each exceed $2.2 billion.",
         "label": "faithful",
         "category": "bound",
         "verdict": "supported",
@@ -422,24 +422,24 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "top-arr-wording",
+        "case_id": "top-holdings-wording",
         "mode": "heuristic",
-        "text": "All five companies exceed $200 million in ARR.",
+        "text": "All five positions exceed $2 billion.",
         "label": "hallucinated",
         "category": "wrong bound",
         "verdict": "partially_supported",
         "method": "deterministic",
-        "reason": "$200 million does not hold for every row (row:3)"
+        "reason": "$2 billion does not hold for every row (row:4)"
       },
       {
-        "case_id": "top-arr-wording",
+        "case_id": "top-holdings-wording",
         "mode": "heuristic",
-        "text": "The gap between the highest and lowest ARR is roughly $120 million.",
+        "text": "The gap between the largest and smallest position is roughly $1.1 billion.",
         "label": "hallucinated",
         "category": "fabricated value",
         "verdict": "unsupported",
         "method": "deterministic",
-        "reason": "$120 million matches no value in the evidence"
+        "reason": "$1.1 billion matches no value in the evidence"
       },
       {
         "case_id": "annual-net-income-wording",
@@ -534,9 +534,9 @@
         "reason": "The evidence shows that Apple's net income reached $23.434 billion, which is higher than Microsoft's net income of $27.233 billion. ($31.5B matches no value in the evidence)"
       },
       {
-        "case_id": "top-arr",
+        "case_id": "top-holdings",
         "mode": "hybrid",
-        "text": "Atlas Analytics leads with $12.4M in ARR.",
+        "text": "Apple Inc. is the largest holding at $65.95B.",
         "label": "faithful",
         "category": "value",
         "verdict": "supported",
@@ -544,9 +544,9 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "top-arr",
+        "case_id": "top-holdings",
         "mode": "hybrid",
-        "text": "Beacon Cloud follows at $9.8M, and Cobalt AI at $7.25M.",
+        "text": "American Express Company follows at $51.28B.",
         "label": "faithful",
         "category": "value",
         "verdict": "supported",
@@ -554,59 +554,59 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "top-arr",
+        "case_id": "top-holdings",
         "mode": "hybrid",
-        "text": "Together the three companies hold $29.45M of ARR.",
+        "text": "Together the five positions are worth $205.44B.",
         "label": "faithful",
         "category": "computed",
         "verdict": "supported",
         "method": "hybrid",
-        "reason": "The sum of the latest ARR values (29,450,000) divided by the count of companies (3) gives the total ARR of $9,816,667, which is close to the claimed $29.45M."
+        "reason": "The evidence provides the total, mean, median, minimum, and maximum values of the stock holdings, which sum up to $205,442,006,524, supporting the claim of the five positions being worth $205.44B."
       },
       {
-        "case_id": "top-arr",
+        "case_id": "top-holdings",
         "mode": "hybrid",
-        "text": "Two of the three are at Series A.",
+        "text": "Two of the five are in Financial Services.",
         "label": "faithful",
         "category": "count",
         "verdict": "supported",
         "method": "hybrid",
-        "reason": "There are 2 companies with Series A investment stage, and 1 company with Series B investment stage, confirming the claim of two Series A companies."
+        "reason": "The evidence shows that two of the five sectors are Financial Services, supporting the claim that two of the five are in Financial Services."
       },
       {
-        "case_id": "top-arr",
+        "case_id": "top-holdings",
         "mode": "hybrid",
-        "text": "Delta Labs ranks fourth with $6.1M.",
+        "text": "Microsoft Corporation ranks sixth with $15.2B.",
         "label": "hallucinated",
         "category": "invented entity",
         "verdict": "unsupported",
         "method": "hybrid",
-        "reason": "The average ARR (11,216,667) is significantly lower than the claimed $6.1M, and the median (9,800,000) and minimum (7,250,000) are also lower than the claimed $6.1M. (\"Delta Labs\" does not appear in the evidence; $6.1M matches no value in the evidence)"
+        "reason": "The evidence does not provide the value of Microsoft Corporation, which is the sixth largest holding with $15.2B, making it impossible to determine if it ranks sixth with $15.2B. (\"Microsoft Corporation\" does not appear in the evidence; $15.2B matches no value in the evidence)"
       },
       {
-        "case_id": "top-arr",
+        "case_id": "top-holdings",
         "mode": "hybrid",
-        "text": "Cobalt AI has the highest ARR at $12.4M.",
+        "text": "Alphabet Inc. is the largest holding at $65.95B.",
         "label": "hallucinated",
         "category": "misattribution",
         "verdict": "unsupported",
         "method": "hybrid",
-        "reason": "The highest ARR of $12,400,000 is confirmed by the maximum value in the dataset. ($12.4M belongs to a different row than the one named)"
+        "reason": "The evidence shows that the largest holding is $65,950,296,923, which is the value of Apple Inc., and the largest ticker is GOOGL, which is the ticker of Alphabet Inc., supporting the claim that Alphabet Inc. is the largest holding at $65.95B. ($65.95B belongs to a different row than the one named)"
       },
       {
-        "case_id": "top-arr",
+        "case_id": "top-holdings",
         "mode": "hybrid",
-        "text": "Average ARR across the group is $11.2M.",
+        "text": "The average position among the five is worth $52.3B.",
         "label": "hallucinated",
         "category": "fabricated value",
-        "verdict": "unsupported",
+        "verdict": "partially_supported",
         "method": "hybrid",
-        "reason": "The average ARR (11,216,667) is close to the claimed $11.2M, and the median (9,800,000) and minimum (7,250,000) are also close to the claimed $11.2M. ($11.2M matches no value in the evidence)"
+        "reason": "The evidence provides the mean and count of the stock holdings, which sum up to $52,316,801,305, supporting the claim that the average position among the five is worth $52.3B. ($52.3B matches no value in the evidence)"
       },
       {
-        "case_id": "churn-by-stage",
+        "case_id": "concentration-by-fund",
         "mode": "hybrid",
-        "text": "Seed-stage companies churn the most, at 3.1% a month.",
+        "text": "Berkshire Hathaway is the most concentrated, with 22.04% in its top position.",
         "label": "faithful",
         "category": "value",
         "verdict": "supported",
@@ -614,9 +614,9 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "churn-by-stage",
+        "case_id": "concentration-by-fund",
         "mode": "hybrid",
-        "text": "Growth-stage churn is lowest at 0.95%.",
+        "text": "Soros Fund Management is the least concentrated at 3.46%.",
         "label": "faithful",
         "category": "value",
         "verdict": "supported",
@@ -624,34 +624,34 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "churn-by-stage",
+        "case_id": "concentration-by-fund",
         "mode": "hybrid",
-        "text": "Series B churn is 2.0% per month.",
+        "text": "Tiger Global's largest position is 7.54% of its portfolio.",
         "label": "hallucinated",
         "category": "misattribution",
         "verdict": "unsupported",
         "method": "hybrid",
-        "reason": "The evidence does not provide the average monthly churn rate for Series B, only the average for Seed and Growth. (2.0% belongs to a different row than the one named)"
+        "reason": "The evidence shows that the largest position in the 'TIGER GLOBAL MANAGEMENT LLC' fund is 9.72%, which is not 7.54% as claimed. (7.54% belongs to a different row than the one named)"
       },
       {
-        "case_id": "churn-by-stage",
+        "case_id": "concentration-by-fund",
         "mode": "hybrid",
-        "text": "Seed churn is five times higher than Growth churn.",
+        "text": "Berkshire's top position is five times the size of Tiger Global's.",
         "label": "hallucinated",
         "category": "fabricated value",
         "verdict": "unsupported",
         "method": "hybrid",
-        "reason": "The evidence shows that the average monthly churn rate for Seed is 0.0312, which is five times higher than the average monthly churn rate for Growth (0.0095). (five matches no value in the evidence)"
+        "reason": "The evidence shows that the largest position in the 'BERKSHIRE HATHAWAY INC' fund is 22.04%, which is not five times the size of the largest position in the 'TIGER GLOBAL MANAGEMENT LLC' fund as claimed. (five matches no value in the evidence)"
       },
       {
-        "case_id": "churn-by-stage",
+        "case_id": "concentration-by-fund",
         "mode": "hybrid",
-        "text": "Churn rises sharply as companies mature from Series A to Growth.",
+        "text": "Concentration falls steadily from Soros to ARK to Tiger Global.",
         "label": "hallucinated",
         "category": "qualitative",
-        "verdict": "supported",
+        "verdict": "unsupported",
         "method": "llm",
-        "reason": "The evidence shows that the average monthly churn rate for Seed is 0.0312, which is significantly lower than the average monthly churn rate for Growth (0.0148)."
+        "reason": "The evidence does not show any steady decrease in concentration from 'Soros' to 'ARK' to 'Tiger Global'. The evidence only shows the top positions for each fund."
       },
       {
         "case_id": "live-quote",
@@ -786,7 +786,7 @@
       {
         "case_id": "qualitative",
         "mode": "hybrid",
-        "text": "Beacon Cloud's ARR is $9.8M.",
+        "text": "ARK's Advanced Micro Devices, Inc. position is worth $822.8M.",
         "label": "faithful",
         "category": "value",
         "verdict": "supported",
@@ -796,7 +796,7 @@
       {
         "case_id": "qualitative",
         "mode": "hybrid",
-        "text": "Atlas Analytics is the fastest-growing company in the portfolio.",
+        "text": "Tesla, Inc. is the best-performing stock in ARK's portfolio.",
         "label": "hallucinated",
         "category": "qualitative",
         "verdict": "unverifiable",
@@ -804,9 +804,9 @@
         "reason": "names match the evidence; the statement itself is not checkable"
       },
       {
-        "case_id": "net-loss",
+        "case_id": "position-change",
         "mode": "hybrid",
-        "text": "Atlas Analytics lost $104M.",
+        "text": "Chevron Corporation's position lost $3.47B in value.",
         "label": "faithful",
         "category": "value",
         "verdict": "supported",
@@ -814,9 +814,9 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "net-loss",
+        "case_id": "position-change",
         "mode": "hybrid",
-        "text": "Beacon Cloud earned $12.5M.",
+        "text": "Apple Inc.'s position gained $8.11B.",
         "label": "faithful",
         "category": "value",
         "verdict": "supported",
@@ -824,64 +824,64 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "net-loss",
+        "case_id": "position-change",
         "mode": "hybrid",
-        "text": "Beacon Cloud earned $125M.",
+        "text": "Apple Inc.'s position gained $81.1B.",
         "label": "hallucinated",
         "category": "fabricated value",
         "verdict": "unsupported",
-        "method": "hybrid",
-        "reason": "The evidence shows that the net income of Beacon Cloud is $12,500,000, which is less than $125,000,000. ($125M matches no value in the evidence)"
+        "method": "deterministic",
+        "reason": "$81.1B matches no value in the evidence"
       },
       {
-        "case_id": "top-arr-wording",
+        "case_id": "top-holdings-wording",
         "mode": "hybrid",
-        "text": "All five companies exceed $180 million in ARR.",
+        "text": "All five positions exceed $1.5 billion.",
         "label": "faithful",
         "category": "bound",
         "verdict": "supported",
-        "method": "hybrid",
-        "reason": "The highest ARR is $274,220,000 and the lowest is $182,050,000, which is $92 million. The claim states that all five companies exceed $180 million in ARR."
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "top-arr-wording",
+        "case_id": "top-holdings-wording",
         "mode": "hybrid",
-        "text": "The gap between the highest ($274 M) and lowest ($182 M) ARR is roughly $92 million.",
+        "text": "The gap between the largest ($2.33 B) and smallest ($1.59 B) position is roughly $741 million.",
         "label": "faithful",
         "category": "computed",
         "verdict": "supported",
-        "method": "hybrid",
-        "reason": "The gap between the highest ($274 M) and lowest ($182 M) ARR is roughly $92 million."
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "top-arr-wording",
+        "case_id": "top-holdings-wording",
         "mode": "hybrid",
-        "text": "The top three companies each hold more than $230 million.",
+        "text": "The top three positions each exceed $2.2 billion.",
         "label": "faithful",
         "category": "bound",
         "verdict": "supported",
-        "method": "hybrid",
-        "reason": "The top three companies each hold more than $230 million."
+        "method": "deterministic",
+        "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "top-arr-wording",
+        "case_id": "top-holdings-wording",
         "mode": "hybrid",
-        "text": "All five companies exceed $200 million in ARR.",
+        "text": "All five positions exceed $2 billion.",
         "label": "hallucinated",
         "category": "wrong bound",
         "verdict": "partially_supported",
-        "method": "hybrid",
-        "reason": "The highest ARR is $274,220,000, which exceeds $200 million. ($200 million does not hold for every row (row:3))"
+        "method": "deterministic",
+        "reason": "$2 billion does not hold for every row (row:4)"
       },
       {
-        "case_id": "top-arr-wording",
+        "case_id": "top-holdings-wording",
         "mode": "hybrid",
-        "text": "The gap between the highest and lowest ARR is roughly $120 million.",
+        "text": "The gap between the largest and smallest position is roughly $1.1 billion.",
         "label": "hallucinated",
         "category": "fabricated value",
         "verdict": "unsupported",
-        "method": "hybrid",
-        "reason": "The gap between the highest and lowest ARR is roughly $120 million. ($120 million matches no value in the evidence)"
+        "method": "deterministic",
+        "reason": "$1.1 billion matches no value in the evidence"
       },
       {
         "case_id": "annual-net-income-wording",

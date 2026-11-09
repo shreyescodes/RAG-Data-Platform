@@ -1,9 +1,9 @@
-"""Import portfolio data from an Excel workbook.
+"""Import your own companies and financial statements from an Excel workbook.
 
-Sheets are routed by name: sheets containing "portfolio" or "company" load
-companies and investments, "financial"/"statement" load financial statements
-and "metric"/"performance" load performance metrics. Column headers are
-matched case-insensitively against the aliases below.
+Sheets are routed by name: sheets containing "company" load companies, and
+"financial"/"statement" load financial statements (for companies that exist
+or were loaded from an earlier sheet). Column headers are matched
+case-insensitively against the aliases below.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import Company, FinancialStatement, PerformanceMetric, PortfolioCompany
+from app.db.models import Company, FinancialStatement
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +27,8 @@ _COMPANY_ALIASES = ("company name", "company", "name")
 
 @dataclass(slots=True)
 class ExcelReport:
-    investments: int = 0
+    companies: int = 0
     statements: int = 0
-    metrics: int = 0
 
 
 def _get(row: pd.Series, *aliases: str) -> Any:
@@ -59,12 +58,10 @@ class ExcelLoader:
         try:
             for sheet, frame in workbook.items():
                 key = sheet.lower()
-                if "portfolio" in key or "company" in key:
-                    report.investments += self._load_portfolio(frame)
+                if "company" in key:
+                    report.companies += self._load_companies(frame)
                 elif "financial" in key or "statement" in key:
                     report.statements += self._load_financials(frame)
-                elif "metric" in key or "performance" in key:
-                    report.metrics += self._load_metrics(frame)
                 else:
                     logger.info("Skipping unrecognised sheet %r", sheet)
             self._session.commit()
@@ -89,26 +86,16 @@ class ExcelLoader:
             self._session.flush()
         return company
 
-    def _load_portfolio(self, frame: pd.DataFrame) -> int:
+    def _load_companies(self, frame: pd.DataFrame) -> int:
         added = 0
         for _, row in frame.iterrows():
-            company = self._company(_get(row, *_COMPANY_ALIASES), create_from=row)
-            invested_on = _as_date(_get(row, "investment date"))
-            if company is None or invested_on is None:
+            name = _get(row, *_COMPANY_ALIASES)
+            if name is None:
                 continue
-            self._session.add(
-                PortfolioCompany(
-                    company_id=company.id,
-                    investment_date=invested_on,
-                    exit_date=_as_date(_get(row, "exit date")),
-                    investment_amount=_as_float(_get(row, "investment amount")),
-                    current_valuation=_as_float(_get(row, "current valuation")),
-                    ownership_percentage=_as_float(_get(row, "ownership %", "ownership")),
-                    investment_stage=_get(row, "stage", "investment stage"),
-                    status=_get(row, "status") or "Active",
-                )
-            )
-            added += 1
+            exists = self._session.scalar(select(Company).where(Company.name == str(name)))
+            if exists is None:
+                self._company(name, create_from=row)
+                added += 1
         return added
 
     def _load_financials(self, frame: pd.DataFrame) -> int:
@@ -132,32 +119,6 @@ class ExcelLoader:
                     total_assets=_as_float(_get(row, "total assets")),
                     total_liabilities=_as_float(_get(row, "total liabilities")),
                     shareholders_equity=_as_float(_get(row, "equity", "shareholders equity")),
-                )
-            )
-            added += 1
-        return added
-
-    def _load_metrics(self, frame: pd.DataFrame) -> int:
-        added = 0
-        for _, row in frame.iterrows():
-            company = self._company(_get(row, *_COMPANY_ALIASES))
-            metric_date = _as_date(_get(row, "date", "metric date"))
-            if company is None or metric_date is None:
-                continue
-            investment = self._session.scalar(
-                select(PortfolioCompany).where(PortfolioCompany.company_id == company.id)
-            )
-            if investment is None:
-                continue
-            customers = _get(row, "customers", "customer count")
-            self._session.add(
-                PerformanceMetric(
-                    portfolio_company_id=investment.id,
-                    metric_date=metric_date,
-                    arr=_as_float(_get(row, "arr")),
-                    mrr=_as_float(_get(row, "mrr")),
-                    customer_count=int(customers) if customers is not None else None,
-                    churn_rate=_as_float(_get(row, "churn rate", "churn")),
                 )
             )
             added += 1

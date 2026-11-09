@@ -36,30 +36,30 @@ function setup(queryHandler = successResult) {
 describe('App', () => {
   it('shows dataset stats, suggestions and history on load', async () => {
     setup()
-    expect(await screen.findByText('5,398')).toBeInTheDocument()
+    expect(await screen.findByText('9,512')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: EXAMPLE_QUERIES[0] })).toBeInTheDocument()
-    expect(await screen.findByText('Average churn by stage')).toBeInTheDocument()
+    expect(await screen.findByText('Fund positions by quarter')).toBeInTheDocument()
   })
 
   it('runs a query and renders the answer, SQL, trace and data', async () => {
     const { fetch, user } = setup()
 
-    await user.type(screen.getByLabelText(/ask a question/i), 'Top companies by ARR{Enter}')
+    await user.type(screen.getByLabelText(/ask a question/i), 'Top Berkshire holdings by value{Enter}')
 
-    expect(await screen.findByText('Atlas Analytics has the highest ARR.', { selector: '.answer-text' })).toBeInTheDocument()
+    expect(await screen.findByText('Apple Inc. is the largest holding.', { selector: '.answer-text' })).toBeInTheDocument()
     expect(screen.getByText(successResult.sql)).toBeInTheDocument()
     expect(screen.getByText('1.83 s')).toBeInTheDocument()
-    expect(screen.getByText('12,000,000')).toBeInTheDocument()
+    expect(screen.getByText('65,950,296,923')).toBeInTheDocument()
     expect(screen.getByText('Data (2 rows)')).toBeInTheDocument()
     expect(screen.getByText('Reasoning steps (1)')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Fact check' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Sources' })).toBeInTheDocument()
     expect(screen.getByText('3 (1 from cache)')).toBeInTheDocument()
     expect(screen.getByText('openai/gpt-oss-120b (remote)')).toBeInTheDocument()
-    expect(document.getElementById('result-row-0')).toHaveTextContent('Atlas Analytics')
+    expect(document.getElementById('result-row-0')).toHaveTextContent('Apple Inc.')
 
     const queryCall = fetch.mock.calls.find(([, init]) => init?.method === 'POST')
-    expect(JSON.parse(queryCall[1].body)).toEqual({ query: 'Top companies by ARR' })
+    expect(JSON.parse(queryCall[1].body)).toEqual({ query: 'Top Berkshire holdings by value' })
     // Stats and history refresh after the query settles.
     await waitFor(() =>
       expect(fetch.mock.calls.filter(([url]) => url.includes('/history'))).toHaveLength(2),
@@ -69,7 +69,7 @@ describe('App', () => {
   it('runs a suggested query on click', async () => {
     const { fetch, user } = setup()
     await user.click(screen.getByRole('button', { name: EXAMPLE_QUERIES[1] }))
-    await screen.findByText('Atlas Analytics has the highest ARR.', { selector: '.answer-text' })
+    await screen.findByText('Apple Inc. is the largest holding.', { selector: '.answer-text' })
     const queryCall = fetch.mock.calls.find(([, init]) => init?.method === 'POST')
     expect(JSON.parse(queryCall[1].body).query).toBe(EXAMPLE_QUERIES[1])
   })

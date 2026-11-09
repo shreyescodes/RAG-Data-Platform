@@ -5,13 +5,13 @@ answer claims labelled faithful or hallucinated against the rows and live data
 they were written from. A hallucinated claim is *caught* when it is marked
 unsupported or partially supported; a faithful claim so marked is a false positive.
 
-- **Run:** 2026-11-06 04:32 UTC
+- **Run:** 2026-11-09 09:11 UTC
 - **Judge model (hybrid):** `qwen2.5:1.5b`
 
 | Mode | Caught | Recall | False positives | Precision | Faithful confirmed | Unverifiable |
 |------|-------:|-------:|----------------:|----------:|-------------------:|-------------:|
 | `heuristic` | 16/19 | 0.84 | 0/25 | 1.00 | 25/25 | 3 |
-| `hybrid` | 17/19 | 0.90 | 0/25 | 1.00 | 25/25 | 1 |
+| `hybrid` | 18/19 | 0.95 | 0/25 | 1.00 | 25/25 | 1 |
 
 ## By category (hallucinated claims caught)
 
@@ -20,7 +20,7 @@ unsupported or partially supported; a faithful claim so marked is a false positi
 | fabricated value | 8/8 | 8/8 |
 | invented entity | 1/2 | 2/2 |
 | misattribution | 3/3 | 3/3 |
-| qualitative | 0/2 | 0/2 |
+| qualitative | 0/2 | 1/2 |
 | wrong bound | 1/1 | 1/1 |
 | wrong count | 1/1 | 1/1 |
 | wrong date | 2/2 | 2/2 |
@@ -35,18 +35,18 @@ unsupported or partially supported; a faithful claim so marked is a false positi
 | `quarterly-financials` | Apple's revenue was 23% higher than Microsoft's. | faithful | supported | supported |
 | `quarterly-financials` | Microsoft reported the higher revenue, at $94.0B. | hallucinated | unsupported | unsupported |
 | `quarterly-financials` | Apple's net income reached $31.5B. | hallucinated | unsupported | unsupported |
-| `top-arr` | Atlas Analytics leads with $12.4M in ARR. | faithful | supported | supported |
-| `top-arr` | Beacon Cloud follows at $9.8M, and Cobalt AI at $7.25M. | faithful | supported | supported |
-| `top-arr` | Together the three companies hold $29.45M of ARR. | faithful | supported | supported |
-| `top-arr` | Two of the three are at Series A. | faithful | supported | supported |
-| `top-arr` | Delta Labs ranks fourth with $6.1M. | hallucinated | unsupported | unsupported |
-| `top-arr` | Cobalt AI has the highest ARR at $12.4M. | hallucinated | unsupported | unsupported |
-| `top-arr` | Average ARR across the group is $11.2M. | hallucinated | unsupported | unsupported |
-| `churn-by-stage` | Seed-stage companies churn the most, at 3.1% a month. | faithful | supported | supported |
-| `churn-by-stage` | Growth-stage churn is lowest at 0.95%. | faithful | supported | supported |
-| `churn-by-stage` | Series B churn is 2.0% per month. | hallucinated | unsupported | unsupported |
-| `churn-by-stage` | Seed churn is five times higher than Growth churn. | hallucinated | unsupported | unsupported |
-| `churn-by-stage` | Churn rises sharply as companies mature from Series A to Growth. | hallucinated | unverifiable | **supported** |
+| `top-holdings` | Apple Inc. is the largest holding at $65.95B. | faithful | supported | supported |
+| `top-holdings` | American Express Company follows at $51.28B. | faithful | supported | supported |
+| `top-holdings` | Together the five positions are worth $205.44B. | faithful | supported | supported |
+| `top-holdings` | Two of the five are in Financial Services. | faithful | supported | supported |
+| `top-holdings` | Microsoft Corporation ranks sixth with $15.2B. | hallucinated | unsupported | unsupported |
+| `top-holdings` | Alphabet Inc. is the largest holding at $65.95B. | hallucinated | unsupported | unsupported |
+| `top-holdings` | The average position among the five is worth $52.3B. | hallucinated | partially_supported | partially_supported |
+| `concentration-by-fund` | Berkshire Hathaway is the most concentrated, with 22.04% in its top position. | faithful | supported | supported |
+| `concentration-by-fund` | Soros Fund Management is the least concentrated at 3.46%. | faithful | supported | supported |
+| `concentration-by-fund` | Tiger Global's largest position is 7.54% of its portfolio. | hallucinated | unsupported | unsupported |
+| `concentration-by-fund` | Berkshire's top position is five times the size of Tiger Global's. | hallucinated | unsupported | unsupported |
+| `concentration-by-fund` | Concentration falls steadily from Soros to ARK to Tiger Global. | hallucinated | unverifiable | unsupported |
 | `live-quote` | NVDA trades at $181.26 per share. | faithful | supported | supported |
 | `live-quote` | Its market capitalization is about $4.4T. | faithful | supported | supported |
 | `live-quote` | NVDA's P/E ratio is 51.8. | faithful | supported | supported |
@@ -60,16 +60,16 @@ unsupported or partially supported; a faithful claim so marked is a false positi
 | `sector-counts` | Two of them are in Technology. | faithful | supported | supported |
 | `sector-counts` | Four companies are in Financial Services. | hallucinated | unsupported | unsupported |
 | `sector-counts` | Amazon is also in Technology. | hallucinated | unverifiable | unsupported |
-| `qualitative` | Beacon Cloud's ARR is $9.8M. | faithful | supported | supported |
-| `qualitative` | Atlas Analytics is the fastest-growing company in the portfolio. | hallucinated | unverifiable | unverifiable |
-| `net-loss` | Atlas Analytics lost $104M. | faithful | supported | supported |
-| `net-loss` | Beacon Cloud earned $12.5M. | faithful | supported | supported |
-| `net-loss` | Beacon Cloud earned $125M. | hallucinated | unsupported | unsupported |
-| `top-arr-wording` | All five companies exceed $180 million in ARR. | faithful | supported | supported |
-| `top-arr-wording` | The gap between the highest ($274 M) and lowest ($182 M) ARR is roughly $92 million. | faithful | supported | supported |
-| `top-arr-wording` | The top three companies each hold more than $230 million. | faithful | supported | supported |
-| `top-arr-wording` | All five companies exceed $200 million in ARR. | hallucinated | partially_supported | partially_supported |
-| `top-arr-wording` | The gap between the highest and lowest ARR is roughly $120 million. | hallucinated | unsupported | unsupported |
+| `qualitative` | ARK's Advanced Micro Devices, Inc. position is worth $822.8M. | faithful | supported | supported |
+| `qualitative` | Tesla, Inc. is the best-performing stock in ARK's portfolio. | hallucinated | unverifiable | unverifiable |
+| `position-change` | Chevron Corporation's position lost $3.47B in value. | faithful | supported | supported |
+| `position-change` | Apple Inc.'s position gained $8.11B. | faithful | supported | supported |
+| `position-change` | Apple Inc.'s position gained $81.1B. | hallucinated | unsupported | unsupported |
+| `top-holdings-wording` | All five positions exceed $1.5 billion. | faithful | supported | supported |
+| `top-holdings-wording` | The gap between the largest ($2.33 B) and smallest ($1.59 B) position is roughly $741 million. | faithful | supported | supported |
+| `top-holdings-wording` | The top three positions each exceed $2.2 billion. | faithful | supported | supported |
+| `top-holdings-wording` | All five positions exceed $2 billion. | hallucinated | partially_supported | partially_supported |
+| `top-holdings-wording` | The gap between the largest and smallest position is roughly $1.1 billion. | hallucinated | unsupported | unsupported |
 | `annual-net-income-wording` | Microsoft Corporation reported net income of $133.7B for the year ending June 30, 2026. | faithful | supported | supported |
 | `annual-net-income-wording` | MSFT's latest annual statement is dated 2026‑06‑30. | faithful | supported | supported |
 | `annual-net-income-wording` | Microsoft's latest annual statement is dated June 30, 2025. | hallucinated | unsupported | unsupported |
