@@ -9,6 +9,7 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=500]
+        exclude: ^docs/screenshots/demo\.(webp|mp4)$
       - id: detect-private-key
 
   - repo: https://github.com/astral-sh/ruff-pre-commit

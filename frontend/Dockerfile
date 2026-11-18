@@ -15,6 +15,10 @@ RUN npm run build
 # nginx-unprivileged runs as uid 101 and listens on 8080. Like the official
 # image, it renders /etc/nginx/templates/*.template with envsubst at start.
 FROM nginxinc/nginx-unprivileged:1.31-alpine
+# Apply Alpine security fixes published since the base image was built.
+USER root
+RUN apk upgrade --no-cache
+USER 101
 COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html
 
