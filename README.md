@@ -30,7 +30,7 @@ Recorded on 18 November 2026 from a local run of the production Docker stack,
 with real SEC and Yahoo Finance data and the Groq API. The app's responses were
 not mocked or edited. Captions and the pointer were added for the recording,
 and the wait for the LLM is shortened.
-[Watch the MP4](docs/screenshots/demo.mp4).
+[Watch the full-quality video](https://drive.google.com/file/d/1nfKHfC_bMd8owrWmkRbwI4F4lEsutaII/view).
 
 ```text
 "Which stocks did Berkshire Hathaway buy last quarter?"
