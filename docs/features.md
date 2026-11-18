@@ -26,9 +26,7 @@ No responses were mocked or edited.
 
 **Time series.** NVDA's real closing price with its 50- and 200-day moving
 averages (computed during ingestion), plotted on one shared axis. The chart
-uses all 120 rows, but the written answer covers only the first 25
-([a known limitation](architecture.md#limitations)), and the fact check flags 2
-of its 5 claims.
+and the written answer both cover all 120 trading days.
 
 ![NVDA close vs 50/200-day moving averages over 120 trading days](screenshots/query-line-chart.webp)
 

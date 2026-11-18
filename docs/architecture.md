@@ -225,9 +225,12 @@ The current design targets a single instance. The natural next steps:
 
 ## Limitations
 
-- The written answer is based on the first 25 result rows (`SAMPLE_ROWS` in
-  `backend/app/agents/analysis.py`). The chart uses every row, so on longer
-  results the text can describe only part of what the chart shows.
+- For results longer than 25 rows, the written answer is based on an overview
+  of every column plus 25 selected rows: the first and last rows, each column's
+  highest and lowest rows, and rows spaced evenly between. For a single dated
+  series, crossings and rises and falls are computed from every row, and the
+  fact check judges claims about them against those figures. The answer can
+  still miss other details in rows it was not shown.
 - Retrieval indexes schema, not row values. Questions that name an entity
   differently from how it is stored rely on the LLM's `ILIKE` matching.
 - Authentication is a single shared API key. Multi-tenant deployments need

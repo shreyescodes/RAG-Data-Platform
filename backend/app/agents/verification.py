@@ -32,6 +32,11 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from app.agents.base import Agent, Trace
+from app.agents.result_overview import (
+    MAX_SCANNED_ROWS,
+    representative_indices,
+    series_patterns,
+)
 from app.core.exceptions import LLMError
 from app.schemas import ClaimCheck, EvidenceRef, VerificationReport
 from app.services.structured_output import (
@@ -48,8 +53,8 @@ Verdict = Literal["supported", "partially_supported", "unsupported", "unverifiab
 Method = Literal["deterministic", "llm", "hybrid"]
 Source = Literal["answer", "summary", "insight"]
 
-# Rows scanned for matching values; computed ratios use a smaller window.
-MAX_EVIDENCE_ROWS = 200
+# Rows scanned for matching values; computed ratios use a smaller, representative set.
+MAX_EVIDENCE_ROWS = MAX_SCANNED_ROWS
 _DERIVED_ROWS = 25
 # Evidence shown to the LLM judge.
 _JUDGE_ROWS = 25
@@ -424,6 +429,9 @@ class Evidence:
         self.sql = sql
         self.rows = list(rows[:MAX_EVIDENCE_ROWS])
         self.total_rows = len(rows)
+        self._derived_rows = [
+            (i, self.rows[i]) for i in representative_indices(self.rows, _DERIVED_ROWS)
+        ]
         self.items: dict[str, _Item] = {}
         self._question_numbers = extract_facts(question).numbers
         self._derived: list[tuple[float, str]] | None = None
@@ -449,6 +457,21 @@ class Evidence:
         )
         self._add_aggregates()
         self._add_live(enrichment)
+        # The judge sees only some rows of a long result, so how the series moved
+        # between them is computed here from every row.
+        self.patterns = series_patterns(self.rows) if self.total_rows > _JUDGE_ROWS else []
+        for i, line in enumerate(self.patterns):
+            self._add(
+                EvidenceRef(id=f"pattern:{i}", kind="meta", label=line),
+                numbers=self._pattern_numbers(line),
+            )
+
+    def _pattern_numbers(self, line: str) -> list[float]:
+        """Counts and values in a pattern line, plus each count's share of the rows."""
+        values = [
+            float(n.replace(",", "")) for n in _PATTERN_NUMBER.findall(_ISO_DAY.sub(" ", line))
+        ]
+        return [*values, *(v / self.total_rows for v in values if v <= self.total_rows)]
 
     def _add(
         self, ref: EvidenceRef, *, numbers: Sequence[float] = (), texts: Sequence[str] = ()
@@ -533,7 +556,6 @@ class Evidence:
         if self._derived is not None:
             return self._derived
         derived: list[tuple[float, str]] = []
-        window = self.rows[:_DERIVED_ROWS]
 
         def pairs(values: Sequence[tuple[int, float]], source: str | None) -> None:
             for i, a in values:
@@ -543,11 +565,11 @@ class Evidence:
                         derived.append((a / b, ref))
                         derived.append(((a - b) / abs(b), ref))
 
-        for i, row in enumerate(window):  # within a row, e.g. net_income / revenue
+        for i, row in self._derived_rows:  # within a row, e.g. net_income / revenue
             nums = [float(v) for v in row.values() if _is_number(v)]
             pairs(list(enumerate(nums)), f"row:{i}")
         columns: dict[str, list[tuple[int, float]]] = {}
-        for i, row in enumerate(window):
+        for i, row in self._derived_rows:
             for col, value in row.items():
                 if _is_number(value):
                     columns.setdefault(col, []).append((i, float(value)))
@@ -607,7 +629,7 @@ class Evidence:
             return self._gaps
         gaps: list[tuple[float, int, int]] = []
         columns: dict[str, list[tuple[int, float]]] = {}
-        for i, row in enumerate(self.rows[:_DERIVED_ROWS]):
+        for i, row in self._derived_rows:
             nums = [float(v) for v in row.values() if _is_number(v)]
             gaps.extend((abs(a - b), i, i) for k, a in enumerate(nums) for b in nums[k + 1 :])
             for col, value in row.items():
@@ -625,7 +647,7 @@ class Evidence:
         if self._sums is not None:
             return self._sums
         columns: dict[str, list[tuple[int, float]]] = {}
-        for i, row in enumerate(self.rows[:_DERIVED_ROWS]):
+        for i, row in self._derived_rows:
             for col, value in row.items():
                 if _is_number(value):
                     columns.setdefault(col, []).append((i, float(value)))
@@ -732,15 +754,18 @@ class Evidence:
 
     def judge_block(self) -> str:
         lines = [f"[sql] {self.sql}"] if self.sql else []
-        lines += [
-            f"[row:{i}] {json.dumps(r, default=str)}" for i, r in enumerate(self.rows[:_JUDGE_ROWS])
-        ]
-        if self.total_rows > _JUDGE_ROWS:
-            lines.append(f"(first {_JUDGE_ROWS} of {self.total_rows} rows shown)")
+        lines += [f"[pattern:{i}] {line}" for i, line in enumerate(self.patterns)]
+        shown = representative_indices(self.rows, _JUDGE_ROWS)
+        lines += [f"[row:{i}] {json.dumps(self.rows[i], default=str)}" for i in shown]
+        if self.total_rows > len(shown):
+            lines.append(
+                f"({len(shown)} of {self.total_rows} rows shown: the first, last, highest and "
+                "lowest rows and rows spaced evenly between; the agg lines cover every row)"
+            )
         lines += [
             f"[{item_id}] {item.ref.label}"
             for item_id, item in self.items.items()
-            if item.ref.kind != "row"
+            if item.ref.kind != "row" and not item_id.startswith("pattern:")
         ]
         for item_id, item in self.items.items():
             if item.ref.kind == "market_data":
@@ -765,6 +790,16 @@ class FactCheck:
     def settled(self) -> bool:
         """Whether the deterministic verdict needs no second opinion."""
         return self.verdict == "supported" and not (self.via_derived or self.unresolved)
+
+
+_ISO_DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
+_PATTERN_NUMBER = re.compile(r"(?<![\w.])\d[\d,]*(?:\.\d+)?")
+_MOVEMENT_CUE = re.compile(
+    r"\b(?:cross\w*|above|below|under|beneath|stay\w*|remain\w*|throughout|steadily|"
+    r"consistently|continu\w*|kept|keeps|most of|majority|trend\w*|ris(?:e|es|ing)|rose|"
+    r"f[ae]ll\w*|declin\w*|increas\w*|decreas\w*|drop\w*|climb\w*|gain\w*|lost)\b",
+    re.IGNORECASE,
+)
 
 
 def _within_result(fact: NumberFact, total_rows: int) -> bool:
@@ -877,6 +912,10 @@ def check_claim(claim: Claim, evidence: Evidence) -> FactCheck:
 
     if result.unsupported:
         result.verdict = "partially_supported" if ok else "unsupported"
+    elif evidence.patterns and _MOVEMENT_CUE.search(claim.text):
+        # Real dates and prices do not prove the story told about them.
+        result.verdict = "unverifiable"
+        result.reasons.append("how the values moved over time needs checking against every row")
     elif (has_values or checked_bounds) and not open_bounds:
         result.verdict = "supported"
     else:
@@ -904,8 +943,12 @@ overstates the evidence;
 Judge only against the evidence, never against outside knowledge. The [sql] line \
 is the query that produced the rows: its filters, ordering and LIMIT support \
 claims about how the rows were selected ("only listed companies", "the highest"). \
-Check bounds ("above $180M") and differences against the row values. List the \
-ids of the evidence lines that support or refute each claim."""
+Check bounds ("above $180M") and differences against the row values. When only \
+some rows are listed, use the agg lines for facts about the whole result. The \
+[pattern] lines are computed from every row: a claim about how values moved over \
+time (crossings, staying above or below, steady rises or falls) is supported only \
+if they state it, and unsupported if they contradict it. List the ids of the \
+evidence lines that support or refute each claim."""
 # Room for the verdicts plus a reasoning model's hidden reasoning, which counts
 # against the same limit: a cut-off reply is invalid JSON.
 _JUDGE_MAX_TOKENS = 4_000
