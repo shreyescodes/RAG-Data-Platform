@@ -1,7 +1,6 @@
 # RAG Data Platform
 
 [![CI](https://github.com/shreyescodes/RAG-Data-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/shreyescodes/RAG-Data-Platform/actions/workflows/ci.yml)
-[![Deploy](https://github.com/shreyescodes/RAG-Data-Platform/actions/workflows/deploy.yml/badge.svg)](https://github.com/shreyescodes/RAG-Data-Platform/actions/workflows/deploy.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![Node 20.19+](https://img.shields.io/badge/node-20.19%2B-green.svg)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
@@ -22,6 +21,16 @@ dashboard. The LLM can be a hosted API or a model on your own GPU.
 <!-- After the first deploy, uncomment and fill in:
 **Live demo: <https://YOUR-SUBDOMAIN.duckdns.org>** (status: <https://stats.uptimerobot.com/YOUR-PAGE>)
 -->
+
+## Demo
+
+![One-minute demo: a question over SEC 13F filings with its fact check, sources and SQL, an NVDA price chart, a refused prompt injection, and the observability dashboard](docs/screenshots/demo.webp)
+
+Recorded on 18 November 2026 from a local run of the production Docker stack,
+with real SEC and Yahoo Finance data and the Groq API. The app's responses were
+not mocked or edited. Captions and the pointer were added for the recording,
+and the wait for the LLM is shortened.
+[Watch the MP4](docs/screenshots/demo.mp4).
 
 ```text
 "Which stocks did Berkshire Hathaway buy last quarter?"
@@ -273,8 +282,10 @@ check are in [docs/PRODUCTION_UPGRADES.md](docs/PRODUCTION_UPGRADES.md#5-local-l
 
 ## Production deployment
 
-The live instance runs on a free Oracle Cloud arm64 VM. Every green commit on
-`main` is deployed by [deploy.yml](.github/workflows/deploy.yml):
+The repository includes a production setup for a free Oracle Cloud arm64 VM.
+The app is not hosted publicly at the moment; the demo above was recorded from
+this stack running locally. Deployments are started by hand with
+[deploy.yml](.github/workflows/deploy.yml):
 
 - Native arm64 image builds are pushed to GHCR with an SBOM and provenance,
   then scanned with Trivy.
