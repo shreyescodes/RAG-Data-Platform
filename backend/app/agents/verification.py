@@ -894,7 +894,8 @@ def check_claim(claim: Claim, evidence: Evidence) -> FactCheck:
             result.unresolved.append(entity)
 
     for fact in numbers:
-        if evidence.in_question(fact):
+        # "The 5 largest" in the question says nothing about "five times larger".
+        if not fact.multiple and evidence.in_question(fact):
             ok += 1
             continue
         if fact.multiple and len(entity_rows) > 1:

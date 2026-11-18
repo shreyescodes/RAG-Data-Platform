@@ -604,3 +604,22 @@ def test_a_multiple_between_named_companies_cannot_borrow_another_pair() -> None
 
     assert _verdict(false_claim, rows) != "supported"
     assert _verdict(true_claim, rows) == "supported"
+
+
+def test_a_multiple_is_not_excused_by_the_same_number_in_the_question() -> None:
+    rows = [
+        {"issuer_name": "AMERICAN EXPRESS CO", "shares": 151_610_700},
+        {"issuer_name": "COCA COLA CO", "shares": 400_000_000},
+        {"issuer_name": "ALPHABET INC", "shares": 78_791_167},
+        {"issuer_name": "BANK OF AMER CORP", "shares": 483_394_015},
+    ]
+    evidence = Evidence("What were the fund's 5 largest holdings?", rows, {})
+
+    def verdict(text: str) -> str:
+        (claim,) = extract_claims(text)
+        return check_claim(claim, evidence).verdict
+
+    assert verdict("Bank of America holds five times the shares of American Express.") != (
+        "supported"
+    )
+    assert verdict("Coca-Cola holds five times the shares of Alphabet.") == "supported"
