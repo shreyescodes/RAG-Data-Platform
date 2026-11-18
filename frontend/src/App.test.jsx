@@ -9,7 +9,6 @@ import {
   metricsRecent,
   metricsSummary,
   metricsTimeseries,
-  stats,
   successResult,
 } from './test/fixtures.js'
 import { jsonResponse, mockFetch } from './test/mockFetch.js'
@@ -21,7 +20,6 @@ afterEach(() => {
 
 function setup(queryHandler = successResult) {
   const fetch = mockFetch({
-    'GET /api/stats': stats,
     'GET /api/history': history,
     'POST /api/query': queryHandler,
     'GET /api/metrics/summary': metricsSummary,
@@ -34,11 +32,19 @@ function setup(queryHandler = successResult) {
 }
 
 describe('App', () => {
-  it('shows dataset stats, suggestions and history on load', async () => {
+  it('shows suggestions and history on load', async () => {
     setup()
-    expect(await screen.findByText('9,512')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: EXAMPLE_QUERIES[0] })).toBeInTheDocument()
     expect(await screen.findByText('Fund positions by quarter')).toBeInTheDocument()
+  })
+
+  it('never requests or shows the dataset size', async () => {
+    const { fetch } = setup()
+    await screen.findByText('Fund positions by quarter')
+
+    expect(fetch.mock.calls.some(([url]) => url.includes('/stats'))).toBe(false)
+    expect(screen.queryByLabelText('Dataset statistics')).not.toBeInTheDocument()
+    expect(screen.queryByText('Price points')).not.toBeInTheDocument()
   })
 
   it('runs a query and renders the answer, SQL, trace and data', async () => {
@@ -60,7 +66,7 @@ describe('App', () => {
 
     const queryCall = fetch.mock.calls.find(([, init]) => init?.method === 'POST')
     expect(JSON.parse(queryCall[1].body)).toEqual({ query: 'Top Berkshire holdings by value' })
-    // Stats and history refresh after the query settles.
+    // History refreshes after the query settles.
     await waitFor(() =>
       expect(fetch.mock.calls.filter(([url]) => url.includes('/history'))).toHaveLength(2),
     )
@@ -128,7 +134,46 @@ describe('App', () => {
     expect(screen.getByRole('link', { name: 'Observability' })).toHaveAttribute('aria-current', 'page')
     expect(screen.queryByLabelText(/ask a question/i)).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('link', { name: 'Query' }))
+    await user.click(screen.getByRole('button', { name: 'New chat' }))
     expect(await screen.findByLabelText(/ask a question/i)).toBeInTheDocument()
+  })
+
+  it('shows the question in the conversation and clears the input', async () => {
+    const { user } = setup()
+    const input = screen.getByLabelText(/ask a question/i)
+    await user.type(input, 'Top Berkshire holdings by value{Enter}')
+
+    await screen.findByText('Apple Inc. is the largest holding.', { selector: '.answer-text' })
+    expect(screen.getByText('Top Berkshire holdings by value', { selector: '.asked' })).toBeInTheDocument()
+    expect(input).toHaveValue('')
+  })
+
+  it('returns to the start screen on New chat', async () => {
+    const { user } = setup()
+    await user.type(screen.getByLabelText(/ask a question/i), 'Top Berkshire holdings by value{Enter}')
+    await screen.findByText('Apple Inc. is the largest holding.', { selector: '.answer-text' })
+
+    await user.click(screen.getByRole('button', { name: 'New chat' }))
+
+    expect(screen.queryByText('Apple Inc. is the largest holding.')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Ask the data.' })).toBeInTheDocument()
+  })
+
+  it('runs a recent query from the sidebar', async () => {
+    const { fetch, user } = setup()
+    await user.click(await screen.findByRole('button', { name: 'Fund positions by quarter' }))
+
+    await screen.findByText('Apple Inc. is the largest holding.', { selector: '.answer-text' })
+    const queryCall = fetch.mock.calls.find(([, init]) => init?.method === 'POST')
+    expect(JSON.parse(queryCall[1].body).query).toBe('Fund positions by quarter')
+  })
+
+  it('collapses and reopens the sidebar', async () => {
+    const { user } = setup()
+    await user.click(screen.getByRole('button', { name: 'Close sidebar' }))
+    expect(document.querySelector('.app')).toHaveAttribute('data-sidebar', 'closed')
+
+    await user.click(screen.getByRole('button', { name: 'Open sidebar' }))
+    expect(document.querySelector('.app')).toHaveAttribute('data-sidebar', 'open')
   })
 })

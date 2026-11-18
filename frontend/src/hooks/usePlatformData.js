@@ -1,21 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client.js'
 
-const HISTORY_SIZE = 8
+const HISTORY_SIZE = 40
 
-/** Dataset stats and recent query history. Failures are non-fatal. */
+/** Recent query history. Failures are non-fatal. */
 export function usePlatformData() {
-  const [stats, setStats] = useState(null)
   const [history, setHistory] = useState([])
 
   const refresh = useCallback(async (signal) => {
-    const [statsResult, historyResult] = await Promise.allSettled([
-      api.stats({ signal }),
-      api.history({ limit: HISTORY_SIZE }, { signal }),
-    ])
-    if (signal?.aborted) return
-    if (statsResult.status === 'fulfilled') setStats(statsResult.value)
-    if (historyResult.status === 'fulfilled') setHistory(historyResult.value.history)
+    try {
+      const result = await api.history({ limit: HISTORY_SIZE }, { signal })
+      if (!signal?.aborted) setHistory(result.history)
+    } catch {
+      // The sidebar keeps the last list it loaded.
+    }
   }, [])
 
   useEffect(() => {
@@ -24,5 +22,5 @@ export function usePlatformData() {
     return () => controller.abort()
   }, [refresh])
 
-  return { stats, history, refresh }
+  return { history, refresh }
 }

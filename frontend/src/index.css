@@ -30,19 +30,12 @@
   --series-2: #8f8f8f;
   --series-3: #5e5e5e;
 
-  /* Liquid glass: light catching the edge of a sheet of glass. */
-  --glass-rim: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.72) 0%,
-    rgba(255, 255, 255, 0.2) 18%,
-    rgba(255, 255, 255, 0.07) 48%,
-    rgba(255, 255, 255, 0.16) 80%,
-    rgba(255, 255, 255, 0.5) 100%
-  );
-  --glass-highlight: inset 0 1px 1px rgba(255, 255, 255, 0.1);
-  --glass-tint: rgba(0, 0, 0, 0.42);
-  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Liquid glass: a thin sheet, lit from above. */
+  --glass-fill: rgba(255, 255, 255, 0.05);
+  --glass-edge:
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06);
 
   /* Typography */
   --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;

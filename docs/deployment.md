@@ -34,7 +34,7 @@ new version fails its health checks.
 | TLS | Caddy obtains and renews certificates; HTTP redirects to HTTPS; HSTS |
 | Exposure | Only Caddy publishes ports (80/443). nginx, the API and Postgres stay on the private network; the API also listens on the host's loopback for admin calls |
 | Secrets | Only in `/opt/rag/.env` on the server (mode 600). GitHub holds just the SSH deploy key |
-| Admin routes | nginx returns 403 for `POST /api/index-schema`; call it over SSH instead |
+| Admin routes | nginx returns 403 for `POST /api/index-schema` and `GET /api/stats`; call them over SSH instead |
 | Abuse / cost | Per-IP limit of 10 queries/minute, keyed on the real client IP (the API trusts `X-Forwarded-For` only from the proxy subnet); exact and semantic LLM caches; Groq free tier, so the worst case is a 429, never a bill |
 | Images | Built natively for arm64, tagged by commit, SBOM + provenance attached, blocked on critical fixable CVEs; frontend runs as non-root nginx |
 | Containers | `no-new-privileges`, memory limits, log rotation, healthchecks, `restart: unless-stopped` |

@@ -1,6 +1,5 @@
 import { formatCompact, formatDuration, formatUsd } from '../utils/format.js'
 import { Card } from './Card.jsx'
-import { TerminalIcon } from './Icons.jsx'
 
 function Row({ label, children }) {
   return (
@@ -14,7 +13,7 @@ function Row({ label, children }) {
 export function ExecutionDetails({ result }) {
   const usage = result.usage
   return (
-    <Card icon={TerminalIcon} title="Execution">
+    <Card title="Execution">
       <dl className="meta-grid">
         <Row label="Execution time">{formatDuration(result.execution_time_ms)}</Row>
         <Row label="Rows returned">{result.row_count}</Row>

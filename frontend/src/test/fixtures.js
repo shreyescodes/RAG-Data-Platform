@@ -138,18 +138,6 @@ export const failedResult = {
   agent_flow: { retrieval: 'failed', enrichment: 'skipped', analysis: 'skipped' },
 }
 
-export const stats = {
-  queries: { total: 3, successful: 2, success_rate: 66.67 },
-  database: {
-    companies: 90,
-    financial_statements: 120,
-    funds: 10,
-    fund_holdings: 9512,
-    market_data: 5020,
-  },
-  vector_store: { total_documents: 74 },
-}
-
 export const history = {
   total: 1,
   limit: 8,

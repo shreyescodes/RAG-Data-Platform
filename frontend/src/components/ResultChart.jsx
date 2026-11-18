@@ -2,7 +2,6 @@ import { useId, useMemo, useState } from 'react'
 import { humanize, inferChart, niceTicks } from '../utils/chartSpec.js'
 import { formatCell, formatCompact } from '../utils/format.js'
 import { Card } from './Card.jsx'
-import { TrendIcon } from './Icons.jsx'
 
 const WIDTH = 720
 const SERIES_VARS = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)']
@@ -288,7 +287,7 @@ export function ResultChart({ rows }) {
 
   const title = spec.type === 'line' ? `${spec.title} over time` : `${spec.title} by ${humanize(spec.label)}`
   return (
-    <Card icon={TrendIcon} title={title} actions={picker}>
+    <Card title={title} actions={picker}>
       {spec.type === 'line' ? <LineChart spec={spec} /> : <BarChart spec={spec} />}
     </Card>
   )

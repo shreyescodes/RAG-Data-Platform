@@ -1,6 +1,5 @@
 import { MAX_TABLE_ROWS } from '../constants.js'
 import { Card } from './Card.jsx'
-import { ShieldIcon } from './Icons.jsx'
 
 const VERDICT_LABEL = {
   supported: 'Supported',
@@ -60,7 +59,7 @@ export function VerificationPanel({ report }) {
   const flagged = report.status === 'flagged'
 
   return (
-    <Card icon={ShieldIcon} title="Fact check">
+    <Card title="Fact check">
       <p className={`verification-headline ${flagged ? 'is-flagged' : 'is-verified'}`} role="status">
         {headline(report)}
       </p>

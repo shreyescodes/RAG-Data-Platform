@@ -9,7 +9,6 @@ import {
 } from '../utils/format.js'
 import { Card } from './Card.jsx'
 import { ErrorBanner } from './ErrorBanner.jsx'
-import { ActivityIcon, AlertIcon, ClockIcon, DatabaseIcon, GaugeIcon, TrendIcon } from './Icons.jsx'
 import { TimeSeriesChart } from './TimeSeriesChart.jsx'
 
 const WINDOWS = [
@@ -331,7 +330,6 @@ export function ObservabilityPage() {
           <div className="obs-grid">
             <TimeSeriesChart
               title="Requests"
-              icon={ActivityIcon}
               kind="stack"
               points={points}
               series={REQUEST_SERIES}
@@ -341,7 +339,6 @@ export function ObservabilityPage() {
             />
             <TimeSeriesChart
               title="Latency"
-              icon={ClockIcon}
               kind="line"
               points={points}
               series={LATENCY_SERIES}
@@ -352,7 +349,6 @@ export function ObservabilityPage() {
             />
             <TimeSeriesChart
               title="Tokens"
-              icon={DatabaseIcon}
               kind="stack"
               points={points}
               series={TOKEN_SERIES}
@@ -363,7 +359,6 @@ export function ObservabilityPage() {
             />
             <TimeSeriesChart
               title="Estimated cost"
-              icon={TrendIcon}
               kind="line"
               points={points}
               series={COST_SERIES}
@@ -374,20 +369,20 @@ export function ObservabilityPage() {
           </div>
 
           <div className="obs-grid">
-            <Card icon={ClockIcon} title="Latency by stage">
+            <Card title="Latency by stage">
               <StageTable stages={summary.stage_latency_ms} />
             </Card>
-            <Card icon={GaugeIcon} title="Tokens by step">
+            <Card title="Tokens by step">
               <PurposeTable purposes={summary.purposes} />
             </Card>
           </div>
 
-          <Card icon={DatabaseIcon} title="Models">
+          <Card title="Models">
             <ModelTable models={summary.models} />
           </Card>
 
           <div className="obs-grid">
-            <Card icon={AlertIcon} title="Top failing queries">
+            <Card title="Top failing queries">
               <QueryList
                 rows={summary.top_failing_queries}
                 empty="No failures in this window."
@@ -397,7 +392,7 @@ export function ObservabilityPage() {
                 ]}
               />
             </Card>
-            <Card icon={TrendIcon} title="Most expensive queries">
+            <Card title="Most expensive queries">
               <QueryList
                 rows={summary.most_expensive_queries}
                 empty="No LLM usage in this window."
@@ -409,7 +404,7 @@ export function ObservabilityPage() {
             </Card>
           </div>
 
-          <Card icon={ActivityIcon} title="Recent requests">
+          <Card title="Recent requests">
             <RecentTable requests={recent} />
           </Card>
         </div>

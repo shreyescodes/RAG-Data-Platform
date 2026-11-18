@@ -1,6 +1,5 @@
 import { formatCompact, formatFixed } from '../utils/format.js'
 import { Card } from './Card.jsx'
-import { TrendIcon } from './Icons.jsx'
 
 export function EnrichmentPanel({ data }) {
   const quotes = data?.market_data ?? []
@@ -8,7 +7,7 @@ export function EnrichmentPanel({ data }) {
   if (!quotes.length && !filings.length) return null
 
   return (
-    <Card icon={TrendIcon} title="Live market data">
+    <Card title="Live market data">
       {quotes.length > 0 && (
         <div className="quote-grid">
           {quotes.map((q) => (

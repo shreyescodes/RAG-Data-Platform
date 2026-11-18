@@ -1,5 +1,4 @@
 import { Card } from './Card.jsx'
-import { DatabaseIcon } from './Icons.jsx'
 
 const STAGES = ['retrieval', 'enrichment', 'analysis', 'verification']
 
@@ -10,7 +9,7 @@ function formatDetail(detail) {
 
 export function AgentTrace({ flow = {}, trace = [] }) {
   return (
-    <Card icon={DatabaseIcon} title="Agent trace">
+    <Card title="Agent trace">
       <ol className="agent-flow">
         {STAGES.map((stage) => {
           const status = flow[stage] ?? 'skipped'
