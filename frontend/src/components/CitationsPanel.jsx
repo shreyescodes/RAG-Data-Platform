@@ -1,6 +1,5 @@
 import { formatPercent, formatScore } from '../utils/format.js'
 import { Card } from './Card.jsx'
-import { BookIcon } from './Icons.jsx'
 
 const VIA_LABEL = {
   retrieved: 'retrieved',
@@ -36,7 +35,7 @@ export function CitationsPanel({ citations }) {
   const live = citations.live_sources ?? []
 
   return (
-    <Card icon={BookIcon} title="Sources">
+    <Card title="Sources">
       <dl className="citation-summary">
         {citations.retrieval_mode && (
           <div>

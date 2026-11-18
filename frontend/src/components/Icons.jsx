@@ -38,29 +38,28 @@ export function SendIcon() {
   )
 }
 
+export function ComposeIcon() {
+  return (
+    <Svg>
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </Svg>
+  )
+}
+
+export function PanelIcon() {
+  return (
+    <Svg>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="9" y1="3" x2="9" y2="21" />
+    </Svg>
+  )
+}
+
 export function ActivityIcon() {
   return (
     <Svg>
       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-    </Svg>
-  )
-}
-
-export function DatabaseIcon() {
-  return (
-    <Svg>
-      <ellipse cx="12" cy="5" rx="9" ry="3" />
-      <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-      <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-    </Svg>
-  )
-}
-
-export function TerminalIcon() {
-  return (
-    <Svg>
-      <polyline points="4 17 10 11 4 5" />
-      <line x1="12" y1="19" x2="20" y2="19" />
     </Svg>
   )
 }
@@ -71,51 +70,6 @@ export function AlertIcon() {
       <circle cx="12" cy="12" r="10" />
       <line x1="12" y1="8" x2="12" y2="12" />
       <line x1="12" y1="16" x2="12.01" y2="16" />
-    </Svg>
-  )
-}
-
-export function TrendIcon() {
-  return (
-    <Svg>
-      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-      <polyline points="17 6 23 6 23 12" />
-    </Svg>
-  )
-}
-
-export function ClockIcon() {
-  return (
-    <Svg>
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </Svg>
-  )
-}
-
-export function BookIcon() {
-  return (
-    <Svg>
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-    </Svg>
-  )
-}
-
-export function ShieldIcon() {
-  return (
-    <Svg>
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-      <polyline points="9 12 11 14 15 10" />
-    </Svg>
-  )
-}
-
-export function GaugeIcon() {
-  return (
-    <Svg>
-      <path d="M12 14l4-4" />
-      <path d="M3.34 19a10 10 0 1 1 17.32 0" />
     </Svg>
   )
 }

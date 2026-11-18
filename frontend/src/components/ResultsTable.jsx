@@ -2,7 +2,6 @@ import { MAX_TABLE_ROWS } from '../constants.js'
 import { downloadCsv } from '../utils/csv.js'
 import { formatCell } from '../utils/format.js'
 import { Card } from './Card.jsx'
-import { DatabaseIcon } from './Icons.jsx'
 
 export function ResultsTable({ rows }) {
   if (!rows?.length) return null
@@ -15,7 +14,6 @@ export function ResultsTable({ rows }) {
 
   return (
     <Card
-      icon={DatabaseIcon}
       title={title}
       flush
       actions={

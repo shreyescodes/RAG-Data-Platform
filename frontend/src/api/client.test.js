@@ -17,8 +17,8 @@ describe('api client', () => {
   })
 
   it('never sends an API key from the browser', async () => {
-    const fetch = mockFetch({ 'GET /api/stats': {} })
-    await api.stats()
+    const fetch = mockFetch({ 'GET /api/history': {} })
+    await api.history()
     expect(JSON.stringify(fetch.mock.calls[0][1])).not.toMatch(/api-key/i)
   })
 
@@ -29,9 +29,9 @@ describe('api client', () => {
     [500, { detail: 'An internal error occurred.' }, /internal error/],
   ])('maps HTTP %i to a readable error', async (status, body, message) => {
     mockFetch({
-      'GET /api/stats': () => jsonResponse(body, { status, headers: { 'X-Request-ID': 'req-1' } }),
+      'GET /api/history': () => jsonResponse(body, { status, headers: { 'X-Request-ID': 'req-1' } }),
     })
-    const error = await api.stats().catch((e) => e)
+    const error = await api.history().catch((e) => e)
     expect(error).toBeInstanceOf(ApiError)
     expect(error.status).toBe(status)
     expect(error.requestId).toBe('req-1')
@@ -40,7 +40,7 @@ describe('api client', () => {
 
   it('reports network failures', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
-    await expect(api.stats()).rejects.toThrow(/Could not reach the API/)
+    await expect(api.history()).rejects.toThrow(/Could not reach the API/)
   })
 
   it('propagates caller aborts', async () => {

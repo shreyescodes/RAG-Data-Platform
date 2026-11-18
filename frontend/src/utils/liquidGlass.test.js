@@ -1,58 +1,75 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { installLiquidGlass } from './liquidGlass.js'
+import { describe, expect, it } from 'vitest'
+import { canRefract, installGlassLens, lensOffset } from './liquidGlass.js'
 
-function fakeWindow({ chromium = false, fine = true, reduced = false } = {}) {
+function fakeWindow({ chromium = false, reducedTransparency = false } = {}) {
   return {
     document,
     navigator: chromium ? { userAgentData: {} } : {},
-    matchMedia: (query) => ({ matches: query.includes('reduced-motion') ? reduced : fine }),
-    requestAnimationFrame: (callback) => {
-      callback()
-      return 0
+    matchMedia: () => ({ matches: reducedTransparency }),
+    ResizeObserver: class {
+      observe() {}
+      disconnect() {}
     },
-    cancelAnimationFrame: vi.fn(),
   }
 }
 
-describe('installLiquidGlass', () => {
-  let remove = () => {}
+describe('canRefract', () => {
+  it('is on only in browsers that can render it', () => {
+    expect(canRefract(fakeWindow())).toBe(false)
+    expect(canRefract(fakeWindow({ chromium: true }))).toBe(true)
+  })
 
-  afterEach(() => {
+  it('respects a preference for reduced transparency', () => {
+    expect(canRefract(fakeWindow({ chromium: true, reducedTransparency: true }))).toBe(false)
+  })
+})
+
+describe('lensOffset', () => {
+  const offset = (x, y) => lensOffset(x, y, 400, 60, 30, 16)
+
+  it('leaves the middle of the glass undistorted', () => {
+    expect(offset(200, 30)).toEqual([0, 0])
+  })
+
+  it('pulls the rim towards the centre', () => {
+    const [, top] = offset(200, 1)
+    const [, bottom] = offset(200, 59)
+    expect(top).toBeGreaterThan(0.8)
+    expect(bottom).toBeLessThan(-0.8)
+  })
+
+  it('bends most at the edge and fades out across the bezel', () => {
+    const strength = (y) => offset(200, y)[1]
+    expect(strength(1)).toBeGreaterThan(strength(6))
+    expect(strength(6)).toBeGreaterThan(strength(12))
+  })
+
+  it('pulls rounded ends inward along the curve', () => {
+    const [x, y] = offset(12, 12)
+    expect(x).toBeGreaterThan(0)
+    expect(y).toBeGreaterThan(0)
+  })
+
+  it('ignores points outside the shape', () => {
+    expect(offset(1, 1)).toEqual([0, 0])
+  })
+})
+
+describe('installGlassLens', () => {
+  it('adds nothing where refraction cannot render', () => {
+    const element = document.createElement('div')
+    const remove = installGlassLens(element, fakeWindow())
+
+    expect(document.querySelector('filter')).toBeNull()
+    expect(element.style.getPropertyValue('--glass-lens')).toBe('')
     remove()
-    delete document.documentElement.dataset.refraction
-    document.body.innerHTML = ''
   })
 
-  it('enables refraction only in browsers that can render it', () => {
-    remove = installLiquidGlass(fakeWindow())
-    expect(document.documentElement.dataset.refraction).toBeUndefined()
+  it('removes its filter on cleanup', () => {
+    const remove = installGlassLens(document.createElement('div'), fakeWindow({ chromium: true }))
+    expect(document.querySelector('filter')).not.toBeNull()
 
     remove()
-    remove = installLiquidGlass(fakeWindow({ chromium: true }))
-    expect(document.documentElement.dataset.refraction).toBe('on')
-  })
-
-  it('moves the glint to the pointer position on the surface under it', () => {
-    document.body.innerHTML = '<section class="card"><p id="inner">text</p></section>'
-    const card = document.querySelector('.card')
-    card.getBoundingClientRect = () => ({ left: 10, top: 20 })
-    remove = installLiquidGlass(fakeWindow())
-
-    document
-      .getElementById('inner')
-      .dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 110, clientY: 70 }))
-
-    expect(card.style.getPropertyValue('--glass-x')).toBe('100px')
-    expect(card.style.getPropertyValue('--glass-y')).toBe('50px')
-  })
-
-  it('does not track the pointer when the user prefers reduced motion', () => {
-    document.body.innerHTML = '<section class="card"></section>'
-    const card = document.querySelector('.card')
-    remove = installLiquidGlass(fakeWindow({ reduced: true }))
-
-    card.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 5, clientY: 5 }))
-
-    expect(card.style.getPropertyValue('--glass-x')).toBe('')
+    expect(document.querySelector('filter')).toBeNull()
   })
 })

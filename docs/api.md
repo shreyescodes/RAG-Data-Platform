@@ -11,7 +11,7 @@ Interactive docs are served at `/docs`. All endpoints except health require
 |--------|------|-------------|
 | `POST` | `/api/query` | Answer a natural-language question |
 | `GET`  | `/api/history?limit=&offset=` | Recent queries, newest first |
-| `GET`  | `/api/stats` | Row counts, query success rate, index size |
+| `GET`  | `/api/stats` | Row counts, query success rate, index size. Backend only: nginx returns 403 |
 | `POST` | `/api/index-schema` | Rebuild the schema vector index (run after migrations) |
 | `GET`  | `/api/health` | Readiness: `200` when the database is reachable, else `503`; reports local/remote LLM |
 | `GET`  | `/api/health/llm` | Probe the LLM endpoint: reachable, model served, latency, cache stats |

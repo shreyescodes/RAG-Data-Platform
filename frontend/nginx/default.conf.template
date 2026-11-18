@@ -19,6 +19,10 @@ server {
     # Admin routes are never proxied: nginx attaches the API key to everything
     # it forwards, so anything reachable here is effectively public. Call them
     # on the backend directly (127.0.0.1:8000 on the host) with the key instead.
+    location = /api/stats {
+        return 403;
+    }
+
     location = /api/index-schema {
         return 403;
     }

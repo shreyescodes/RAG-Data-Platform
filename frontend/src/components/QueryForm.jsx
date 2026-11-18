@@ -1,8 +1,10 @@
+import { useGlassLens } from '../hooks/useGlassLens.js'
 import { SearchIcon, SendIcon } from './Icons.jsx'
 
 const MAX_LENGTH = 1000
 
 export function QueryForm({ value, onChange, onSubmit, onCancel, loading }) {
+  const glassRef = useGlassLens()
   const canSubmit = !loading && value.trim().length >= 3
 
   const handleSubmit = (event) => {
@@ -12,7 +14,7 @@ export function QueryForm({ value, onChange, onSubmit, onCancel, loading }) {
 
   return (
     <form onSubmit={handleSubmit} className="query-form">
-      <div className="input-wrapper">
+      <div className="input-wrapper" ref={glassRef}>
         <span className="search-icon">
           <SearchIcon />
         </span>

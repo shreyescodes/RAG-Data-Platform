@@ -66,7 +66,6 @@ function DataTable({ points, series, bucketSeconds, format, caption }) {
  */
 export function TimeSeriesChart({
   title,
-  icon,
   points,
   series,
   kind,
@@ -115,7 +114,7 @@ export function TimeSeriesChart({
   const activePoint = active === null ? null : points[active]
 
   return (
-    <Card icon={icon} title={title} actions={toggle}>
+    <Card title={title} actions={toggle}>
       {empty ? (
         <p className="empty-note">No data in this window.</p>
       ) : showTable ? (

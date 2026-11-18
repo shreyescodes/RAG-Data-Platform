@@ -1,9 +1,8 @@
 import { Card } from './Card.jsx'
-import { ActivityIcon } from './Icons.jsx'
 
 export function AnswerCard({ answer, summary, insights, degraded }) {
   return (
-    <Card icon={ActivityIcon} title="Answer">
+    <Card title="Answer">
       <p className="answer-text">{answer}</p>
       {degraded && (
         <p className="notice">The AI summary is unavailable; showing the raw results instead.</p>
