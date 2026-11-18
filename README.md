@@ -43,8 +43,8 @@ the wait for the LLM is shortened.</sub>
   returned rows, with evidence shown for every verdict.
 - **Observability:** tokens, cost, latency per stage and failures for every
   request, on a built-in dashboard.
-- **Production setup:** Docker, automatic TLS, CI, image scanning and deploys
-  that roll back if health checks fail.
+- **Production setup:** Docker, automatic TLS, CI and a deploy script that rolls
+  back if health checks fail.
 
 ## Results
 
@@ -66,7 +66,7 @@ the dataset moved to real SEC 13F holdings. [See the full results](docs/results.
 | Data | PostgreSQL 16, Yahoo Finance, SEC EDGAR |
 | AI and retrieval | sentence-transformers, FAISS, BM25, any OpenAI-compatible LLM |
 | Frontend | React 19, Vite |
-| Ops | Docker, nginx, Caddy, GitHub Actions, GHCR, Trivy |
+| Ops | Docker, nginx, Caddy, GitHub Actions |
 
 ## Run it locally
 

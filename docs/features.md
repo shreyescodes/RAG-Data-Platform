@@ -147,4 +147,4 @@ How to use and tune each new capability: [docs/PRODUCTION_UPGRADES.md](PRODUCTIO
 | SQL safety | sqlglot |
 | Enrichment | yfinance, SEC EDGAR JSON APIs (httpx) |
 | Frontend   | React 19, Vite 7, Vitest, Testing Library |
-| Ops        | Docker, nginx, Caddy (TLS), GitHub Actions CI/CD, GHCR, Trivy, Dependabot, pre-commit |
+| Ops        | Docker, nginx, Caddy (TLS), GitHub Actions CI, Dependabot, pre-commit |
