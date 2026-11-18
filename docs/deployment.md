@@ -1,9 +1,9 @@
 # Deployment
 
-The production instance runs on a single **Oracle Cloud Always Free** Ampere A1
-VM (arm64, 4 OCPU / 24 GB RAM) at no cost. GitHub Actions ships every green
-commit on `main` to it, and the deploy rolls itself back if the new version
-fails its health checks.
+The production setup targets a single **Oracle Cloud Always Free** Ampere A1
+VM (arm64, 4 OCPU / 24 GB RAM) at no cost. Deployments are started by hand from
+GitHub Actions, and the deploy rolls itself back if the new version fails its
+health checks.
 
 ```text
                  HTTPS (Let's Encrypt, HTTP/3)
@@ -16,7 +16,8 @@ fails its health checks.
                                                        └──► FAISS index (volume)
 
  git push ─► CI (lint, types, migrations, tests, evals)
-               └─► Deploy: build arm64 images ─► GHCR ─► Trivy scan ─► SSH: deploy.sh ─► smoke test
+
+   Run workflow ─► Deploy: build arm64 images ─► GHCR ─► Trivy scan ─► SSH: deploy.sh ─► smoke test
                                                                             └─ unhealthy? roll back
 ```
 
@@ -137,7 +138,7 @@ Every command runs on the VM from `/opt/rag`.
 
 | Task | Command |
 |---|---|
-| Deploy | Push to `main`; CI then Deploy run on their own. Or Actions → Deploy → Run workflow |
+| Deploy | Actions → Deploy → Run workflow |
 | Status | `./deploy/compose.sh ps` |
 | Logs | `./deploy/compose.sh logs -f backend` (JSON; filter by `request_id`) |
 | Roll back | `./deploy/deploy.sh rollback`, or `./deploy/deploy.sh sha-<commit>` for any earlier build |

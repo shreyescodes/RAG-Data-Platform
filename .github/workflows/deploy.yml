@@ -1,7 +1,6 @@
 name: Deploy
 
-# Continuous deployment to the production VM. Runs after CI passes on main
-# (or by hand from the Actions tab):
+# Deployment to the production VM. Started by hand from the Actions tab:
 #   1. build arm64 images natively and push them to GHCR, tagged sha-<commit>
 #   2. scan them for critical, fixable vulnerabilities (blocks the deploy)
 #   3. copy the compose files to the server and run deploy/deploy.sh, which
@@ -15,10 +14,6 @@ name: Deploy
 # server's .env; they never pass through GitHub.
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -32,9 +27,6 @@ concurrency:
 jobs:
   images:
     name: Build, push and scan images (arm64)
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     # Native Arm runner (free for public repositories): the VM is Ampere A1,
     # and building torch layers under QEMU emulation would be very slow.
     runs-on: ubuntu-24.04-arm
@@ -46,8 +38,6 @@ jobs:
       sha: ${{ steps.meta.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Image names
         id: meta
