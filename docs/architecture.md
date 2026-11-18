@@ -225,6 +225,9 @@ The current design targets a single instance. The natural next steps:
 
 ## Limitations
 
+- The written answer is based on the first 25 result rows (`SAMPLE_ROWS` in
+  `backend/app/agents/analysis.py`). The chart uses every row, so on longer
+  results the text can describe only part of what the chart shows.
 - Retrieval indexes schema, not row values. Questions that name an entity
   differently from how it is stored rely on the LLM's `ILIKE` matching.
 - Authentication is a single shared API key. Multi-tenant deployments need
