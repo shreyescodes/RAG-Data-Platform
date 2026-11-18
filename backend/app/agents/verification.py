@@ -27,11 +27,18 @@ import statistics
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date
+from itertools import permutations
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 from app.agents.base import Agent, Trace
+from app.agents.name_matching import names_match
+from app.agents.result_overview import (
+    MAX_SCANNED_ROWS,
+    representative_indices,
+    series_patterns,
+)
 from app.core.exceptions import LLMError
 from app.schemas import ClaimCheck, EvidenceRef, VerificationReport
 from app.services.structured_output import (
@@ -48,8 +55,8 @@ Verdict = Literal["supported", "partially_supported", "unsupported", "unverifiab
 Method = Literal["deterministic", "llm", "hybrid"]
 Source = Literal["answer", "summary", "insight"]
 
-# Rows scanned for matching values; computed ratios use a smaller window.
-MAX_EVIDENCE_ROWS = 200
+# Rows scanned for matching values; computed ratios use a smaller, representative set.
+MAX_EVIDENCE_ROWS = MAX_SCANNED_ROWS
 _DERIVED_ROWS = 25
 # Evidence shown to the LLM judge.
 _JUDGE_ROWS = 25
@@ -89,6 +96,15 @@ _SCALE = {
 _NUMBER_WORD_TEXT = "two three four five six seven eight nine ten eleven twelve"
 _NUMBER_WORDS = {word: value for value, word in enumerate(_NUMBER_WORD_TEXT.split(), start=2)}
 _NUMBER_WORD = re.compile(r"\b(" + "|".join(_NUMBER_WORDS) + r")\b", re.IGNORECASE)
+# "two-thirds", "half": a share in words, not a count of things.
+_RATIO_IN_WORDS = re.compile(
+    r"\b(?:(?:one|" + "|".join(_NUMBER_WORDS) + r")[- ]"
+    r"(?:thirds?|quarters?|fifths?|sixths?|sevenths?|eighths?|ninths?|tenths?)"
+    r"|half|twice|double|triple)\b",
+    re.IGNORECASE,
+)
+_TIMES_AFTER = re.compile(r"[- ]times\b", re.IGNORECASE)
+_SQL_LITERAL = re.compile(r"'([^']+)'")
 # A number after "above", "under", "more than"... is a bound, not a value: no
 # cell has to equal it. "min": values are at or above it; "max": at or below.
 _BOUND_MIN = re.compile(
@@ -330,15 +346,20 @@ def extract_facts(claim: str) -> Facts:
                 tolerance = max(2 * fact.tolerance, _HEDGE_RELATIVE * abs(fact.value))
                 fact = replace(fact, tolerance=tolerance)
             numbers.append(fact)
-    for match in _NUMBER_WORD.finditer(text):
+    # Same-length blanks keep the offsets `_role` reads from `text`.
+    counts = _RATIO_IN_WORDS.sub(lambda m: " " * len(m.group(0)), text)
+    for match in _NUMBER_WORD.finditer(counts):
         value = float(_NUMBER_WORDS[match.group(1).lower()])
         bound, positional = _role(text, match)
+        # "three times larger" is a multiple to compute from the rows, not a count.
+        multiple = bool(_TIMES_AFTER.match(text, match.end()))
         numbers.append(
             NumberFact(
                 text=match.group(1),
                 value=value,
                 tolerance=0.5,
-                small_count=True,
+                multiple=multiple,
+                small_count=not multiple,
                 bound=bound,
                 positional=positional,
             )
@@ -424,6 +445,9 @@ class Evidence:
         self.sql = sql
         self.rows = list(rows[:MAX_EVIDENCE_ROWS])
         self.total_rows = len(rows)
+        self._derived_rows = [
+            (i, self.rows[i]) for i in representative_indices(self.rows, _DERIVED_ROWS)
+        ]
         self.items: dict[str, _Item] = {}
         self._question_numbers = extract_facts(question).numbers
         self._derived: list[tuple[float, str]] | None = None
@@ -449,6 +473,21 @@ class Evidence:
         )
         self._add_aggregates()
         self._add_live(enrichment)
+        # The judge sees only some rows of a long result, so how the series moved
+        # between them is computed here from every row.
+        self.patterns = series_patterns(self.rows) if self.total_rows > _JUDGE_ROWS else []
+        for i, line in enumerate(self.patterns):
+            self._add(
+                EvidenceRef(id=f"pattern:{i}", kind="meta", label=line),
+                numbers=self._pattern_numbers(line),
+            )
+
+    def _pattern_numbers(self, line: str) -> list[float]:
+        """Counts and values in a pattern line, plus each count's share of the rows."""
+        values = [
+            float(n.replace(",", "")) for n in _PATTERN_NUMBER.findall(_ISO_DAY.sub(" ", line))
+        ]
+        return [*values, *(v / self.total_rows for v in values if v <= self.total_rows)]
 
     def _add(
         self, ref: EvidenceRef, *, numbers: Sequence[float] = (), texts: Sequence[str] = ()
@@ -533,7 +572,6 @@ class Evidence:
         if self._derived is not None:
             return self._derived
         derived: list[tuple[float, str]] = []
-        window = self.rows[:_DERIVED_ROWS]
 
         def pairs(values: Sequence[tuple[int, float]], source: str | None) -> None:
             for i, a in values:
@@ -543,11 +581,11 @@ class Evidence:
                         derived.append((a / b, ref))
                         derived.append(((a - b) / abs(b), ref))
 
-        for i, row in enumerate(window):  # within a row, e.g. net_income / revenue
+        for i, row in self._derived_rows:  # within a row, e.g. net_income / revenue
             nums = [float(v) for v in row.values() if _is_number(v)]
             pairs(list(enumerate(nums)), f"row:{i}")
         columns: dict[str, list[tuple[int, float]]] = {}
-        for i, row in enumerate(window):
+        for i, row in self._derived_rows:
             for col, value in row.items():
                 if _is_number(value):
                     columns.setdefault(col, []).append((i, float(value)))
@@ -601,13 +639,24 @@ class Evidence:
                     return [f"~{source}"]
         return hits
 
+    def match_multiple(self, fact: NumberFact, rows: set[int]) -> list[str]:
+        """A row id, prefixed "~", when two of the named `rows` differ by the multiple `fact`."""
+        tol = max(fact.tolerance, abs(fact.value) * 1e-9)
+        for i, j in permutations(sorted(rows), 2):
+            for column, value in self.rows[i].items():
+                other = self.rows[j].get(column)
+                comparable = _is_number(value) and _is_number(other) and other
+                if comparable and abs(abs(value / other) - abs(fact.value)) <= tol:
+                    return [f"~row:{i}"]
+        return []
+
     def _differences(self) -> list[tuple[float, int, int]]:
         """Gaps between two values of a row (close vs. average) or of a column (A vs. B)."""
         if self._gaps is not None:
             return self._gaps
         gaps: list[tuple[float, int, int]] = []
         columns: dict[str, list[tuple[int, float]]] = {}
-        for i, row in enumerate(self.rows[:_DERIVED_ROWS]):
+        for i, row in self._derived_rows:
             nums = [float(v) for v in row.values() if _is_number(v)]
             gaps.extend((abs(a - b), i, i) for k, a in enumerate(nums) for b in nums[k + 1 :])
             for col, value in row.items():
@@ -625,7 +674,7 @@ class Evidence:
         if self._sums is not None:
             return self._sums
         columns: dict[str, list[tuple[int, float]]] = {}
-        for i, row in enumerate(self.rows[:_DERIVED_ROWS]):
+        for i, row in self._derived_rows:
             for col, value in row.items():
                 if _is_number(value):
                     columns.setdefault(col, []).append((i, float(value)))
@@ -706,7 +755,8 @@ class Evidence:
             for item in self.items.values()
             if item.ref.kind == "row" and item.ref.row_index is not None
             for text in item.texts
-            if len(text) >= 2 and (needle in text.lower() or text.lower() in needle)
+            if len(text) >= 2
+            and (needle in text.lower() or text.lower() in needle or names_match(entity, text))
         }
 
     def mentions(self, needle: str) -> list[str]:
@@ -722,6 +772,20 @@ class Evidence:
             return ["row:0"]
         return ["question"] if lowered in self.question.lower() else []
 
+    def mentions_name(self, name: str) -> list[str]:
+        """Like `mentions`, also accepting other spellings of a company's name."""
+        hits = self.mentions(name)
+        if hits:
+            return hits
+        hits = [
+            i for i, item in self.items.items() if any(names_match(name, t) for t in item.texts)
+        ]
+        if hits:
+            return hits
+        # A name the query filtered on ("WHERE ticker = 'NVDA'") selected these rows.
+        literals = (literal.strip("%") for literal in _SQL_LITERAL.findall(self.sql))
+        return ["sql"] if any(names_match(name, literal) for literal in literals) else []
+
     def ref(self, item_id: str) -> EvidenceRef | None:
         if item_id == "question":
             return EvidenceRef(id="question", kind="question", label="Stated in the question")
@@ -732,15 +796,18 @@ class Evidence:
 
     def judge_block(self) -> str:
         lines = [f"[sql] {self.sql}"] if self.sql else []
-        lines += [
-            f"[row:{i}] {json.dumps(r, default=str)}" for i, r in enumerate(self.rows[:_JUDGE_ROWS])
-        ]
-        if self.total_rows > _JUDGE_ROWS:
-            lines.append(f"(first {_JUDGE_ROWS} of {self.total_rows} rows shown)")
+        lines += [f"[pattern:{i}] {line}" for i, line in enumerate(self.patterns)]
+        shown = representative_indices(self.rows, _JUDGE_ROWS)
+        lines += [f"[row:{i}] {json.dumps(self.rows[i], default=str)}" for i in shown]
+        if self.total_rows > len(shown):
+            lines.append(
+                f"({len(shown)} of {self.total_rows} rows shown: the first, last, highest and "
+                "lowest rows and rows spaced evenly between; the agg lines cover every row)"
+            )
         lines += [
             f"[{item_id}] {item.ref.label}"
             for item_id, item in self.items.items()
-            if item.ref.kind != "row"
+            if item.ref.kind != "row" and not item_id.startswith("pattern:")
         ]
         for item_id, item in self.items.items():
             if item.ref.kind == "market_data":
@@ -767,6 +834,16 @@ class FactCheck:
         return self.verdict == "supported" and not (self.via_derived or self.unresolved)
 
 
+_ISO_DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
+_PATTERN_NUMBER = re.compile(r"(?<![\w.])\d[\d,]*(?:\.\d+)?")
+_MOVEMENT_CUE = re.compile(
+    r"\b(?:cross\w*|above|below|under|beneath|stay\w*|remain\w*|throughout|steadily|"
+    r"consistently|continu\w*|kept|keeps|most of|majority|trend\w*|ris(?:e|es|ing)|rose|"
+    r"f[ae]ll\w*|declin\w*|increas\w*|decreas\w*|drop\w*|climb\w*|gain\w*|lost)\b",
+    re.IGNORECASE,
+)
+
+
 def _within_result(fact: NumberFact, total_rows: int) -> bool:
     return fact.value == int(fact.value) and 1 <= fact.value <= max(total_rows, 1)
 
@@ -774,6 +851,8 @@ def _within_result(fact: NumberFact, total_rows: int) -> bool:
 def check_claim(claim: Claim, evidence: Evidence) -> FactCheck:
     facts = extract_facts(claim.text)
     result = FactCheck()
+    if _RATIO_IN_WORDS.search(claim.text.translate(_TYPOGRAPHY)):
+        result.unresolved.append("a ratio stated in words")
     # A rank or window inside the result ("the top 3", "the last 10 days") is
     # not a value to look up; it narrows which rows a bound speaks about.
     ranks = [f for f in facts.numbers if f.positional and _within_result(f, evidence.total_rows)]
@@ -801,7 +880,7 @@ def check_claim(claim: Claim, evidence: Evidence) -> FactCheck:
 
     entity_rows: set[int] = set()
     for entity in facts.entities:
-        hits = evidence.mentions(entity)
+        hits = evidence.mentions_name(entity)
         if hits:
             ok += 0 if has_values else 1
             result.evidence.extend(hits[:1])
@@ -811,14 +890,19 @@ def check_claim(claim: Claim, evidence: Evidence) -> FactCheck:
     for entity in facts.weak_entities:
         rows = evidence.rows_mentioning(entity)
         entity_rows |= rows
-        if not rows and not evidence.mentions(entity):
+        if not rows and not evidence.mentions_name(entity):
             result.unresolved.append(entity)
 
     for fact in numbers:
-        if evidence.in_question(fact):
+        # "The 5 largest" in the question says nothing about "five times larger".
+        if not fact.multiple and evidence.in_question(fact):
             ok += 1
             continue
-        hits = evidence.match_number(fact, rows=entity_rows or None)
+        if fact.multiple and len(entity_rows) > 1:
+            # "A is 5x B" compares the companies named, not any pair of rows.
+            hits = evidence.match_multiple(fact, entity_rows)
+        else:
+            hits = evidence.match_number(fact, rows=entity_rows or None)
         if entity_rows and not hits and evidence.match_number(fact):
             fail(fact.text, f"{fact.text} belongs to a different row than the one named")
             continue
@@ -877,6 +961,10 @@ def check_claim(claim: Claim, evidence: Evidence) -> FactCheck:
 
     if result.unsupported:
         result.verdict = "partially_supported" if ok else "unsupported"
+    elif evidence.patterns and _MOVEMENT_CUE.search(claim.text):
+        # Real dates and prices do not prove the story told about them.
+        result.verdict = "unverifiable"
+        result.reasons.append("how the values moved over time needs checking against every row")
     elif (has_values or checked_bounds) and not open_bounds:
         result.verdict = "supported"
     else:
@@ -904,8 +992,12 @@ overstates the evidence;
 Judge only against the evidence, never against outside knowledge. The [sql] line \
 is the query that produced the rows: its filters, ordering and LIMIT support \
 claims about how the rows were selected ("only listed companies", "the highest"). \
-Check bounds ("above $180M") and differences against the row values. List the \
-ids of the evidence lines that support or refute each claim."""
+Check bounds ("above $180M") and differences against the row values. When only \
+some rows are listed, use the agg lines for facts about the whole result. The \
+[pattern] lines are computed from every row: a claim about how values moved over \
+time (crossings, staying above or below, steady rises or falls) is supported only \
+if they state it, and unsupported if they contradict it. List the ids of the \
+evidence lines that support or refute each claim."""
 # Room for the verdicts plus a reasoning model's hidden reasoning, which counts
 # against the same limit: a cut-off reply is invalid JSON.
 _JUDGE_MAX_TOKENS = 4_000

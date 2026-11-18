@@ -17,9 +17,7 @@ export function AnswerCard({ answer, summary, insights, degraded }) {
         <ul className="insights-list">
           {insights.map((insight) => (
             <li key={insight}>
-              <span className="insight-bullet" aria-hidden="true">
-                ✦
-              </span>
+              <span className="insight-bullet" aria-hidden="true" />
               <span>{insight}</span>
             </li>
           ))}

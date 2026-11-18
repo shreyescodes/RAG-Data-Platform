@@ -1,4 +1,5 @@
 import json
+from datetime import date, timedelta
 from typing import Any
 
 import pytest
@@ -397,3 +398,228 @@ def test_evidence_labels_are_readable() -> None:
         evidence.items["row:0"].ref.label
         == "Row 1 · churn: 0.0211357, revenue: 94,000,000,000, n: 3"
     )
+
+
+def _long_series(days: int = 300) -> list[dict[str, Any]]:
+    return [
+        {"day": f"2026-{1 + i // 30:02d}-{1 + i % 28:02d}", "close": 1_000.0 + 7.0 * i}
+        for i in range(days)
+    ]
+
+
+def test_values_late_in_a_long_result_are_supported() -> None:
+    rows = _long_series()
+    evidence = Evidence("NVDA closes", rows, {})
+
+    (claim,) = extract_claims(f"The last close was ${rows[-1]['close']:,.2f}.")
+
+    assert check_claim(claim, evidence).verdict == "supported"
+
+
+def test_change_between_the_first_and_last_rows_is_supported() -> None:
+    rows = _long_series()
+    evidence = Evidence("NVDA closes", rows, {})
+    gap = rows[-1]["close"] - rows[0]["close"]
+
+    (claim,) = extract_claims(f"The close rose by ${gap:,.2f} over the period.")
+
+    assert check_claim(claim, evidence).verdict == "supported"
+
+
+def test_judge_sees_the_end_of_a_long_result() -> None:
+    rows = _long_series()
+
+    block = Evidence("NVDA closes", rows, {}).judge_block()
+
+    assert "[row:0]" in block
+    assert "[row:299]" in block
+    assert "of 300 rows shown" in block
+
+
+def _crossing_series() -> list[dict[str, Any]]:
+    """Forty days above the average, then twenty below it."""
+    start = date(2026, 1, 1)
+    return [
+        {
+            "date": (start + timedelta(days=i)).isoformat(),
+            "close": 120.0 + i if i < 40 else 80.0 + i / 10,
+            "ma_50": 100.0,
+        }
+        for i in range(60)
+    ]
+
+
+def test_a_false_story_about_real_dates_is_not_settled_by_matching_values() -> None:
+    rows = _crossing_series()
+    evidence = Evidence("NVDA closes", rows, {})
+
+    (claim,) = extract_claims("The price fell below the average on 2026-02-28.")
+    check = check_claim(claim, evidence)
+
+    assert check.verdict == "unverifiable"
+    assert not check.settled
+
+
+def test_plain_values_in_a_long_series_are_still_settled() -> None:
+    rows = _crossing_series()
+    evidence = Evidence("NVDA closes", rows, {})
+
+    (claim,) = extract_claims(f"The close on {rows[0]['date']} was ${rows[0]['close']:.2f}.")
+
+    assert check_claim(claim, evidence).verdict == "supported"
+
+
+def test_short_results_keep_deterministic_checks_for_movement_words() -> None:
+    rows = _crossing_series()[:10]
+    evidence = Evidence("NVDA closes", rows, {})
+
+    (claim,) = extract_claims(f"The close rose to ${rows[-1]['close']:.2f}.")
+
+    assert check_claim(claim, evidence).verdict == "supported"
+
+
+def test_judge_receives_patterns_before_the_rows() -> None:
+    block = Evidence("NVDA closes", _crossing_series(), {}).judge_block()
+
+    assert block.index("[pattern:0]") < block.index("[row:0]")
+    assert "close was above ma_50 on 40 of 60 rows and below it on 20." in block
+    assert "2026-02-10 (moved below)" in block
+
+
+async def test_the_judge_can_reject_a_false_story_about_a_long_series() -> None:
+    rows = _crossing_series()
+    llm = FakeChatModel(
+        verification={
+            "verdicts": [
+                {
+                    "id": "c1",
+                    "verdict": "unsupported",
+                    "evidence": ["pattern:0"],
+                    "reason": "wrong date",
+                }
+            ]
+        }
+    )
+    agent = VerificationAgent(mode="hybrid", extractor=StructuredOutputExtractor(llm))
+
+    report = await agent.run(
+        "NVDA closes",
+        rows,
+        {},
+        answer="The price fell below the average on 2026-02-28.",
+        trace=Trace(),
+    )
+
+    assert report.status == "flagged"
+    assert report.claims[0].verdict == "unsupported"
+    assert report.claims[0].evidence[0].id == "pattern:0"
+
+
+def test_counts_from_the_patterns_count_as_evidence() -> None:
+    evidence = Evidence("NVDA closes", _crossing_series(), {})
+
+    assert evidence.match_number(extract_facts("above on 40 days").numbers[0])
+    assert evidence.match_number(extract_facts("about 67% of the time").numbers[0])
+    assert not evidence.match_number(extract_facts("above on 43 days").numbers[0])
+
+
+HOLDINGS: list[dict[str, Any]] = [
+    {"ticker": "KO", "issuer_name": "COCA COLA CO", "value_usd": 32.51e9},
+    {"ticker": "BAC", "issuer_name": "BANK AMER CORP", "value_usd": 27.54e9},
+    {"ticker": "AXP", "issuer_name": "AMERICAN EXPRESS CO", "value_usd": 51.28e9},
+]
+
+
+@pytest.mark.parametrize(
+    "claim",
+    [
+        "Coca-Cola is held at $32.51B.",
+        "Coca-Cola Co is held at $32.51B.",
+        "Bank of America is held at $27.54B.",
+        "Bank of America Corp is held at $27.54B.",
+        "American Express Company is held at $51.28B.",
+    ],
+)
+def test_everyday_company_names_match_sec_issuer_names(claim: str) -> None:
+    assert _verdict(claim, HOLDINGS) == "supported"
+
+
+def test_a_value_is_still_tied_to_the_company_named() -> None:
+    assert _verdict("Coca-Cola is held at $27.54B.", HOLDINGS) == "unsupported"
+
+
+def test_a_company_sharing_one_word_is_not_accepted() -> None:
+    assert _verdict("Bank of Canada is held at $27.54B.", HOLDINGS) == "partially_supported"
+
+
+def test_shares_in_words_are_not_read_as_counts() -> None:
+    assert extract_facts("The holdings are about two-thirds of the portfolio.").numbers == ()
+
+
+def test_multiples_in_words_are_checked_against_the_rows() -> None:
+    rows = [
+        {"fund": "Tiger Global", "shares": 11_198_773},
+        {"fund": "Bridgewater", "shares": 3_866_195},
+    ]
+
+    assert _verdict("Tiger Global holds roughly three times as many as Bridgewater.", rows) == (
+        "supported"
+    )
+    assert _verdict("Tiger Global holds roughly seven times as many as Bridgewater.", rows) != (
+        "supported"
+    )
+
+
+def test_a_ratio_in_words_goes_to_the_judge_even_when_the_values_match() -> None:
+    evidence = Evidence("Top holdings", HOLDINGS, {})
+
+    (claim,) = extract_claims("Coca-Cola, at $32.51B, is about two-thirds of the portfolio.")
+    check = check_claim(claim, evidence)
+
+    assert check.verdict == "supported"
+    assert not check.settled
+
+
+def test_counts_in_words_are_still_checked() -> None:
+    assert _verdict("Seven companies are listed.", HOLDINGS) == "unsupported"
+
+
+def test_a_ticker_the_query_filtered_on_counts_as_evidence() -> None:
+    rows = [{"fund_name": "Appaloosa LP", "shares": 1_525_000}]
+    evidence = Evidence("Who held NVIDIA?", rows, {}, sql="SELECT 1 WHERE h.ticker = 'NVDA'")
+
+    assert evidence.mentions_name("NVDA") == ["sql"]
+    assert evidence.mentions_name("TSLA") == []
+
+
+def test_a_multiple_between_named_companies_cannot_borrow_another_pair() -> None:
+    rows = [
+        {"fund": "Berkshire Hathaway", "top_position_pct": 22.04},
+        {"fund": "Tiger Global", "top_position_pct": 9.72},
+        {"fund": "Soros Fund Management", "top_position_pct": 3.46},
+    ]
+
+    false_claim = "Berkshire Hathaway has five times the position of Tiger Global."
+    true_claim = "Berkshire Hathaway has six times the position of Soros Fund Management."
+
+    assert _verdict(false_claim, rows) != "supported"
+    assert _verdict(true_claim, rows) == "supported"
+
+
+def test_a_multiple_is_not_excused_by_the_same_number_in_the_question() -> None:
+    rows = [
+        {"issuer_name": "AMERICAN EXPRESS CO", "shares": 151_610_700},
+        {"issuer_name": "COCA COLA CO", "shares": 400_000_000},
+        {"issuer_name": "ALPHABET INC", "shares": 78_791_167},
+        {"issuer_name": "BANK OF AMER CORP", "shares": 483_394_015},
+    ]
+    evidence = Evidence("What were the fund's 5 largest holdings?", rows, {})
+
+    def verdict(text: str) -> str:
+        (claim,) = extract_claims(text)
+        return check_claim(claim, evidence).verdict
+
+    assert verdict("Bank of America holds five times the shares of American Express.") != (
+        "supported"
+    )
+    assert verdict("Coca-Cola holds five times the shares of Alphabet.") == "supported"

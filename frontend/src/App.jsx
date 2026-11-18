@@ -102,8 +102,8 @@ export default function App() {
       <main className="main">
         {idle && (
           <div className="hero">
-            <h2>Query intelligence</h2>
-            <p>Ask questions about structured financial data in plain English.</p>
+            <h2>Ask the data.</h2>
+            <p>Plain-English answers from SEC filings and market data, with the SQL and evidence behind each one.</p>
           </div>
         )}
 

@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 from app.agents.analysis import AnalysisAgent
 from app.agents.base import Trace
 from app.core.exceptions import LLMError
@@ -21,6 +23,58 @@ async def test_parses_llm_json() -> None:
     assert result.insights == ["i"]
     assert llm.calls[0]["json_mode"] is True
     assert "Results (2 of 2 rows)" in llm.calls[0]["user"]
+
+
+def _daily_closes(days: int) -> list[dict[str, object]]:
+    start = date(2026, 1, 1)
+    return [
+        {"date": (start + timedelta(days=i)).isoformat(), "close": 100.0 + i} for i in range(days)
+    ]
+
+
+async def test_long_results_reach_the_model_from_first_row_to_last() -> None:
+    llm = FakeChatModel()
+    rows = _daily_closes(120)
+    rows[60]["close"] = 999.0
+
+    await Agent(llm).run("NVDA over 120 days", "SELECT 1", rows, {}, Trace())
+
+    prompt = llm.calls[0]["user"]
+    assert "Results: 120 rows." in prompt
+    assert '"date": "2026-01-01"' in prompt
+    assert f'"date": "{rows[-1]["date"]}"' in prompt
+    assert '"highest": {"value": 999.0, "row": {"date": "2026-03-02"}}' in prompt
+
+
+async def test_long_series_send_patterns_computed_from_every_row() -> None:
+    llm = FakeChatModel()
+    rows = [{**row, "ma_50": 150.0} for row in _daily_closes(120)]
+
+    await Agent(llm).run("q", "SELECT 1", rows, {}, Trace())
+
+    prompt = llm.calls[0]["user"]
+    assert "Patterns computed from every row" in prompt
+    assert "close was above ma_50 on 69 of 120 rows and below it on 50." in prompt
+
+
+async def test_results_without_a_date_series_list_no_patterns() -> None:
+    llm = FakeChatModel()
+    rows = [{"name": f"Fund {i}", "value": float(i)} for i in range(40)]
+
+    await Agent(llm).run("q", "SELECT 1", rows, {}, Trace())
+
+    assert "Patterns computed" not in llm.calls[0]["user"]
+
+
+async def test_wide_rows_never_cut_off_the_end_of_a_long_result() -> None:
+    llm = FakeChatModel()
+    rows = [{**row, "note": "x" * 900} for row in _daily_closes(120)]
+
+    await Agent(llm).run("q", "SELECT 1", rows, {}, Trace())
+
+    prompt = llm.calls[0]["user"]
+    assert "(truncated)" not in prompt.rsplit("selected rows", 1)[1]
+    assert f'"date": "{rows[-1]["date"]}"' in prompt.rsplit("selected rows", 1)[1]
 
 
 async def test_includes_enrichment_in_prompt() -> None:

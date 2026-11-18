@@ -58,7 +58,9 @@ function Legend({ series }) {
 
 function LineChart({ spec }) {
   const [hover, setHover] = useState(null)
-  const margin = { top: 12, right: 112, bottom: 30, left: 56 }
+  // Leave room for the longest end-of-line label.
+  const longestLabel = Math.max(...spec.series.map((s) => s.label.length))
+  const margin = { top: 12, right: Math.max(112, Math.round(longestLabel * 6.6) + 24), bottom: 30, left: 56 }
   const height = 300
   const innerW = WIDTH - margin.left - margin.right
   const innerH = height - margin.top - margin.bottom

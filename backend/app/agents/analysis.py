@@ -11,6 +11,12 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.agents.base import Agent, Trace
+from app.agents.result_overview import (
+    MAX_SCANNED_ROWS,
+    column_overview,
+    representative_indices,
+    series_patterns,
+)
 from app.core.exceptions import LLMError
 from app.schemas import StageStatus
 from app.services.structured_output import StructuredOutputExtractor
@@ -20,16 +26,23 @@ logger = logging.getLogger(__name__)
 # Bounds on how much result data is sent to the model.
 SAMPLE_ROWS = 25
 MAX_PROMPT_DATA_CHARS = 8_000
+MAX_OVERVIEW_CHARS = 4_000
+# Fewer rows are sent when wide rows would not fit, so the last row is never cut off.
+_SAMPLE_SIZES = (SAMPLE_ROWS, 13, 7, 3)
 
 _SYSTEM_PROMPT = """\
 You are a financial data analyst. You are given a user's question, the SQL \
-that was run, a sample of its results and optionally live market data.
+that was run, its results and optionally live market data.
 
 Answer strictly from the data provided. Do not speculate beyond it: every \
 number, name and date you state must appear in, or follow directly from, the \
-data. The user sees every row in a table. If you were given only the first \
-rows, describe what they cover ("over the most recent 25 trading days") rather \
-than calling them a sample. Format numbers for readability (e.g. $1.2B, 4.5%)."""
+data. The user sees every row in a table. A long result comes as an overview \
+computed from every row, plus selected rows. Describe the whole result from \
+its first row to its last, take highs, lows and averages from the overview, \
+and do not state details of rows you were not given. Anything about how values \
+moved over time (crossings, staying above or below, steady rises or falls) must \
+come from the listed patterns; if none are listed, do not describe such moves. \
+Do not call the rows a sample. Format numbers for readability (e.g. $1.2B, 4.5%)."""
 
 PURPOSE = "analysis"
 
@@ -55,6 +68,33 @@ def _serialise(data: Any, limit: int) -> str:
     return text if len(text) <= limit else text[:limit] + " …(truncated)"
 
 
+def _results_block(rows: Sequence[Mapping[str, Any]]) -> str:
+    """The rows themselves when they fit, otherwise an overview plus selected rows."""
+    if len(rows) <= SAMPLE_ROWS:
+        return (
+            f"Results ({len(rows)} of {len(rows)} rows):\n{_serialise(rows, MAX_PROMPT_DATA_CHARS)}"
+        )
+
+    scanned = rows[:MAX_SCANNED_ROWS]
+    overview = _serialise(column_overview(scanned), MAX_OVERVIEW_CHARS)
+    selected: list[Mapping[str, Any]] = []
+    text = ""
+    for size in _SAMPLE_SIZES:
+        selected = [scanned[i] for i in representative_indices(scanned, size)]
+        text = _serialise(selected, MAX_PROMPT_DATA_CHARS)
+        if len(text) <= MAX_PROMPT_DATA_CHARS:
+            break
+    patterns = "\n".join(f"- {line}" for line in series_patterns(scanned))
+    patterns_block = f"Patterns computed from every row, oldest to newest:\n{patterns}\n\n"
+    return (
+        f"Results: {len(rows)} rows.\n\n"
+        f"Overview of each column across {len(scanned)} rows, in query order:\n{overview}\n\n"
+        f"{patterns_block if patterns else ''}"
+        f"{len(selected)} selected rows, in query order (the first and last rows, each "
+        f"column's highest and lowest rows, and rows spaced evenly between):\n{text}"
+    )
+
+
 class AnalysisAgent(Agent):
     name = "analysis"
 
@@ -77,14 +117,8 @@ class AnalysisAgent(Agent):
                 summary="The query ran successfully but returned no rows.",
             )
 
-        sample = list(rows[:SAMPLE_ROWS])
         if rows:
-            prompt = (
-                f"Question: {question}\n\n"
-                f"SQL:\n{sql}\n\n"
-                f"Results ({len(sample)} of {len(rows)} rows):\n"
-                f"{_serialise(sample, MAX_PROMPT_DATA_CHARS)}"
-            )
+            prompt = f"Question: {question}\n\nSQL:\n{sql}\n\n{_results_block(rows)}"
         else:
             prompt = (
                 f"Question: {question}\n\n"

@@ -14,31 +14,31 @@ dashboard. The LLM can be a hosted API or a model on your own GPU.
 
 ## See it running
 
-All screenshots below come from one live session on 28 October 2026. The
+All screenshots below come from one live session on 18 November 2026. The
 stack was:
 
 - PostgreSQL 16 holding real Yahoo Finance data (daily prices and financial
-  statements).
+  statements) and SEC 13F fund holdings.
 - Groq `openai/gpt-oss-120b` as the LLM.
 - The UI in this repo, driven by a headless browser.
 
 No responses were mocked or edited.
 
 **Time series.** NVDA's real closing price with its 50- and 200-day moving
-averages (computed during ingestion), plotted on one shared axis. The live
-Yahoo quote appears alongside.
+averages (computed during ingestion), plotted on one shared axis. The chart
+and the written answer both cover all 120 trading days.
 
 ![NVDA close vs 50/200-day moving averages over 120 trading days](screenshots/query-line-chart.webp)
 
 <table>
 <tr>
-<td width="50%"><b>Comparing real financial statements.</b> Alphabet's 94% net margin
-looks wrong, but it is faithful to the source: Yahoo reports $112.2B net
-income for Q2 2026, inflated by $97.8B of non-operating investment gains.<br><br>
+<td width="50%"><b>Comparing real financial statements.</b> Alphabet's $112.2B net
+income on $119.8B of revenue for the June 2026 quarter looks wrong, but it is
+faithful to the source: Yahoo's figure includes $97.8B of non-operating income.<br><br>
 <img src="screenshots/query-financials.webp" alt="Quarterly revenue and net income for Apple, Microsoft and Alphabet"></td>
-<td width="50%"><b>Answering from live data.</b> Market cap isn't stored, so SQL
-generation declines. The orchestrator falls back to the enrichment agent and
-answers from the live quote. The trace shows <code>retrieval: skipped</code>.<br><br>
+<td width="50%"><b>Answering from live data.</b> Market cap isn't stored in the
+database, so the answer takes the price and market cap from the live Yahoo
+quote shown below it.<br><br>
 <img src="screenshots/query-live-data.webp" alt="NVDA price and market cap from live Yahoo Finance data"></td>
 </tr>
 <tr>
@@ -70,10 +70,9 @@ Every answer also shows:
   SQL that actually ran (with the enforced `LIMIT`), and row counts.
 
 **Observability.** Tokens, cost, latency per stage and failures from every
-request, stored in PostgreSQL. This capture covers a day of evaluation runs on
-one laptop: the Groq runs plus a CPU-only local model, which accounts for the
-98.8 s p95. Nine of the 11 failed requests are deliberate refusals from the
-evaluation's "CEO salary" and "delete every row" cases.
+request, stored in PostgreSQL. This capture covers 30 days of local test runs
+on one laptop. All 6 failed requests are deliberate refusals: five
+prompt-injection attempts and one question about CEO pay.
 
 ![Observability dashboard: requests, error rate, latency percentiles, tokens, cost, cache hits and fact-check flags](screenshots/observability.webp)
 

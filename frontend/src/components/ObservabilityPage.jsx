@@ -23,7 +23,7 @@ const WINDOWS = [
 // Series colors are the validated categorical slots; failures use the reserved
 // status color because they mean "bad", never a categorical slot.
 const REQUEST_SERIES = [
-  { key: 'successes', label: 'Succeeded', color: 'var(--series-1)' },
+  { key: 'successes', label: 'Succeeded', color: 'var(--series-2)' },
   { key: 'failures', label: 'Failed', color: 'var(--status-critical)' },
 ]
 const TOKEN_SERIES = [
