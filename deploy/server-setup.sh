@@ -65,4 +65,4 @@ backup_line="0 3 * * * cd $app_dir && ./deploy/backup.sh >> $app_dir/backups/bac
 # Security updates install themselves (Ubuntu default; make sure it is on).
 apt-get install -y unattended-upgrades >/dev/null
 
-echo "Done. Next: put .env in $app_dir (see docs/deployment.md), then run the Deploy workflow."
+echo "Done. Next: put .env in $app_dir (see docs/deployment.md), then continue with docs/deployment.md."

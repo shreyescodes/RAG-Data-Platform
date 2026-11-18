@@ -1,9 +1,17 @@
 # Deployment
 
 The production setup targets a single **Oracle Cloud Always Free** Ampere A1
-VM (arm64, 4 OCPU / 24 GB RAM) at no cost. Deployments are started by hand from
-GitHub Actions, and the deploy rolls itself back if the new version fails its
-health checks.
+VM (arm64, 4 OCPU / 24 GB RAM) at no cost. The deploy rolls itself back if the
+new version fails its health checks.
+
+> **Not currently deployed.** The app is not hosted publicly, and the demo in the
+> README was recorded from this stack running locally. The GitHub Actions deploy
+> workflow has been removed for now. This guide describes the setup with that
+> workflow, so restore it before deploying:
+>
+> ```bash
+> git show 8e2fe8b:.github/workflows/deploy.yml > .github/workflows/deploy.yml
+> ```
 
 ```text
                  HTTPS (Let's Encrypt, HTTP/3)
@@ -37,8 +45,7 @@ health checks.
 | Monitoring | UptimeRobot on `/api/health`, which checks the database too; JSON logs with request IDs; the in-app Observability dashboard |
 
 Files involved: [docker-compose.prod.yml](../docker-compose.prod.yml),
-[deploy/](../deploy), [.github/workflows/deploy.yml](../.github/workflows/deploy.yml),
-[.env.production.example](../.env.production.example).
+[deploy/](../deploy), [.env.production.example](../.env.production.example).
 
 ## First-time setup
 
