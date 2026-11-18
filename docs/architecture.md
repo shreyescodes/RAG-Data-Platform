@@ -222,3 +222,24 @@ The current design targets a single instance. The natural next steps:
 4. **Telemetry at scale.** Aggregation runs in Python over the window's rows,
    which suits one deployment's traffic. Beyond that, roll up into a
    time-series store (Prometheus, TimescaleDB) and prune old rows.
+
+## Limitations
+
+- Retrieval indexes schema, not row values. Questions that name an entity
+  differently from how it is stored rely on the LLM's `ILIKE` matching.
+- Authentication is a single shared API key. Multi-tenant deployments need
+  per-user identity and row-level access control.
+- The FAISS index is a local file per instance. Running several API replicas
+  needs a shared vector store or a rebuild on each start, which the Docker
+  entrypoint already does when the index is missing.
+- The LLM caches live in each API process, so replicas warm up separately.
+- The fact check verifies numbers, dates and names deterministically.
+  Qualitative claims ("growing fast") depend on the LLM judge, so how well they
+  are checked depends on the judge model.
+- The fact check compares the answer with the rows the SQL returned. It does
+  not judge whether the SQL fits the question: a model that adds a filter
+  nobody asked for (a 1.5B model once added `metric_date = '2023-01-01'`)
+  still gets a faithful answer about the wrong rows. The Sources panel shows
+  the exact SQL and the generator's explanation for that reason.
+- Cross-encoder reranking adds about 0.5 s per query on a laptop CPU; set
+  `RETRIEVAL_RERANK=false` if that matters more than precision.

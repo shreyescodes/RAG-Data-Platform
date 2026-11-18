@@ -6,7 +6,7 @@
 make install        # backend dev dependencies, frontend packages, pre-commit hooks
 ```
 
-See the [README](README.md#local-development) for database and environment
+See [Getting started](docs/getting-started.md#local-development) for database and environment
 setup.
 
 ## Workflow

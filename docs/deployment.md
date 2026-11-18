@@ -5,6 +5,9 @@ VM (arm64, 4 OCPU / 24 GB RAM) at no cost. Deployments are started by hand from
 GitHub Actions, and the deploy rolls itself back if the new version fails its
 health checks.
 
+The app is not hosted publicly at the moment. The demo in the README was recorded
+from this stack running locally.
+
 ```text
                  HTTPS (Let's Encrypt, HTTP/3)
  Browser ──────────────────────────────► Caddy ──► nginx (SPA + /api proxy, adds X-API-Key)
