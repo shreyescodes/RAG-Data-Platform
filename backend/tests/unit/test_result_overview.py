@@ -57,7 +57,7 @@ def test_overview_describes_numbers_across_every_row() -> None:
 
 
 def test_overview_describes_text_columns_and_skips_empty_ones() -> None:
-    rows = [
+    rows: list[dict[str, Any]] = [
         {"ticker": "AAPL", "note": None},
         {"ticker": None, "note": None},
         {"ticker": "MSFT", "note": None},
