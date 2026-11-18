@@ -521,3 +521,86 @@ def test_counts_from_the_patterns_count_as_evidence() -> None:
     assert evidence.match_number(extract_facts("above on 40 days").numbers[0])
     assert evidence.match_number(extract_facts("about 67% of the time").numbers[0])
     assert not evidence.match_number(extract_facts("above on 43 days").numbers[0])
+
+
+HOLDINGS: list[dict[str, Any]] = [
+    {"ticker": "KO", "issuer_name": "COCA COLA CO", "value_usd": 32.51e9},
+    {"ticker": "BAC", "issuer_name": "BANK AMER CORP", "value_usd": 27.54e9},
+    {"ticker": "AXP", "issuer_name": "AMERICAN EXPRESS CO", "value_usd": 51.28e9},
+]
+
+
+@pytest.mark.parametrize(
+    "claim",
+    [
+        "Coca-Cola is held at $32.51B.",
+        "Coca-Cola Co is held at $32.51B.",
+        "Bank of America is held at $27.54B.",
+        "Bank of America Corp is held at $27.54B.",
+        "American Express Company is held at $51.28B.",
+    ],
+)
+def test_everyday_company_names_match_sec_issuer_names(claim: str) -> None:
+    assert _verdict(claim, HOLDINGS) == "supported"
+
+
+def test_a_value_is_still_tied_to_the_company_named() -> None:
+    assert _verdict("Coca-Cola is held at $27.54B.", HOLDINGS) == "unsupported"
+
+
+def test_a_company_sharing_one_word_is_not_accepted() -> None:
+    assert _verdict("Bank of Canada is held at $27.54B.", HOLDINGS) == "partially_supported"
+
+
+def test_shares_in_words_are_not_read_as_counts() -> None:
+    assert extract_facts("The holdings are about two-thirds of the portfolio.").numbers == ()
+
+
+def test_multiples_in_words_are_checked_against_the_rows() -> None:
+    rows = [
+        {"fund": "Tiger Global", "shares": 11_198_773},
+        {"fund": "Bridgewater", "shares": 3_866_195},
+    ]
+
+    assert _verdict("Tiger Global holds roughly three times as many as Bridgewater.", rows) == (
+        "supported"
+    )
+    assert _verdict("Tiger Global holds roughly seven times as many as Bridgewater.", rows) != (
+        "supported"
+    )
+
+
+def test_a_ratio_in_words_goes_to_the_judge_even_when_the_values_match() -> None:
+    evidence = Evidence("Top holdings", HOLDINGS, {})
+
+    (claim,) = extract_claims("Coca-Cola, at $32.51B, is about two-thirds of the portfolio.")
+    check = check_claim(claim, evidence)
+
+    assert check.verdict == "supported"
+    assert not check.settled
+
+
+def test_counts_in_words_are_still_checked() -> None:
+    assert _verdict("Seven companies are listed.", HOLDINGS) == "unsupported"
+
+
+def test_a_ticker_the_query_filtered_on_counts_as_evidence() -> None:
+    rows = [{"fund_name": "Appaloosa LP", "shares": 1_525_000}]
+    evidence = Evidence("Who held NVIDIA?", rows, {}, sql="SELECT 1 WHERE h.ticker = 'NVDA'")
+
+    assert evidence.mentions_name("NVDA") == ["sql"]
+    assert evidence.mentions_name("TSLA") == []
+
+
+def test_a_multiple_between_named_companies_cannot_borrow_another_pair() -> None:
+    rows = [
+        {"fund": "Berkshire Hathaway", "top_position_pct": 22.04},
+        {"fund": "Tiger Global", "top_position_pct": 9.72},
+        {"fund": "Soros Fund Management", "top_position_pct": 3.46},
+    ]
+
+    false_claim = "Berkshire Hathaway has five times the position of Tiger Global."
+    true_claim = "Berkshire Hathaway has six times the position of Soros Fund Management."
+
+    assert _verdict(false_claim, rows) != "supported"
+    assert _verdict(true_claim, rows) == "supported"

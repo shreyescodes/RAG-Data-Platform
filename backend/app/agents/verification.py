@@ -27,11 +27,13 @@ import statistics
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date
+from itertools import permutations
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 from app.agents.base import Agent, Trace
+from app.agents.name_matching import names_match
 from app.agents.result_overview import (
     MAX_SCANNED_ROWS,
     representative_indices,
@@ -94,6 +96,15 @@ _SCALE = {
 _NUMBER_WORD_TEXT = "two three four five six seven eight nine ten eleven twelve"
 _NUMBER_WORDS = {word: value for value, word in enumerate(_NUMBER_WORD_TEXT.split(), start=2)}
 _NUMBER_WORD = re.compile(r"\b(" + "|".join(_NUMBER_WORDS) + r")\b", re.IGNORECASE)
+# "two-thirds", "half": a share in words, not a count of things.
+_RATIO_IN_WORDS = re.compile(
+    r"\b(?:(?:one|" + "|".join(_NUMBER_WORDS) + r")[- ]"
+    r"(?:thirds?|quarters?|fifths?|sixths?|sevenths?|eighths?|ninths?|tenths?)"
+    r"|half|twice|double|triple)\b",
+    re.IGNORECASE,
+)
+_TIMES_AFTER = re.compile(r"[- ]times\b", re.IGNORECASE)
+_SQL_LITERAL = re.compile(r"'([^']+)'")
 # A number after "above", "under", "more than"... is a bound, not a value: no
 # cell has to equal it. "min": values are at or above it; "max": at or below.
 _BOUND_MIN = re.compile(
@@ -335,15 +346,20 @@ def extract_facts(claim: str) -> Facts:
                 tolerance = max(2 * fact.tolerance, _HEDGE_RELATIVE * abs(fact.value))
                 fact = replace(fact, tolerance=tolerance)
             numbers.append(fact)
-    for match in _NUMBER_WORD.finditer(text):
+    # Same-length blanks keep the offsets `_role` reads from `text`.
+    counts = _RATIO_IN_WORDS.sub(lambda m: " " * len(m.group(0)), text)
+    for match in _NUMBER_WORD.finditer(counts):
         value = float(_NUMBER_WORDS[match.group(1).lower()])
         bound, positional = _role(text, match)
+        # "three times larger" is a multiple to compute from the rows, not a count.
+        multiple = bool(_TIMES_AFTER.match(text, match.end()))
         numbers.append(
             NumberFact(
                 text=match.group(1),
                 value=value,
                 tolerance=0.5,
-                small_count=True,
+                multiple=multiple,
+                small_count=not multiple,
                 bound=bound,
                 positional=positional,
             )
@@ -623,6 +639,17 @@ class Evidence:
                     return [f"~{source}"]
         return hits
 
+    def match_multiple(self, fact: NumberFact, rows: set[int]) -> list[str]:
+        """A row id, prefixed "~", when two of the named `rows` differ by the multiple `fact`."""
+        tol = max(fact.tolerance, abs(fact.value) * 1e-9)
+        for i, j in permutations(sorted(rows), 2):
+            for column, value in self.rows[i].items():
+                other = self.rows[j].get(column)
+                comparable = _is_number(value) and _is_number(other) and other
+                if comparable and abs(abs(value / other) - abs(fact.value)) <= tol:
+                    return [f"~row:{i}"]
+        return []
+
     def _differences(self) -> list[tuple[float, int, int]]:
         """Gaps between two values of a row (close vs. average) or of a column (A vs. B)."""
         if self._gaps is not None:
@@ -728,7 +755,8 @@ class Evidence:
             for item in self.items.values()
             if item.ref.kind == "row" and item.ref.row_index is not None
             for text in item.texts
-            if len(text) >= 2 and (needle in text.lower() or text.lower() in needle)
+            if len(text) >= 2
+            and (needle in text.lower() or text.lower() in needle or names_match(entity, text))
         }
 
     def mentions(self, needle: str) -> list[str]:
@@ -743,6 +771,20 @@ class Evidence:
         if any(lowered in c or c in lowered for c in columns):
             return ["row:0"]
         return ["question"] if lowered in self.question.lower() else []
+
+    def mentions_name(self, name: str) -> list[str]:
+        """Like `mentions`, also accepting other spellings of a company's name."""
+        hits = self.mentions(name)
+        if hits:
+            return hits
+        hits = [
+            i for i, item in self.items.items() if any(names_match(name, t) for t in item.texts)
+        ]
+        if hits:
+            return hits
+        # A name the query filtered on ("WHERE ticker = 'NVDA'") selected these rows.
+        literals = (literal.strip("%") for literal in _SQL_LITERAL.findall(self.sql))
+        return ["sql"] if any(names_match(name, literal) for literal in literals) else []
 
     def ref(self, item_id: str) -> EvidenceRef | None:
         if item_id == "question":
@@ -809,6 +851,8 @@ def _within_result(fact: NumberFact, total_rows: int) -> bool:
 def check_claim(claim: Claim, evidence: Evidence) -> FactCheck:
     facts = extract_facts(claim.text)
     result = FactCheck()
+    if _RATIO_IN_WORDS.search(claim.text.translate(_TYPOGRAPHY)):
+        result.unresolved.append("a ratio stated in words")
     # A rank or window inside the result ("the top 3", "the last 10 days") is
     # not a value to look up; it narrows which rows a bound speaks about.
     ranks = [f for f in facts.numbers if f.positional and _within_result(f, evidence.total_rows)]
@@ -836,7 +880,7 @@ def check_claim(claim: Claim, evidence: Evidence) -> FactCheck:
 
     entity_rows: set[int] = set()
     for entity in facts.entities:
-        hits = evidence.mentions(entity)
+        hits = evidence.mentions_name(entity)
         if hits:
             ok += 0 if has_values else 1
             result.evidence.extend(hits[:1])
@@ -846,14 +890,18 @@ def check_claim(claim: Claim, evidence: Evidence) -> FactCheck:
     for entity in facts.weak_entities:
         rows = evidence.rows_mentioning(entity)
         entity_rows |= rows
-        if not rows and not evidence.mentions(entity):
+        if not rows and not evidence.mentions_name(entity):
             result.unresolved.append(entity)
 
     for fact in numbers:
         if evidence.in_question(fact):
             ok += 1
             continue
-        hits = evidence.match_number(fact, rows=entity_rows or None)
+        if fact.multiple and len(entity_rows) > 1:
+            # "A is 5x B" compares the companies named, not any pair of rows.
+            hits = evidence.match_multiple(fact, entity_rows)
+        else:
+            hits = evidence.match_number(fact, rows=entity_rows or None)
         if entity_rows and not hits and evidence.match_number(fact):
             fail(fact.text, f"{fact.text} belongs to a different row than the one named")
             continue
