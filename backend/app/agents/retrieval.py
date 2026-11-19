@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Awaitable, Callable, Collection
 from dataclasses import dataclass
 from functools import partial
@@ -13,7 +14,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.concurrency import run_in_threadpool
 
 from app.agents.base import Agent, Trace
-from app.core.exceptions import QueryExecutionError, SchemaNotIndexedError, UnsafeSQLError
+from app.core.exceptions import (
+    QueryExecutionError,
+    RestrictedQueryError,
+    SchemaNotIndexedError,
+    UnsafeSQLError,
+)
 from app.db.readonly import execute_readonly
 from app.observability.metrics import stage
 from app.rag.citations import SqlLineage, sql_lineage
@@ -22,6 +28,22 @@ from app.rag.sql_generator import GeneratedSQL, SQLGenerator
 from app.services.structured_output import Attempt, StructuredOutputError
 
 logger = logging.getLogger(__name__)
+
+_DATA_STORE = r"(?:database|dataset|data set|db|tables?|system|platform)"
+_ASKS_DATASET_SIZE = re.compile(
+    rf"\b(?:how many|number of|count of)\b[^?.]*\b(?:in|inside|within|across|stored|loaded)\b"
+    rf"[^?.]*\b{_DATA_STORE}\b"
+    rf"|\bhow many\b[^?.]*\b(?:do|does)\s+(?:you|it|this)\s+(?:have|hold|store|track|cover)\b"
+    rf"|\b(?:size|row counts?)\s+of\s+(?:the|your|this)\s+(?:\w+\s+)?{_DATA_STORE}\b"
+    rf"|\bhow (?:big|large) is\s+(?:the|your|this)\s+(?:\w+\s+)?{_DATA_STORE}\b"
+    r"|\bhow much data\b|\brow counts?\b",
+    re.IGNORECASE,
+)
+
+
+def asks_dataset_size(question: str) -> bool:
+    """Whether the question is about how much data is stored."""
+    return bool(_ASKS_DATASET_SIZE.search(question))
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,7 +73,9 @@ class RetrievalAgent(Agent):
         max_tables: int,
         statement_timeout_ms: int,
         repair_attempts: int = 1,
+        block_dataset_size: bool = False,
     ) -> None:
+        self._block_dataset_size = block_dataset_size
         self._indexer = indexer
         self._generator = sql_generator
         self._engine = engine
@@ -63,16 +87,23 @@ class RetrievalAgent(Agent):
     def allowed_tables(self) -> Collection[str]:
         return self._indexer.catalog.keys()
 
-    async def run(self, question: str, trace: Trace) -> RetrievalResult:
+    async def run(
+        self, question: str, trace: Trace, *, context: str = "", search_hint: str = ""
+    ) -> RetrievalResult:
+        if self._block_dataset_size and asks_dataset_size(question):
+            self._record(trace, "dataset_size_refused")
+            raise RestrictedQueryError("question asks how much data is stored")
         # Embedding and reranking are CPU-bound; keep them off the event loop.
         with stage("retrieval"):
-            search = await run_in_threadpool(self._indexer.search, question, self._max_tables)
+            search = await run_in_threadpool(
+                self._indexer.search, f"{search_hint} {question}".strip(), self._max_tables
+            )
         if not search.tables:
             raise SchemaNotIndexedError("schema search returned no tables")
         self._record(trace, "schema_retrieved", search.trace_detail())
 
         generated = await self._generate(
-            trace, lambda: self._generator.generate(question, search.tables)
+            trace, lambda: self._generator.generate(question, search.tables, context=context)
         )
         repairs = 0
         while True:
@@ -94,6 +125,7 @@ class RetrievalAgent(Agent):
                     search.tables,
                     generated.sql,
                     _database_error(exc),
+                    context=context,
                 )
                 generated = await self._generate(trace, repair, step="sql_repaired")
 

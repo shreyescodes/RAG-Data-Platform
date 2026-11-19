@@ -53,6 +53,8 @@ ticker column with equality, e.g. market_data.ticker = 'NVDA'.
 - Match company names (e.g. "Apple") case-insensitively with ILIKE and \
 wildcards, e.g. c.name ILIKE '%apple%'.
 - Return at most {max_rows} rows and order results meaningfully.
+- Earlier turns of the conversation, when given, only explain references such \
+as "it" or "that company" in the question.
 - "tables_used" lists the tables the SQL reads; "confidence" (0 to 1) is how \
 sure you are that the SQL answers the question as asked."""
 
@@ -88,9 +90,10 @@ class GeneratedSQL:
     cache_source: str | None = None
 
 
-def _schema_prompt(question: str, tables: Sequence[TableInfo]) -> str:
+def _schema_prompt(question: str, tables: Sequence[TableInfo], context: str = "") -> str:
     schema = "\n\n".join(table.to_ddl() for table in tables)
-    return f"Schema:\n{schema}\n\nQuestion: {question}"
+    earlier = f"{context}\n\n" if context else ""
+    return f"Schema:\n{schema}\n\n{earlier}Question: {question}"
 
 
 class SQLGenerator:
@@ -101,14 +104,20 @@ class SQLGenerator:
         max_rows: int,
         allowed_tables: Collection[str],
         semantic_cache: SemanticCache | None = None,
+        block_dataset_size: bool = False,
     ) -> None:
         self._extractor = extractor
         self._max_rows = max_rows
+        self._block_dataset_size = block_dataset_size
         self._allowed = {t.lower() for t in allowed_tables}
         self._semantic = semantic_cache
 
-    async def generate(self, question: str, tables: Sequence[TableInfo]) -> GeneratedSQL:
-        user = _schema_prompt(question, tables)
+    async def generate(
+        self, question: str, tables: Sequence[TableInfo], *, context: str = ""
+    ) -> GeneratedSQL:
+        user = _schema_prompt(question, tables, context)
+        if context:  # a follow-up's meaning depends on the turns before it
+            return await self._run(user, purpose=PURPOSE)
         namespace = schema_namespace(
             self._extractor.model, self._system, [t.to_ddl() for t in tables]
         )
@@ -123,12 +132,18 @@ class SQLGenerator:
         return generated
 
     async def repair(
-        self, question: str, tables: Sequence[TableInfo], failed_sql: str, error: str
+        self,
+        question: str,
+        tables: Sequence[TableInfo],
+        failed_sql: str,
+        error: str,
+        *,
+        context: str = "",
     ) -> GeneratedSQL:
         """Ask for a corrected query after `failed_sql` errored in the database."""
         detail = " ".join(error.split())[:_MAX_ERROR_CHARS]
         user = (
-            f"{_schema_prompt(question, tables)}\n\n"
+            f"{_schema_prompt(question, tables, context)}\n\n"
             f"This query failed in PostgreSQL:\n{failed_sql}\n\nError: {detail}\n\n"
             "Write a corrected query."
         )
@@ -147,7 +162,10 @@ class SQLGenerator:
                 return
             try:
                 validated[output.sql] = validate_and_limit(
-                    output.sql, allowed_tables=self._allowed, max_rows=self._max_rows
+                    output.sql,
+                    allowed_tables=self._allowed,
+                    max_rows=self._max_rows,
+                    block_dataset_size=self._block_dataset_size,
                 )
             except UnsafeSQLError as exc:
                 raise OutputRejected(f"SQL rejected by safety checks: {exc}", cause=exc) from exc

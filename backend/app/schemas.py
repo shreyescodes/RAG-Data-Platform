@@ -14,6 +14,11 @@ class QueryRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     query: str = Field(min_length=3, max_length=1000, examples=["Top 5 companies by revenue"])
+    conversation_id: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z0-9_-]{8,64}$",
+        description="Groups follow-up questions with the turns before them.",
+    )
 
 
 class AgentFlow(BaseModel):
@@ -152,6 +157,8 @@ class RequestUsage(BaseModel):
 
 
 class QueryResponse(BaseModel):
+    id: int | None = Field(default=None, description="Saved answer, when it was stored.")
+    conversation_id: str | None = None
     success: bool
     query: str = Field(description="The query as processed, after PII redaction.")
     sql: str | None = None
@@ -171,10 +178,16 @@ class QueryResponse(BaseModel):
     error: str | None = None
 
 
+class ConversationResponse(BaseModel):
+    conversation_id: str
+    turns: list[QueryResponse]
+
+
 class HistoryItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    conversation_id: str | None = None
     query: str
     sql: str | None
     answer: str | None

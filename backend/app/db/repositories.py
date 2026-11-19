@@ -24,13 +24,46 @@ class QueryLogRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def add(self, entry: QueryLog) -> None:
+    def add(self, entry: QueryLog) -> int:
         self._session.add(entry)
         try:
             self._session.commit()
         except Exception:
             self._session.rollback()
             raise
+        return entry.id
+
+    def list_for_visitor(self, visitor_id: str, *, limit: int, offset: int) -> Sequence[QueryLog]:
+        stmt = (
+            select(QueryLog)
+            .where(QueryLog.visitor_id == visitor_id)
+            .order_by(QueryLog.created_at.desc(), QueryLog.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return self._session.scalars(stmt).all()
+
+    def count_for_visitor(self, visitor_id: str) -> int:
+        stmt = select(func.count()).select_from(QueryLog).where(QueryLog.visitor_id == visitor_id)
+        return self._session.scalar(stmt) or 0
+
+    def conversation(self, visitor_id: str, conversation_id: str) -> Sequence[QueryLog]:
+        """Every turn of one visitor's conversation, oldest first."""
+        stmt = (
+            select(QueryLog)
+            .where(
+                QueryLog.visitor_id == visitor_id,
+                QueryLog.conversation_id == conversation_id,
+            )
+            .order_by(QueryLog.created_at, QueryLog.id)
+        )
+        return self._session.scalars(stmt).all()
+
+    def count_since(self, since: dt.datetime, *, visitor_id: str | None = None) -> int:
+        stmt = select(func.count()).select_from(QueryLog).where(QueryLog.created_at >= since)
+        if visitor_id is not None:
+            stmt = stmt.where(QueryLog.visitor_id == visitor_id)
+        return self._session.scalar(stmt) or 0
 
     def list_recent(self, *, limit: int, offset: int) -> Sequence[QueryLog]:
         stmt = (

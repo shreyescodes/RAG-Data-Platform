@@ -318,15 +318,16 @@ def test_query_rate_limit(
 def test_history_lists_recent_queries_first(
     client: TestClient, auth_headers: dict[str, str]
 ) -> None:
+    visitor = {**auth_headers, "X-Visitor-Id": "visitor-0123456789abcdef"}
     for q in ("first question", "second question", "third question"):
-        _ask(client, auth_headers, q)
+        _ask(client, visitor, q)
 
-    body = client.get("/api/history?limit=2", headers=auth_headers).json()
+    body = client.get("/api/history?limit=2", headers=visitor).json()
     assert body["total"] == 3
     assert [h["query"] for h in body["history"]] == ["third question", "second question"]
     assert body["history"][0]["success"] is True
 
-    page_two = client.get("/api/history?limit=2&offset=2", headers=auth_headers).json()
+    page_two = client.get("/api/history?limit=2&offset=2", headers=visitor).json()
     assert [h["query"] for h in page_two["history"]] == ["first question"]
 
 

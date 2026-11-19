@@ -5,6 +5,7 @@ import datetime as dt
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from app.core.config import Settings, get_settings
 from app.core.security import require_api_key
 from app.db.models import utcnow
 from app.db.repositories import MetricsRepository
@@ -22,21 +23,30 @@ from app.schemas import MetricsSummary, MetricsWindow, RecentResponse, Timeserie
 router = APIRouter(prefix="/metrics", tags=["metrics"], dependencies=[Depends(require_api_key)])
 
 _WINDOW = Query(default="24h", description="Look-back window.")
+_HIDDEN_QUERY = "Hidden"
 
 
 @router.get("/summary", response_model=MetricsSummary)
 def metrics_summary(
-    window: MetricsWindow = _WINDOW, db: Session = Depends(get_db)
+    window: MetricsWindow = _WINDOW,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ) -> MetricsSummary:
     """Totals, latency percentiles, model usage and the worst queries in the window."""
     since = utcnow() - WINDOWS[window]
     repo = MetricsRepository(db)
-    return summarise(
+    summary = summarise(
         window,
         since,
         repo.requests_since(since, limit=MAX_WINDOW_ROWS),
         repo.calls_since(since, limit=MAX_WINDOW_ROWS * 8),
     )
+    if settings.hide_metric_queries:
+        for failing in summary.top_failing_queries:
+            failing.query = _HIDDEN_QUERY
+        for expensive in summary.most_expensive_queries:
+            expensive.query = _HIDDEN_QUERY
+    return summary
 
 
 @router.get("/timeseries", response_model=TimeseriesResponse)
@@ -62,7 +72,13 @@ def metrics_timeseries(
 
 @router.get("/recent", response_model=RecentResponse)
 def metrics_recent(
-    limit: int = Query(default=50, ge=1, le=200), db: Session = Depends(get_db)
+    limit: int = Query(default=50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ) -> RecentResponse:
     """The most recent requests with their usage and stage latencies."""
-    return RecentResponse(requests=[recent(m) for m in MetricsRepository(db).recent(limit=limit)])
+    requests = [recent(m) for m in MetricsRepository(db).recent(limit=limit)]
+    if settings.hide_metric_queries:
+        for item in requests:
+            item.query = _HIDDEN_QUERY
+    return RecentResponse(requests=requests)

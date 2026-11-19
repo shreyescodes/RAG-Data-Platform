@@ -39,6 +39,37 @@ class LLMNotConfiguredError(LLMError):
     user_message = "No LLM API key is configured on the server."
 
 
+def _wait_phrase(seconds: float) -> str:
+    minutes = max(1, round(seconds / 60))
+    if minutes < 60:
+        return f"{minutes} minute{'s' if minutes != 1 else ''}"
+    hours = round(minutes / 60)
+    return f"{hours} hour{'s' if hours != 1 else ''}"
+
+
+class LLMRateLimitError(LLMError):
+    """The model provider refused the call because a usage limit was reached."""
+
+    user_message = "The AI model has reached its usage limit. Please try again later."
+
+    def __init__(self, detail: str = "", *, retry_after_seconds: float | None = None) -> None:
+        message = None
+        if retry_after_seconds is not None:
+            message = (
+                "The AI model has reached its usage limit. "
+                f"Please try again in about {_wait_phrase(retry_after_seconds)}."
+            )
+        super().__init__(detail, user_message=message)
+        self.retry_after_seconds = retry_after_seconds
+
+
+class RestrictedQueryError(PlatformError):
+    user_message = (
+        "The size of the dataset is not available here. "
+        "Ask about specific companies, funds or dates instead."
+    )
+
+
 class UnanswerableQueryError(PlatformError):
     user_message = (
         "This question cannot be answered from the available data: the schema "

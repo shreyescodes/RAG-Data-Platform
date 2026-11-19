@@ -50,6 +50,8 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("LLM_BASE_URL", "OPENAI_API_BASE"),
     )
     llm_model: str = "openai/gpt-oss-120b"
+    # Tried once when the main model reports a rate limit. Empty disables it.
+    llm_fallback_model: str = ""
     llm_timeout_seconds: float = Field(default=30.0, gt=0)
     llm_max_retries: int = Field(default=2, ge=0)
     # How replies are kept to a JSON schema: json_schema (constrained decoding;
@@ -80,8 +82,10 @@ class Settings(BaseSettings):
     # Hybrid search: BM25 keyword retrieval fused with dense retrieval (RRF).
     retrieval_hybrid: bool = True
     retrieval_rrf_k: int = Field(default=60, ge=1)
-    # Cross-encoder reranking of the fused shortlist (local, CPU-friendly).
-    retrieval_rerank: bool = True
+    # Cross-encoder reranking of the fused shortlist. Off by default: on this
+    # small schema it adds about 500 ms without finding more of the right tables
+    # (see docs/evaluation-retrieval.md). Worth enabling for much larger schemas.
+    retrieval_rerank: bool = False
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L6-v2"
     retrieval_rerank_candidates: int = Field(default=12, ge=1, le=200)
 
@@ -113,9 +117,24 @@ class Settings(BaseSettings):
     rate_limit_admin: str = "5/hour"
     expose_docs: bool = True
 
+    # --- Public access -----------------------------------------------------
+    # Questions allowed per UTC day, in total and per visitor. 0 means no limit.
+    daily_query_limit: int = Field(default=0, ge=0)
+    daily_visitor_query_limit: int = Field(default=0, ge=0)
+    # Refuse questions and SQL that only reveal how much data is stored.
+    block_dataset_size_queries: bool = True
+    # Show question text on the metrics dashboard. Defaults to hidden in production.
+    metrics_show_queries: bool | None = None
+
     @property
     def allowed_origins_list(self) -> list[str]:
         return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
+
+    @property
+    def hide_metric_queries(self) -> bool:
+        if self.metrics_show_queries is None:
+            return self.environment == "production"
+        return not self.metrics_show_queries
 
     @property
     def auth_enabled(self) -> bool:

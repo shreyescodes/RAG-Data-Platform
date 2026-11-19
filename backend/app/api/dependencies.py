@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import datetime as dt
+import re
 from functools import partial
 
-from fastapi import Depends, Request
+from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.agents.analysis import AnalysisAgent
@@ -22,10 +24,69 @@ from app.rag.sql_generator import SQLGenerator
 from app.services.llm import endpoint_kind
 from app.services.structured_output import StructuredOutputExtractor
 
+_VISITOR_ID = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
+
+
+def get_visitor_id(x_visitor_id: str | None = Header(default=None)) -> str | None:
+    """The browser's anonymous ID, if it sent a well-formed one."""
+    return x_visitor_id if x_visitor_id and _VISITOR_ID.match(x_visitor_id) else None
+
+
+def enforce_daily_limits(
+    visitor_id: str | None = Depends(get_visitor_id),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    """Stop a public deployment from spending its whole LLM quota."""
+    if not (settings.daily_query_limit or settings.daily_visitor_query_limit):
+        return
+    today = dt.datetime.now(dt.UTC).replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
+    repo = QueryLogRepository(db)
+    over_total = (
+        settings.daily_query_limit and repo.count_since(today) >= settings.daily_query_limit
+    )
+    over_visitor = (
+        settings.daily_visitor_query_limit
+        and visitor_id
+        and repo.count_since(today, visitor_id=visitor_id) >= settings.daily_visitor_query_limit
+    )
+    if over_total or over_visitor:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Today's question limit has been reached. Please come back tomorrow.",
+        )
+
 
 def get_services(request: Request) -> ServiceContainer:
     services: ServiceContainer = request.app.state.services
     return services
+
+
+def _extractor(services: ServiceContainer, settings: Settings) -> StructuredOutputExtractor:
+    return StructuredOutputExtractor(
+        services.chat_model,
+        max_attempts=settings.llm_structured_max_attempts,
+        mode=settings.llm_structured_output,
+        cache=services.response_cache,
+    )
+
+
+def build_retrieval_agent(services: ServiceContainer, settings: Settings) -> RetrievalAgent:
+    return RetrievalAgent(
+        indexer=services.schema_indexer,
+        sql_generator=SQLGenerator(
+            _extractor(services, settings),
+            max_rows=settings.max_result_rows,
+            allowed_tables=services.schema_indexer.catalog.keys(),
+            semantic_cache=services.semantic_cache,
+            block_dataset_size=settings.block_dataset_size_queries,
+        ),
+        engine=get_query_engine(),
+        max_tables=settings.retrieval_max_tables,
+        statement_timeout_ms=settings.sql_statement_timeout_ms,
+        repair_attempts=settings.sql_repair_attempts,
+        block_dataset_size=settings.block_dataset_size_queries,
+    )
 
 
 def get_orchestrator(
@@ -34,27 +95,9 @@ def get_orchestrator(
     settings: Settings = Depends(get_settings),
 ) -> QueryOrchestrator:
     endpoint = endpoint_kind(settings.llm_base_url)
-    extractor = StructuredOutputExtractor(
-        services.chat_model,
-        max_attempts=settings.llm_structured_max_attempts,
-        mode=settings.llm_structured_output,
-        cache=services.response_cache,
-    )
-    retrieval = RetrievalAgent(
-        indexer=services.schema_indexer,
-        sql_generator=SQLGenerator(
-            extractor,
-            max_rows=settings.max_result_rows,
-            allowed_tables=services.schema_indexer.catalog.keys(),
-            semantic_cache=services.semantic_cache,
-        ),
-        engine=get_query_engine(),
-        max_tables=settings.retrieval_max_tables,
-        statement_timeout_ms=settings.sql_statement_timeout_ms,
-        repair_attempts=settings.sql_repair_attempts,
-    )
+    extractor = _extractor(services, settings)
     return QueryOrchestrator(
-        retrieval=retrieval,
+        retrieval=build_retrieval_agent(services, settings),
         enrichment=EnrichmentAgent(market_data=services.market_data, sec_edgar=services.sec_edgar),
         analysis=AnalysisAgent(extractor),
         query_logs=QueryLogRepository(db),

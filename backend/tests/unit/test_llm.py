@@ -5,7 +5,7 @@ import httpx2
 import openai
 import pytest
 
-from app.core.exceptions import LLMError, LLMNotConfiguredError
+from app.core.exceptions import LLMError, LLMNotConfiguredError, LLMRateLimitError
 from app.observability.metrics import track_request
 from app.services.llm import InvalidJSONReplyError, OpenAICompatibleChatModel
 
@@ -209,3 +209,74 @@ async def test_probe_reports_unreachable_servers(monkeypatch: pytest.MonkeyPatch
     result = await model.probe()
     assert (result.reachable, result.error) == (False, "OpenAIError")
     assert (await _model(api_key="").probe()).error == "not configured"
+
+
+def _rate_limit(message: str, headers: dict[str, str] | None = None) -> openai.RateLimitError:
+    request = httpx2.Request("POST", "https://llm.test/v1/chat/completions")
+    response = httpx2.Response(429, request=request, headers=headers or {})
+    return openai.RateLimitError(message, response=response, body=None)
+
+
+@pytest.mark.parametrize(
+    ("message", "headers", "phrase"),
+    [
+        ("Limit reached. Please try again in 8m30.19s. Need more tokens", None, "9 minutes"),
+        ("Limit reached. Please try again in 1h12m4s.", None, "1 hour"),
+        ("Limit reached.", {"retry-after": "60"}, "1 minute"),
+    ],
+)
+async def test_rate_limits_tell_the_user_how_long_to_wait(
+    monkeypatch: pytest.MonkeyPatch, message: str, headers: dict[str, str] | None, phrase: str
+) -> None:
+    model = _model()
+    _stub_create(monkeypatch, model, error=_rate_limit(message, headers))
+
+    with pytest.raises(LLMRateLimitError) as caught:
+        await model.complete(system="s", user="u")
+
+    assert f"in about {phrase}" in caught.value.user_message
+
+
+async def test_rate_limit_without_a_wait_time_still_explains_itself(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    model = _model()
+    _stub_create(monkeypatch, model, error=_rate_limit("Limit reached."))
+
+    with pytest.raises(LLMRateLimitError) as caught:
+        await model.complete(system="s", user="u")
+
+    assert "usage limit" in caught.value.user_message
+
+
+async def test_falls_back_to_the_second_model_when_rate_limited(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    model = OpenAICompatibleChatModel(
+        api_key="k",
+        base_url="https://llm.test/v1",
+        model="main-model",
+        fallback_model="small-model",
+        timeout_seconds=5,
+        max_retries=0,
+    )
+    used: list[str] = []
+
+    async def create(**kwargs: Any) -> SimpleNamespace:
+        used.append(kwargs["model"])
+        if kwargs["model"] == "main-model":
+            raise _rate_limit("Limit reached.")
+        message = SimpleNamespace(content="from fallback")
+        return SimpleNamespace(choices=[SimpleNamespace(message=message)], usage=None)
+
+    assert model._client is not None
+    monkeypatch.setattr(model._client.chat.completions, "create", create)
+
+    with track_request() as metrics:
+        assert await model.complete(system="s", user="u") == "from fallback"
+
+    assert used == ["main-model", "small-model"]
+    assert [(c.model, c.success) for c in metrics.llm_calls] == [
+        ("main-model", False),
+        ("small-model", True),
+    ]

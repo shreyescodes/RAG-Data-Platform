@@ -38,6 +38,8 @@ server {
         proxy_set_header X-API-Key "${API_KEY}";
         # A CPU-only local LLM can need minutes per answer; match the UI's timeout.
         proxy_read_timeout ${PROXY_READ_TIMEOUT};
+        # Answers stream their progress, so pass each event on as it arrives.
+        proxy_buffering off;
         client_max_body_size 16k;
     }
 

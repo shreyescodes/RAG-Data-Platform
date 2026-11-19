@@ -10,7 +10,7 @@ Outside a tracked request both are no-ops.
 from __future__ import annotations
 
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -24,6 +24,9 @@ STAGES = (
     "analysis",
     "verification",
 )
+
+
+StageListener = Callable[[str, str], None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +47,8 @@ class RequestMetrics:
     started: float = field(default_factory=time.perf_counter)
     stages_ms: dict[str, float] = field(default_factory=dict)
     llm_calls: list[LLMCallRecord] = field(default_factory=list)
+    # Told when each stage starts and finishes, for live progress.
+    on_stage: StageListener | None = None
 
     def add_stage(self, name: str, ms: float) -> None:
         # Stages can repeat (an SQL repair re-runs generation); time accumulates.
@@ -73,8 +78,8 @@ def current() -> RequestMetrics | None:
 
 
 @contextmanager
-def track_request() -> Iterator[RequestMetrics]:
-    metrics = RequestMetrics()
+def track_request(on_stage: StageListener | None = None) -> Iterator[RequestMetrics]:
+    metrics = RequestMetrics(on_stage=on_stage)
     token = _current.set(metrics)
     try:
         yield metrics
@@ -86,12 +91,16 @@ def track_request() -> Iterator[RequestMetrics]:
 def stage(name: str) -> Iterator[None]:
     """Time the enclosed block as pipeline stage `name` (no-op when untracked)."""
     started = time.perf_counter()
+    metrics = _current.get()
+    if metrics is not None and metrics.on_stage is not None:
+        metrics.on_stage(name, "started")
     try:
         yield
     finally:
-        metrics = _current.get()
         if metrics is not None:
             metrics.add_stage(name, (time.perf_counter() - started) * 1000)
+            if metrics.on_stage is not None:
+                metrics.on_stage(name, "completed")
 
 
 def record_llm_call(record: LLMCallRecord) -> None:

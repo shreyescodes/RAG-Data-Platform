@@ -70,6 +70,7 @@ def build_services(settings: Settings) -> ServiceContainer:
             api_key=settings.llm_api_key.get_secret_value(),
             base_url=settings.llm_base_url,
             model=settings.llm_model,
+            fallback_model=settings.llm_fallback_model,
             timeout_seconds=settings.llm_timeout_seconds,
             max_retries=settings.llm_max_retries,
         ),

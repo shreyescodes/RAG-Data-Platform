@@ -9,20 +9,35 @@ from __future__ import annotations
 
 import ipaddress
 import logging
+import re
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Literal, Protocol
+from typing import Any, Literal, NoReturn, Protocol
 from urllib.parse import urlsplit
 
 import openai
 
-from app.core.exceptions import LLMError, LLMNotConfiguredError
+from app.core.exceptions import LLMError, LLMNotConfiguredError, LLMRateLimitError
 from app.observability.metrics import LLMCallRecord, estimate_tokens, record_llm_call
 
 logger = logging.getLogger(__name__)
 
 EndpointKind = Literal["local", "remote"]
+
+_RETRY_IN = re.compile(r"try again in (?:(\d+)h)?(?:(\d+)m)?(?:(\d+(?:\.\d+)?)s)?", re.IGNORECASE)
+
+
+def retry_after_seconds(exc: openai.RateLimitError) -> float | None:
+    """How long the provider asks us to wait, from its message or Retry-After header."""
+    match = _RETRY_IN.search(str(exc))
+    if match and any(match.groups()):
+        hours, minutes, seconds = (float(part or 0) for part in match.groups())
+        return hours * 3600 + minutes * 60 + seconds
+    try:
+        return float(exc.response.headers.get("retry-after", ""))
+    except ValueError:
+        return None
 
 
 class InvalidJSONReplyError(LLMError):
@@ -112,8 +127,10 @@ class OpenAICompatibleChatModel:
         model: str,
         timeout_seconds: float,
         max_retries: int,
+        fallback_model: str = "",
     ) -> None:
         self.model = model
+        self.fallback_model = fallback_model
         self.base_url = base_url
         self.endpoint = endpoint_kind(base_url)
         key = api_key or (LOCAL_PLACEHOLDER_KEY if self.endpoint == "local" else "")
@@ -145,33 +162,55 @@ class OpenAICompatibleChatModel:
             raise LLMNotConfiguredError("LLM_API_KEY is not set for a remote endpoint")
 
         fmt = response_format(json_mode=json_mode, json_schema=json_schema)
-        started = time.perf_counter()
-        try:
-            response = await self._client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-                temperature=temperature,
-                max_tokens=max_tokens,
-                response_format=fmt if fmt is not None else openai.omit,  # type: ignore[arg-type]
-            )
-        except openai.BadRequestError as exc:
-            self._record(purpose, started, success=False)
-            if exc.code == "json_validate_failed":
-                body = exc.body if isinstance(exc.body, dict) else {}
-                logger.info("LLM reply rejected as invalid JSON (%s)", purpose)
-                raise InvalidJSONReplyError(
-                    str(exc), failed_generation=str(body.get("failed_generation") or "")
-                ) from exc
-            logger.warning("LLM request failed (%s): %s", purpose, exc)
-            raise LLMError(str(exc)) from exc
-        except openai.OpenAIError as exc:
-            self._record(purpose, started, success=False)
-            logger.warning("LLM request failed (%s): %s", purpose, exc)
-            raise LLMError(str(exc)) from exc
+        models = [self.model, *([self.fallback_model] if self.fallback_model else [])]
+        for attempt, model in enumerate(models, start=1):
+            started = time.perf_counter()
+            try:
+                response = await self._client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    response_format=fmt if fmt is not None else openai.omit,  # type: ignore[arg-type]
+                )
+                return self._reply(response, purpose, started, model, system, user, max_tokens)
+            except openai.RateLimitError as exc:
+                self._record(purpose, started, model=model, success=False)
+                logger.warning("LLM rate limit reached (%s, %s): %s", purpose, model, exc)
+                if attempt == len(models):
+                    raise LLMRateLimitError(
+                        str(exc), retry_after_seconds=retry_after_seconds(exc)
+                    ) from exc
+            except openai.OpenAIError as exc:
+                self._raise_failure(exc, purpose, started, model)
+        raise LLMError("no model was available")  # pragma: no cover
 
+    def _raise_failure(
+        self, exc: openai.OpenAIError, purpose: str, started: float, model: str
+    ) -> NoReturn:
+        self._record(purpose, started, model=model, success=False)
+        if isinstance(exc, openai.BadRequestError) and exc.code == "json_validate_failed":
+            body = exc.body if isinstance(exc.body, dict) else {}
+            logger.info("LLM reply rejected as invalid JSON (%s)", purpose)
+            raise InvalidJSONReplyError(
+                str(exc), failed_generation=str(body.get("failed_generation") or "")
+            ) from exc
+        logger.warning("LLM request failed (%s): %s", purpose, exc)
+        raise LLMError(str(exc)) from exc
+
+    def _reply(
+        self,
+        response: Any,
+        purpose: str,
+        started: float,
+        model: str,
+        system: str,
+        user: str,
+        max_tokens: int,
+    ) -> str:
         choice = response.choices[0] if response.choices else None
         content = choice.message.content if choice is not None else None
         if getattr(choice, "finish_reason", None) == "length":
@@ -180,18 +219,21 @@ class OpenAICompatibleChatModel:
             logger.warning("LLM reply cut off at max_tokens=%d (%s)", max_tokens, purpose)
         usage = response.usage
         if usage is not None:
-            self._record(purpose, started, usage.prompt_tokens, usage.completion_tokens)
+            self._record(
+                purpose, started, usage.prompt_tokens, usage.completion_tokens, model=model
+            )
         else:
             self._record(
                 purpose,
                 started,
                 estimate_tokens(system) + estimate_tokens(user),
                 estimate_tokens(content or ""),
+                model=model,
                 estimated=True,
             )
         if not content:
             raise LLMError("LLM returned an empty completion")
-        return content
+        return str(content)
 
     def _record(
         self,
@@ -200,13 +242,14 @@ class OpenAICompatibleChatModel:
         prompt_tokens: int = 0,
         completion_tokens: int = 0,
         *,
+        model: str | None = None,
         success: bool = True,
         estimated: bool = False,
     ) -> None:
         record_llm_call(
             LLMCallRecord(
                 purpose=purpose,
-                model=self.model,
+                model=model or self.model,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 latency_ms=round((time.perf_counter() - started) * 1000, 2),
