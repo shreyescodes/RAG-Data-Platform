@@ -10,7 +10,7 @@ SQL behind it, the source rows and a fact check of every claim.**
 
 [![Read the documentation](https://img.shields.io/badge/Read%20the%20docs-architecture%20%26%20results-2F81F7?style=for-the-badge)](#documentation)
 
-[![One-minute demo: a question over SEC 13F filings with its fact check, sources and SQL, an NVDA price chart, a refused prompt injection, and the observability dashboard](docs/screenshots/demo.webp)](https://drive.google.com/file/d/1nfKHfC_bMd8owrWmkRbwI4F4lEsutaII/view)
+[![One-minute demo: a question over SEC 13F filings with its fact check, sources and SQL, an NVDA price chart, a refused prompt injection, and the observability dashboard](docs/screenshots/demo.webp)](https://drive.google.com/file/d/1Adbpx8WDpOAK_-J5h2qWGv6A2eoaVMOO/view)
 
 <sub>Recorded from a local run of the production Docker stack with real SEC and
 Yahoo Finance data. Responses were not mocked or edited. Captions were added and
