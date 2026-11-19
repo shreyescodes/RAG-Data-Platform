@@ -1,33 +1,33 @@
 import { ActivityIcon, ComposeIcon, PanelIcon } from './Icons.jsx'
 
-/** The latest run of each question, keeping the newest-first order. */
-function latestRuns(items) {
-  const seen = new Set()
-  return items.filter((item) => {
-    const question = item.query.trim().toLowerCase()
-    if (seen.has(question)) return false
-    seen.add(question)
-    return true
-  })
+/** One row per chat, newest first, titled by the question that started it. */
+function chats(items) {
+  const byId = new Map()
+  for (const item of items) {
+    if (!item.conversation_id) continue
+    const chat = byId.get(item.conversation_id)
+    if (chat) chat.title = item.query
+    else byId.set(item.conversation_id, { id: item.conversation_id, title: item.query, failed: !item.success })
+  }
+  return [...byId.values()]
 }
 
 export function Sidebar({
   history,
-  activeQuery,
+  activeChat,
   observabilityActive,
-  disabled,
   onNewChat,
   onSelect,
   onNavigate,
   onClose,
 }) {
-  const recent = latestRuns(history)
+  const recent = chats(history)
 
   return (
     <aside id="sidebar" className="sidebar" aria-label="Chats">
       <div className="sidebar-top">
         <button type="button" className="brand" onClick={onNewChat}>
-          <span className="brand-name">RAG Financial Terminal</span>
+          <span className="brand-name">RAG Data Platform</span>
         </button>
         <button type="button" className="icon-btn" onClick={onClose} aria-label="Close sidebar">
           <PanelIcon />
@@ -51,18 +51,17 @@ export function Sidebar({
       <h2 className="sidebar-label">Recent</h2>
       {recent.length > 0 ? (
         <ul className="history-list">
-          {recent.map((item) => (
-            <li key={item.id}>
+          {recent.map((chat) => (
+            <li key={chat.id}>
               <button
                 type="button"
                 className="history-item"
-                onClick={() => onSelect(item.query)}
-                disabled={disabled}
-                title={item.query}
-                aria-current={!observabilityActive && item.query === activeQuery ? 'true' : undefined}
+                onClick={() => onSelect(chat.id)}
+                title={chat.title}
+                aria-current={!observabilityActive && chat.id === activeChat ? 'true' : undefined}
               >
-                <span className="history-query">{item.query}</span>
-                {!item.success && <span className="status-dot fail" role="img" aria-label="failed" />}
+                <span className="history-query">{chat.title}</span>
+                {chat.failed && <span className="status-dot fail" role="img" aria-label="failed" />}
               </button>
             </li>
           ))}

@@ -4,6 +4,8 @@
 // server proxies /api and adds the X-API-Key header; in Docker, nginx does.
 // Set VITE_API_URL only when the frontend must call a different origin.
 
+import { getVisitorId } from '../utils/visitor.js'
+
 const BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
 const DEFAULT_TIMEOUT_MS = 90_000
 // One answer can take minutes on a CPU-only local model; the backend already
@@ -21,7 +23,11 @@ export class ApiError extends Error {
 
 function describe(status, body) {
   if (status === 401) return 'The API rejected the request: missing or invalid API key.'
-  if (status === 429) return 'Rate limit reached. Please wait a moment and try again.'
+  if (status === 429) {
+    return typeof body?.detail === 'string'
+      ? body.detail
+      : 'Rate limit reached. Please wait a moment and try again.'
+  }
   if (status === 422 && Array.isArray(body?.detail)) {
     return body.detail.map((d) => d.msg).join('; ')
   }
@@ -30,7 +36,31 @@ function describe(status, body) {
   return `Request failed with status ${status}.`
 }
 
-async function request(path, { method = 'GET', body, signal, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+/** Reads `event:` / `data:` blocks from a server-sent event stream. */
+async function readEvents(response, onEvent) {
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) return
+    buffer += decoder.decode(value, { stream: true })
+    let end = buffer.indexOf('\n\n')
+    while (end >= 0) {
+      const block = buffer.slice(0, end)
+      buffer = buffer.slice(end + 2)
+      const name = block.match(/^event: (.*)$/m)?.[1]
+      const data = block.match(/^data: (.*)$/m)?.[1]
+      if (name && data) onEvent(name, JSON.parse(data))
+      end = buffer.indexOf('\n\n')
+    }
+  }
+}
+
+async function request(
+  path,
+  { method = 'GET', body, signal, timeoutMs = DEFAULT_TIMEOUT_MS, read } = {},
+) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(new DOMException('Timeout', 'TimeoutError')), timeoutMs)
   const onAbort = () => controller.abort(signal.reason)
@@ -39,16 +69,20 @@ async function request(path, { method = 'GET', body, signal, timeoutMs = DEFAULT
   try {
     const response = await fetch(`${BASE_URL}${path}`, {
       method,
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      headers: {
+        'X-Visitor-Id': getVisitorId(),
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+      },
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     })
     const requestId = response.headers.get('X-Request-ID') ?? undefined
-    const payload = await response.json().catch(() => null)
     if (!response.ok) {
+      const payload = await response.json().catch(() => null)
       throw new ApiError(describe(response.status, payload), { status: response.status, requestId })
     }
-    return payload
+    if (read) return await read(response, requestId)
+    return await response.json().catch(() => null)
   } catch (err) {
     if (err instanceof ApiError) throw err
     if (err?.name === 'TimeoutError' || controller.signal.reason?.name === 'TimeoutError') {
@@ -63,8 +97,25 @@ async function request(path, { method = 'GET', body, signal, timeoutMs = DEFAULT
 }
 
 export const api = {
-  query: (query, options) =>
-    request('/query', { method: 'POST', body: { query }, timeoutMs: QUERY_TIMEOUT_MS, ...options }),
+  /** Asks a question; `onStage(stage, status)` reports progress until the answer arrives. */
+  query: (query, { conversationId, onStage, ...options } = {}) =>
+    request('/query/stream', {
+      method: 'POST',
+      body: { query, conversation_id: conversationId },
+      timeoutMs: QUERY_TIMEOUT_MS,
+      read: async (response, requestId) => {
+        let answer = null
+        await readEvents(response, (name, data) => {
+          if (name === 'stage') onStage?.(data.stage, data.status)
+          if (name === 'result') answer = data
+          if (name === 'error') throw new ApiError(data.detail, { requestId })
+        })
+        if (!answer) throw new ApiError('The answer stopped before it finished.', { requestId })
+        return answer
+      },
+      ...options,
+    }),
+  conversation: (id, options) => request(`/conversations/${encodeURIComponent(id)}`, options),
   history: ({ limit = 10, offset = 0 } = {}, options) =>
     request(`/history?limit=${limit}&offset=${offset}`, options),
   metricsSummary: (window, options) => request(`/metrics/summary?window=${window}`, options),

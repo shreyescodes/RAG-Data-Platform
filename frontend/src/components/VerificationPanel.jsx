@@ -23,14 +23,14 @@ function headline(report) {
   return `${report.supported} of ${checked} checkable claims supported by the data`
 }
 
-function EvidenceLink({ evidence }) {
+function EvidenceLink({ evidence, rowPrefix }) {
   if (evidence.kind === 'row' && evidence.row_index < MAX_TABLE_ROWS) {
-    return <a href={`#result-row-${evidence.row_index}`}>{evidence.label}</a>
+    return <a href={`#${rowPrefix}result-row-${evidence.row_index}`}>{evidence.label}</a>
   }
   return <span>{evidence.label}</span>
 }
 
-function ClaimItem({ claim }) {
+function ClaimItem({ claim, rowPrefix }) {
   return (
     <li className={`claim claim--${claim.verdict}`}>
       <div className="claim-head">
@@ -45,7 +45,7 @@ function ClaimItem({ claim }) {
         <ul className="claim-evidence" aria-label="Evidence">
           {claim.evidence.map((e) => (
             <li key={e.id}>
-              <EvidenceLink evidence={e} />
+              <EvidenceLink evidence={e} rowPrefix={rowPrefix} />
             </li>
           ))}
         </ul>
@@ -54,7 +54,7 @@ function ClaimItem({ claim }) {
   )
 }
 
-export function VerificationPanel({ report }) {
+export function VerificationPanel({ report, rowPrefix = '' }) {
   if (!report || report.status === 'skipped' || !report.claims?.length) return null
   const flagged = report.status === 'flagged'
 
@@ -70,7 +70,7 @@ export function VerificationPanel({ report }) {
         <summary>Claims ({report.claims.length})</summary>
         <ol className="claim-list">
           {report.claims.map((claim) => (
-            <ClaimItem key={claim.id} claim={claim} />
+            <ClaimItem key={claim.id} claim={claim} rowPrefix={rowPrefix} />
           ))}
         </ol>
       </details>

@@ -11,7 +11,7 @@ import {
   metricsTimeseries,
   successResult,
 } from './test/fixtures.js'
-import { jsonResponse, mockFetch } from './test/mockFetch.js'
+import { eventStream, jsonResponse, mockFetch } from './test/mockFetch.js'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -21,7 +21,9 @@ afterEach(() => {
 function setup(queryHandler = successResult) {
   const fetch = mockFetch({
     'GET /api/history': history,
-    'POST /api/query': queryHandler,
+    'POST /api/query/stream':
+      typeof queryHandler === 'function' ? queryHandler : () => eventStream(queryHandler),
+    'GET /api/conversations/chat-1': { conversation_id: 'chat-1', turns: [successResult] },
     'GET /api/metrics/summary': metricsSummary,
     'GET /api/metrics/timeseries': metricsTimeseries,
     'GET /api/metrics/recent': metricsRecent,
@@ -65,7 +67,7 @@ describe('App', () => {
     expect(document.getElementById('result-row-0')).toHaveTextContent('Apple Inc.')
 
     const queryCall = fetch.mock.calls.find(([, init]) => init?.method === 'POST')
-    expect(JSON.parse(queryCall[1].body)).toEqual({ query: 'Top Berkshire holdings by value' })
+    expect(JSON.parse(queryCall[1].body).query).toBe('Top Berkshire holdings by value')
     // History refreshes after the query settles.
     await waitFor(() =>
       expect(fetch.mock.calls.filter(([url]) => url.includes('/history'))).toHaveLength(2),
@@ -159,13 +161,63 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Ask the data.' })).toBeInTheDocument()
   })
 
-  it('runs a recent query from the sidebar', async () => {
+  it('reopens a saved chat without asking the model again', async () => {
     const { fetch, user } = setup()
     await user.click(await screen.findByRole('button', { name: 'Fund positions by quarter' }))
 
     await screen.findByText('Apple Inc. is the largest holding.', { selector: '.answer-text' })
-    const queryCall = fetch.mock.calls.find(([, init]) => init?.method === 'POST')
-    expect(JSON.parse(queryCall[1].body).query).toBe('Fund positions by quarter')
+    expect(fetch.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false)
+  })
+
+  it('keeps earlier answers on screen and sends follow-ups in the same chat', async () => {
+    const { fetch, user } = setup()
+    const input = screen.getByLabelText(/ask a question/i)
+    await user.type(input, 'Top Berkshire holdings by value{Enter}')
+    await screen.findByText('Apple Inc. is the largest holding.', { selector: '.answer-text' })
+
+    await user.type(input, 'And the smallest one?{Enter}')
+
+    await waitFor(() =>
+      expect(screen.getAllByText('Apple Inc. is the largest holding.', { selector: '.answer-text' })).toHaveLength(2),
+    )
+    expect(screen.getByText('Top Berkshire holdings by value', { selector: '.asked' })).toBeInTheDocument()
+    expect(screen.getByText('And the smallest one?', { selector: '.asked' })).toBeInTheDocument()
+    const [first, second] = fetch.mock.calls
+      .filter(([, init]) => init?.method === 'POST')
+      .map(([, init]) => JSON.parse(init.body))
+    expect(second.conversation_id).toBe(first.conversation_id)
+    expect(document.getElementById('turn-1-result-row-0')).toHaveTextContent('Apple Inc.')
+  })
+
+  it('shows each step while an answer is prepared', async () => {
+    let finish
+    const { user } = setup(
+      () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              const encoder = new TextEncoder()
+              controller.enqueue(
+                encoder.encode('event: stage\ndata: {"stage":"retrieval","status":"started"}\n\n'),
+              )
+              finish = () => {
+                controller.enqueue(
+                  encoder.encode(`event: result\ndata: ${JSON.stringify(successResult)}\n\n`),
+                )
+                controller.close()
+              }
+            },
+          }),
+        ),
+    )
+
+    await user.type(screen.getByLabelText(/ask a question/i), 'Top Berkshire holdings{Enter}')
+
+    expect(await screen.findByText(/Finding the right tables/)).toHaveTextContent('in progress')
+    expect(screen.getByText(/Writing the answer/)).toHaveTextContent('waiting')
+    finish()
+    await screen.findByText('Apple Inc. is the largest holding.', { selector: '.answer-text' })
+    expect(screen.queryByText(/Finding the right tables/)).not.toBeInTheDocument()
   })
 
   it('collapses and reopens the sidebar', async () => {
