@@ -41,3 +41,7 @@ logs/
 .DS_Store
 Thumbs.db
 *.swp
+
+# Playwright
+playwright-report/
+test-results/
