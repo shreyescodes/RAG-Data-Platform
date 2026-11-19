@@ -14,7 +14,7 @@ dashboard. The LLM can be a hosted API or a model on your own GPU.
 
 ## See it running
 
-All screenshots below come from one live session on 18 November 2026. The
+All screenshots below come from one live session on 19 November 2026. The
 stack was:
 
 - PostgreSQL 16 holding real Yahoo Finance data (daily prices and financial
@@ -71,8 +71,9 @@ Every answer also shows:
 
 **Observability.** Tokens, cost, latency per stage and failures from every
 request, stored in PostgreSQL. This capture covers 30 days of local test runs
-on one laptop. All 6 failed requests are deliberate refusals: five
-prompt-injection attempts and one question about CEO pay.
+on one laptop. Of the 18 failed requests, 12 are deliberate refusals (ten
+prompt-injection attempts and two questions about CEO pay) and 6 hit the rate
+limits of Groq's free tier during testing.
 
 ![Observability dashboard: requests, error rate, latency percentiles, tokens, cost, cache hits and fact-check flags](screenshots/observability.webp)
 
