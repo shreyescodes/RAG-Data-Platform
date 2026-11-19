@@ -29,7 +29,7 @@ The backend is a single FastAPI service. Long-lived resources are created once
 in the application lifespan and held in a `ServiceContainer`
 ([`app/container.py`](../backend/app/container.py)):
 
-- the embedding model and cross-encoder reranker (loaded and warmed up at startup)
+- the embedding model, and the cross-encoder reranker when it is enabled (loaded and warmed up at startup)
 - the FAISS index (the BM25 index is derived from it in memory)
 - the LLM client, local or hosted
 - the exact and semantic LLM caches
@@ -51,8 +51,8 @@ are assembled per request by FastAPI dependencies
       dense embeddings (FAISS, cosine) and by BM25 keywords
       ([`rag/sparse.py`](../backend/app/rag/sparse.py)); the two rankings are
       merged with Reciprocal Rank Fusion ([`rag/fusion.py`](../backend/app/rag/fusion.py)).
-      A local cross-encoder ([`rag/reranker.py`](../backend/app/rag/reranker.py))
-      rescores the fused shortlist. Document scores are aggregated per table,
+      An optional local cross-encoder ([`rag/reranker.py`](../backend/app/rag/reranker.py),
+      off by default) can rescore the fused shortlist. Document scores are aggregated per table,
       weak tables are dropped relative to the best, and the top
       `RETRIEVAL_MAX_TABLES` are kept. Every score (dense, sparse, fused,
       rerank) goes into the trace.
@@ -247,5 +247,10 @@ The current design targets a single instance. The natural next steps:
   nobody asked for (a 1.5B model once added `metric_date = '2023-01-01'`)
   still gets a faithful answer about the wrong rows. The Sources panel shows
   the exact SQL and the generator's explanation for that reason.
-- Cross-encoder reranking adds about 0.5 s per query on a laptop CPU; set
-  `RETRIEVAL_RERANK=false` if that matters more than precision.
+- History is private to each browser through a random visitor ID, not a
+  login. Clearing the browser's storage starts a new, empty history, and
+  anyone who copies the ID can read that history.
+- Follow-up questions see the last three answered turns of the chat. Longer
+  chats lose their earliest context.
+- Question limits are counted in PostgreSQL per UTC day, so they hold across
+  processes, while the per-minute rate limit is kept in each process.

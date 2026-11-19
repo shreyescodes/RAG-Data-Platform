@@ -9,36 +9,39 @@ pipeline and scores it against hand-written ground-truth SQL. A case passes
 only if every value returned by the ground-truth query appears in the
 pipeline's result rows.
 
-| Run | Execution accuracy | Behaviour checks | Claims flagged by the fact check | Median latency |
-|-----|-------------------:|-----------------:|---------------------------------:|---------------:|
-| 2026-10-28, `openai/gpt-oss-120b` (Groq), before the upgrade | **12/12** | **4/4** (refusal, live-data fallback, injection, PII) | – | 2.6 s |
-| 2026-11-06, `openai/gpt-oss-120b` (Groq) | **12/12** | **5/5** (adds the cache check) | 9 of 70 | 7.2 s |
-| 2026-11-06, `qwen2.5:1.5b` (local Ollama, CPU only) | 9/12 | **5/5** | 19 of 64 | 58.3 s |
+| Run | Execution accuracy | Behaviour checks | Median latency |
+|-----|-------------------:|-----------------:|---------------:|
+| 2026-11-19, `openai/gpt-oss-120b` (Groq), real SEC and Yahoo data | **49/50** | **6/6** | 2.1 s per SQL answer |
+| 2026-11-06, `openai/gpt-oss-120b` (Groq), previous dataset | 12/12 | 5/5 | 7.2 s per full answer |
+| 2026-11-06, `qwen2.5:1.5b` (local Ollama, CPU only), previous dataset | 9/12 | 5/5 | 58.3 s per full answer |
 
-The upgraded pipeline makes a third LLM call per answer: the fact check's
-judge, for the claims the rule-based checks cannot settle. It accounts for
-most of the added latency (a median of 3.8 s per judge call on Groq in the
-latest run). `VERIFICATION_MODE=heuristic` keeps the rule-based checks and
-drops the extra call. A flagged claim is one the rows do not show, which is
-not always a false one. Flags seen while testing included real errors ("a gap
-of about $9M" between two companies $5.2M apart) and commentary the rows
-cannot confirm ("the amount is expressed in billions"), so read each flag
-with its reason.
+**The current run** ([report](evaluation.md)) asks 50 questions about the real
+data: company lists, quarterly and annual statements, prices and moving
+averages, returns between dates, and 13F holdings, including joins across
+them. It scores the generated SQL with `python -m eval.run --sql-only`, which
+skips the written answer and so uses about a third of the tokens; Groq's free
+tier allows about 200,000 tokens a day. The six behaviour checks run the full
+pipeline: refusing an unanswerable question and a question about how much data
+is stored, answering from live data, surviving a prompt injection, redacting
+PII and serving a repeat from the cache.
 
-The full reports, including every generated SQL statement and answer, are in
-[docs/evaluation.md](evaluation.md) and
-[docs/evaluation-local-llm.md](evaluation-local-llm.md). These runs used
-the previous dataset, which still included a generated private-equity
-portfolio; the cases now target the real SEC 13F holdings, so re-run with
-`make eval` after seeding to refresh them. The local run proves the self-hosted path end to end on a laptop
-with no GPU. A 1.5B model is far weaker at SQL than a 120B one. Its 3
-misses: a misspelt column the repair attempt could not fix, `name = 'Apple'`
-where the prompt asks for `ILIKE`, and sorting by date instead of by closing
-price. The fact check cannot catch that last one: the answer faithfully
-reports a row the wrong query returned. In that run every answered case cited
-the tables its ground-truth query reads (11/11). Use a
-7B model or larger on a GPU (see [docs/PRODUCTION_UPGRADES.md](PRODUCTION_UPGRADES.md#which-model))
-for real use.
+- **The miss:** asked which position Berkshire Hathaway grew most by shares,
+  the model matched the two quarters on issuer name and ticker. Alphabet has
+  two share classes, and a missing ticker on one of them broke the match, so a
+  different stock came out on top. The question set keeps this case as a
+  known failure.
+- **Provider errors are retried, not scored.** In the first pass Groq
+  returned errors for 14 questions in a row while the quota ran low. Those
+  cases were run again with `--resume`, which only reruns provider failures,
+  and all passed. A pipeline failure is never rerun.
+- The two earlier runs used the previous dataset (12 questions, partly
+  generated data) and cannot be compared directly. The local run proved the
+  self-hosted path on a laptop without a GPU; a 1.5B model is far weaker at
+  SQL than a 120B one.
+
+A flagged claim is one the rows do not show, which is not always a false one,
+so read each flag with its reason. `VERIFICATION_MODE=heuristic` keeps the
+rule-based checks and drops the judge's extra LLM call.
 
 Building this evaluation surfaced three defects, all now fixed:
 
@@ -71,3 +74,19 @@ Running it against the upgraded pipeline surfaced three more, also fixed:
 6. **Answers called the rows they analysed "the sample".** The analysis
    prompt now says the user sees every row and asks for what the rows cover
    ("over the most recent 25 trading days").
+
+Building the real-data evaluation surfaced two more:
+
+7. **The fact check flagged correct company names and ratios.** "Coca-Cola"
+   did not match the SEC's "COCA COLA CO", "two-thirds" was read as a count of
+   two, and "five times larger" passed whenever the question contained a 5.
+   Names now match however a filing abbreviates them, ratios in words go to
+   the judge, and multiples are computed between the companies named.
+8. **Long results were summarised from their first 25 rows.** The analysis now
+   sees an overview of every column and patterns computed from every row,
+   and claims about movements over time are checked against them.
+
+Still open, seen while recording the demo: an answer said NVDA's close "ranged
+from $227.21 to $178.67" over 30 days, but the highest close was $239.24. Both
+numbers are real cells, so the rule-based checks passed it; they do not yet
+test that a stated range uses the column's lowest and highest values.

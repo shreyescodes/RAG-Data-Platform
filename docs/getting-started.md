@@ -31,7 +31,7 @@ docker compose exec backend python -m app.cli seed
 ```
 
 vLLM and llama.cpp profiles, recommended models per GPU size and the health
-check are in [docs/PRODUCTION_UPGRADES.md](PRODUCTION_UPGRADES.md#5-local-llm-on-your-own-gpu).
+check are in [docs/capabilities.md](capabilities.md#5-local-llm-on-your-own-gpu).
 
 ## Local development
 
@@ -92,7 +92,7 @@ All settings are environment variables, validated at startup by
 | `LLM_BASE_URL` / `LLM_MODEL` | Groq / `openai/gpt-oss-120b` | Point at OpenAI, Together, or Ollama / vLLM / llama.cpp on your GPU |
 | `LLM_STRUCTURED_OUTPUT` | `json_object` | `json_schema` (constrained decoding, best locally), `json_object` or `prompt` |
 | `LLM_STRUCTURED_MAX_ATTEMPTS` | `3` | Attempts per structured reply; errors are fed back on each retry |
-| `RETRIEVAL_HYBRID` / `RETRIEVAL_RERANK` | `true` / `true` | BM25 + RRF fusion / cross-encoder reranking |
+| `RETRIEVAL_HYBRID` / `RETRIEVAL_RERANK` | `true` / `false` | BM25 + RRF fusion / cross-encoder reranking (slower, and no better on this schema) |
 | `VERIFICATION_MODE` | `hybrid` | Fact check: `off`, `heuristic` (no LLM call) or `hybrid` (adds an LLM judge) |
 | `LLM_CACHE_ENABLED` / `SEMANTIC_CACHE_ENABLED` | `true` / `true` | Exact reply cache / similar-question SQL cache |
 | `LLM_PRICING` | Groq price for the default model | JSON price table, USD per 1M tokens, for the cost dashboard |
@@ -100,8 +100,11 @@ All settings are environment variables, validated at startup by
 | `ENVIRONMENT` | `development` | `production` enforces auth and rejects wildcard CORS |
 | `MAX_RESULT_ROWS` | `500` | Hard cap applied to every generated query |
 | `SQL_STATEMENT_TIMEOUT_MS` | `15000` | PostgreSQL statement timeout for generated SQL |
-| `RATE_LIMIT_QUERY` | `20/minute` | Per-IP limit on `POST /api/query` |
+| `RATE_LIMIT_QUERY` | `20/minute` | Per-IP limit on `POST /api/query` and `/api/query/stream` |
 | `ENRICHMENT_ENABLED` | `true` | Toggle Yahoo Finance and SEC EDGAR lookups |
+| `DAILY_QUERY_LIMIT` / `DAILY_VISITOR_QUERY_LIMIT` | `0` / `0` | Questions per UTC day, in total and per visitor; `0` means no limit |
+| `BLOCK_DATASET_SIZE_QUERIES` | `true` | Refuse questions and SQL that only reveal how much data is stored |
+| `LLM_FALLBACK_MODEL` | empty | Tried once when the main model is rate limited |
 
 See [`.env.example`](../.env.example) for the full list.
 
@@ -115,7 +118,7 @@ backend/
     cli.py             # seed / index-schema commands
     api/               # routers and dependency wiring
     agents/            # retrieval, enrichment, analysis, verification agents + orchestrator
-    rag/               # embeddings, FAISS + BM25 + RRF + reranker, schema catalog,
+    rag/               # embeddings, FAISS + BM25 + RRF (+ optional reranker), schema catalog,
                        # citations, SQL generator/validator
     services/          # LLM client, structured output, caches, Yahoo Finance, SEC EDGAR
     observability/     # per-request metrics, pricing, aggregation for the dashboard
@@ -124,10 +127,11 @@ backend/
     core/              # config, logging, security, exceptions, rate limiting
     utils/             # PII redaction
   alembic/             # migrations
-  eval/                # live, retrieval and hallucination evaluations
+  eval/                # accuracy, retrieval, hallucination and load evaluations
   tests/               # unit/ and integration/
 frontend/
   src/                 # components/, hooks/, api/, utils/
+  e2e/                 # Playwright browser tests
   nginx/               # production server config
 docs/                  # architecture, security, evaluation report, screenshots
 ```
