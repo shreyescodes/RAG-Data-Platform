@@ -25,7 +25,7 @@ import time
 from collections import OrderedDict
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 
 import numpy as np
 
@@ -80,7 +80,7 @@ class CacheStats:
         return {"hits": self.hits, "misses": self.misses, "entries": self.entries}
 
 
-class _LRU(Generic[V]):
+class _LRU[V]:
     def __init__(self, max_entries: int, ttl_seconds: float, clock: Callable[[], float]) -> None:
         self._data: OrderedDict[str, tuple[float, V]] = OrderedDict()
         self._max = max_entries

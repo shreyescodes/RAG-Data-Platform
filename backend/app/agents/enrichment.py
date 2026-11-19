@@ -105,7 +105,7 @@ def extract_tickers(
     return found[:MAX_TICKERS]
 
 
-def _successes(outcomes: Sequence[T | BaseException], label: str) -> list[T]:
+def _successes[T](outcomes: Sequence[T | BaseException], label: str) -> list[T]:
     """Results of `asyncio.gather(..., return_exceptions=True)`, logging errors."""
     ok: list[T] = []
     for outcome in outcomes:

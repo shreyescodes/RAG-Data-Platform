@@ -26,7 +26,7 @@ import json
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any, Generic, Literal, TypeVar
+from typing import Any, Literal, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
@@ -67,7 +67,7 @@ class Attempt:
 
 
 @dataclass(frozen=True, slots=True)
-class Extraction(Generic[T]):
+class Extraction[T: BaseModel]:
     value: T
     raw: str
     attempts: tuple[Attempt, ...]
