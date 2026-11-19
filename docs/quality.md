@@ -9,12 +9,12 @@ make check          # ruff lint + format check, mypy --strict, backend and front
 make eval-offline   # retrieval and hallucination evaluations (no database or LLM)
 ```
 
-- **Backend:** 324 pytest tests, including attack cases for the SQL validator
+- **Backend:** 390 pytest tests, including attack cases for the SQL validator
   and PII redactor, retry and repair paths, planted hallucinations, cache
   poisoning and metrics aggregation. They run with a fake embedder, reranker
   and LLM, so they need no network or API keys, and pass on SQLite and
   PostgreSQL. Coverage is 97%, enforced at 85%.
-- **Frontend:** 67 Vitest and Testing Library tests for the API client, chart
+- **Frontend:** 86 Vitest and Testing Library tests for the API client, chart
   inference and layout, formatting, citations, the fact check, the
   observability dashboard and the main user flows.
 - **End to end:** `make eval` scores the live pipeline against ground-truth

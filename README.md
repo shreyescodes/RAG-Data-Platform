@@ -8,7 +8,6 @@
 **Ask questions about real financial data in plain English. Get an answer, the
 SQL behind it, the source rows and a fact check of every claim.**
 
-[![Watch the 1-minute demo](https://img.shields.io/badge/%E2%96%B6%20Watch%20the%20demo-1%20minute-E5484D?style=for-the-badge)](https://drive.google.com/file/d/1nfKHfC_bMd8owrWmkRbwI4F4lEsutaII/view)
 [![Read the documentation](https://img.shields.io/badge/Read%20the%20docs-architecture%20%26%20results-2F81F7?style=for-the-badge)](#documentation)
 
 [![One-minute demo: a question over SEC 13F filings with its fact check, sources and SQL, an NVDA price chart, a refused prompt injection, and the observability dashboard](docs/screenshots/demo.webp)](https://drive.google.com/file/d/1nfKHfC_bMd8owrWmkRbwI4F4lEsutaII/view)
@@ -39,10 +38,15 @@ the wait for the LLM is shortened.</sub>
   on retry.
 - **SQL safety in depth:** a `sqlglot` allow-list, read-only transactions,
   statement timeouts and row caps.
+- **PII redaction:** emails, phone numbers, SSNs, card numbers and IP addresses
+  are masked before a question reaches the LLM, logs or audit tables.
 - **Hallucination detection:** each claim in an answer is checked against the
-  returned rows, with evidence shown for every verdict.
+  returned rows by rule-based checks and an LLM judge, with evidence shown for
+  every verdict.
 - **Observability:** tokens, cost, latency per stage and failures for every
   request, on a built-in dashboard.
+- **Chat interface:** a React app with recent questions, charts, sources and the
+  SQL behind every answer.
 - **Production setup:** Docker, automatic TLS, CI and a deploy script that rolls
   back if health checks fail.
 
@@ -52,17 +56,20 @@ the wait for the LLM is shortened.</sub>
 |---|---|
 | Execution accuracy against ground-truth SQL | **12/12** |
 | Behaviour checks: refusal, live-data fallback, prompt injection, PII, cache | **5/5** |
-| Backend tests | **324 passing**, 97% coverage |
-| Frontend tests | **67 passing** |
+| Planted hallucinations caught by the rule-based checks | **16/19**, with **0/25** false alarms |
+| Questions where search found every table needed | **32/32** |
+| Backend tests | **390 passing**, 97% coverage |
+| Frontend tests | **86 passing** |
 
 Accuracy was measured on 6 November 2026 with Groq `openai/gpt-oss-120b`, before
-the dataset moved to real SEC 13F holdings. [See the full results](docs/results.md).
+the dataset moved to real SEC 13F holdings. The hallucination and retrieval
+checks run in CI on every change. [See the full results](docs/results.md).
 
 ## Tech stack
 
 | Layer | Tools |
 |---|---|
-| Backend | Python, FastAPI, Pydantic, SQLAlchemy, Alembic |
+| Backend | Python, FastAPI, Pydantic, SQLAlchemy, Alembic, sqlglot |
 | Data | PostgreSQL 16, Yahoo Finance, SEC EDGAR |
 | AI and retrieval | sentence-transformers, FAISS, BM25, any OpenAI-compatible LLM |
 | Frontend | React 19, Vite |
