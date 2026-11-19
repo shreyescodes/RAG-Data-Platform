@@ -1,32 +1,20 @@
 {
   "meta": {
-    "date": "2026-11-09 09:11 UTC",
-    "model": "qwen2.5:1.5b"
+    "date": "2026-11-19 15:35 UTC",
+    "model": null
   },
   "summary": {
     "heuristic": {
-      "claims": 44,
-      "hallucinated": 19,
-      "caught": 16,
-      "recall": 0.842,
-      "faithful": 25,
-      "false_positives": 0,
-      "false_positive_rate": 0.0,
-      "precision": 1.0,
-      "faithful_confirmed": 25,
-      "unverifiable": 3
-    },
-    "hybrid": {
-      "claims": 44,
-      "hallucinated": 19,
+      "claims": 49,
+      "hallucinated": 21,
       "caught": 18,
-      "recall": 0.947,
-      "faithful": 25,
+      "recall": 0.857,
+      "faithful": 28,
       "false_positives": 0,
       "false_positive_rate": 0.0,
       "precision": 1.0,
-      "faithful_confirmed": 25,
-      "unverifiable": 1
+      "faithful_confirmed": 28,
+      "unverifiable": 3
     }
   },
   "results": {
@@ -199,7 +187,7 @@
         "category": "fabricated value",
         "verdict": "unsupported",
         "method": "deterministic",
-        "reason": "five matches no value in the evidence"
+        "reason": "five belongs to a different row than the one named"
       },
       {
         "case_id": "concentration-by-fund",
@@ -470,13 +458,11 @@
         "verdict": "unsupported",
         "method": "deterministic",
         "reason": "2025-06-30 does not appear in the evidence"
-      }
-    ],
-    "hybrid": [
+      },
       {
-        "case_id": "quarterly-financials",
-        "mode": "hybrid",
-        "text": "Apple Inc. reported revenue of $94.0B in the quarter ending 2026-06-30.",
+        "case_id": "names-totals-and-wording",
+        "mode": "heuristic",
+        "text": "Soros held 900,000 shares of Alphabet GOOGL.",
         "label": "faithful",
         "category": "value",
         "verdict": "supported",
@@ -484,19 +470,9 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "quarterly-financials",
-        "mode": "hybrid",
-        "text": "Microsoft Corporation earned $27.2B in net income.",
-        "label": "faithful",
-        "category": "value",
-        "verdict": "supported",
-        "method": "deterministic",
-        "reason": "every fact matches the evidence"
-      },
-      {
-        "case_id": "quarterly-financials",
-        "mode": "hybrid",
-        "text": "Microsoft's net margin of 35.6% exceeds Apple's 24.9%.",
+        "case_id": "names-totals-and-wording",
+        "mode": "heuristic",
+        "text": "Alphabet positions total 1.46 million shares.",
         "label": "faithful",
         "category": "computed",
         "verdict": "supported",
@@ -504,39 +480,9 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "quarterly-financials",
-        "mode": "hybrid",
-        "text": "Apple's revenue was 23% higher than Microsoft's.",
-        "label": "faithful",
-        "category": "computed",
-        "verdict": "supported",
-        "method": "deterministic",
-        "reason": "every fact matches the evidence"
-      },
-      {
-        "case_id": "quarterly-financials",
-        "mode": "hybrid",
-        "text": "Microsoft reported the higher revenue, at $94.0B.",
-        "label": "hallucinated",
-        "category": "misattribution",
-        "verdict": "unsupported",
-        "method": "hybrid",
-        "reason": "The evidence shows that Microsoft reported higher revenue ($94,036,000,000) compared to Apple ($940,360,000,000). ($94.0B belongs to a different row than the one named)"
-      },
-      {
-        "case_id": "quarterly-financials",
-        "mode": "hybrid",
-        "text": "Apple's net income reached $31.5B.",
-        "label": "hallucinated",
-        "category": "fabricated value",
-        "verdict": "unsupported",
-        "method": "hybrid",
-        "reason": "The evidence shows that Apple's net income reached $23.434 billion, which is higher than Microsoft's net income of $27.233 billion. ($31.5B matches no value in the evidence)"
-      },
-      {
-        "case_id": "top-holdings",
-        "mode": "hybrid",
-        "text": "Apple Inc. is the largest holding at $65.95B.",
+        "case_id": "names-totals-and-wording",
+        "mode": "heuristic",
+        "text": "Tiger Global held 81,000 Amazon shares, a stock found in many ETFs.",
         "label": "faithful",
         "category": "value",
         "verdict": "supported",
@@ -544,374 +490,24 @@
         "reason": "every fact matches the evidence"
       },
       {
-        "case_id": "top-holdings",
-        "mode": "hybrid",
-        "text": "American Express Company follows at $51.28B.",
-        "label": "faithful",
-        "category": "value",
-        "verdict": "supported",
-        "method": "deterministic",
-        "reason": "every fact matches the evidence"
-      },
-      {
-        "case_id": "top-holdings",
-        "mode": "hybrid",
-        "text": "Together the five positions are worth $205.44B.",
-        "label": "faithful",
-        "category": "computed",
-        "verdict": "supported",
-        "method": "hybrid",
-        "reason": "The evidence provides the total, mean, median, minimum, and maximum values of the stock holdings, which sum up to $205,442,006,524, supporting the claim of the five positions being worth $205.44B."
-      },
-      {
-        "case_id": "top-holdings",
-        "mode": "hybrid",
-        "text": "Two of the five are in Financial Services.",
-        "label": "faithful",
-        "category": "count",
-        "verdict": "supported",
-        "method": "hybrid",
-        "reason": "The evidence shows that two of the five sectors are Financial Services, supporting the claim that two of the five are in Financial Services."
-      },
-      {
-        "case_id": "top-holdings",
-        "mode": "hybrid",
-        "text": "Microsoft Corporation ranks sixth with $15.2B.",
-        "label": "hallucinated",
-        "category": "invented entity",
-        "verdict": "unsupported",
-        "method": "hybrid",
-        "reason": "The evidence does not provide the value of Microsoft Corporation, which is the sixth largest holding with $15.2B, making it impossible to determine if it ranks sixth with $15.2B. (\"Microsoft Corporation\" does not appear in the evidence; $15.2B matches no value in the evidence)"
-      },
-      {
-        "case_id": "top-holdings",
-        "mode": "hybrid",
-        "text": "Alphabet Inc. is the largest holding at $65.95B.",
-        "label": "hallucinated",
-        "category": "misattribution",
-        "verdict": "unsupported",
-        "method": "hybrid",
-        "reason": "The evidence shows that the largest holding is $65,950,296,923, which is the value of Apple Inc., and the largest ticker is GOOGL, which is the ticker of Alphabet Inc., supporting the claim that Alphabet Inc. is the largest holding at $65.95B. ($65.95B belongs to a different row than the one named)"
-      },
-      {
-        "case_id": "top-holdings",
-        "mode": "hybrid",
-        "text": "The average position among the five is worth $52.3B.",
-        "label": "hallucinated",
-        "category": "fabricated value",
-        "verdict": "partially_supported",
-        "method": "hybrid",
-        "reason": "The evidence provides the mean and count of the stock holdings, which sum up to $52,316,801,305, supporting the claim that the average position among the five is worth $52.3B. ($52.3B matches no value in the evidence)"
-      },
-      {
-        "case_id": "concentration-by-fund",
-        "mode": "hybrid",
-        "text": "Berkshire Hathaway is the most concentrated, with 22.04% in its top position.",
-        "label": "faithful",
-        "category": "value",
-        "verdict": "supported",
-        "method": "deterministic",
-        "reason": "every fact matches the evidence"
-      },
-      {
-        "case_id": "concentration-by-fund",
-        "mode": "hybrid",
-        "text": "Soros Fund Management is the least concentrated at 3.46%.",
-        "label": "faithful",
-        "category": "value",
-        "verdict": "supported",
-        "method": "deterministic",
-        "reason": "every fact matches the evidence"
-      },
-      {
-        "case_id": "concentration-by-fund",
-        "mode": "hybrid",
-        "text": "Tiger Global's largest position is 7.54% of its portfolio.",
-        "label": "hallucinated",
-        "category": "misattribution",
-        "verdict": "unsupported",
-        "method": "hybrid",
-        "reason": "The evidence shows that the largest position in the 'TIGER GLOBAL MANAGEMENT LLC' fund is 9.72%, which is not 7.54% as claimed. (7.54% belongs to a different row than the one named)"
-      },
-      {
-        "case_id": "concentration-by-fund",
-        "mode": "hybrid",
-        "text": "Berkshire's top position is five times the size of Tiger Global's.",
-        "label": "hallucinated",
-        "category": "fabricated value",
-        "verdict": "unsupported",
-        "method": "hybrid",
-        "reason": "The evidence shows that the largest position in the 'BERKSHIRE HATHAWAY INC' fund is 22.04%, which is not five times the size of the largest position in the 'TIGER GLOBAL MANAGEMENT LLC' fund as claimed. (five matches no value in the evidence)"
-      },
-      {
-        "case_id": "concentration-by-fund",
-        "mode": "hybrid",
-        "text": "Concentration falls steadily from Soros to ARK to Tiger Global.",
+        "case_id": "names-totals-and-wording",
+        "mode": "heuristic",
+        "text": "Microsoft and Amazon positions were near-equal.",
         "label": "hallucinated",
         "category": "qualitative",
-        "verdict": "unsupported",
-        "method": "llm",
-        "reason": "The evidence does not show any steady decrease in concentration from 'Soros' to 'ARK' to 'Tiger Global'. The evidence only shows the top positions for each fund."
-      },
-      {
-        "case_id": "live-quote",
-        "mode": "hybrid",
-        "text": "NVDA trades at $181.26 per share.",
-        "label": "faithful",
-        "category": "value",
-        "verdict": "supported",
-        "method": "deterministic",
-        "reason": "every fact matches the evidence"
-      },
-      {
-        "case_id": "live-quote",
-        "mode": "hybrid",
-        "text": "Its market capitalization is about $4.4T.",
-        "label": "faithful",
-        "category": "value",
-        "verdict": "supported",
-        "method": "deterministic",
-        "reason": "every fact matches the evidence"
-      },
-      {
-        "case_id": "live-quote",
-        "mode": "hybrid",
-        "text": "NVDA's P/E ratio is 51.8.",
-        "label": "faithful",
-        "category": "value",
-        "verdict": "supported",
-        "method": "deterministic",
-        "reason": "every fact matches the evidence"
-      },
-      {
-        "case_id": "live-quote",
-        "mode": "hybrid",
-        "text": "NVDA's market cap is $5.2T.",
-        "label": "hallucinated",
-        "category": "fabricated value",
-        "verdict": "unsupported",
-        "method": "hybrid",
-        "reason": "The evidence does not provide any information about NVDA's market cap. ($5.2T matches no value in the evidence)"
-      },
-      {
-        "case_id": "live-quote",
-        "mode": "hybrid",
-        "text": "NVDA pays a 2.5% dividend yield.",
-        "label": "hallucinated",
-        "category": "fabricated value",
-        "verdict": "unsupported",
-        "method": "hybrid",
-        "reason": "The evidence does not provide any information about NVDA's dividend yield. (2.5% matches no value in the evidence)"
-      },
-      {
-        "case_id": "price-trend",
-        "mode": "hybrid",
-        "text": "NVDA closed at $188.20 on 2026-10-31.",
-        "label": "faithful",
-        "category": "value",
-        "verdict": "supported",
-        "method": "deterministic",
-        "reason": "every fact matches the evidence"
-      },
-      {
-        "case_id": "price-trend",
-        "mode": "hybrid",
-        "text": "The close was 3.9% above its 50-day average on the latest day.",
-        "label": "faithful",
-        "category": "computed",
-        "verdict": "supported",
-        "method": "hybrid",
-        "reason": "The maximum close price is 188.2, which is 3.9% above the maximum 50-day moving average of 181.1."
-      },
-      {
-        "case_id": "price-trend",
-        "mode": "hybrid",
-        "text": "NVDA closed at $191.50 on 2026-10-31.",
-        "label": "hallucinated",
-        "category": "fabricated value",
-        "verdict": "partially_supported",
-        "method": "hybrid",
-        "reason": "The maximum close price is 188.2, which is 3.9% above the maximum 50-day moving average of 181.1. ($191.50 matches no value in the evidence)"
-      },
-      {
-        "case_id": "price-trend",
-        "mode": "hybrid",
-        "text": "NVDA closed at $186.40 on 2026-11-02.",
-        "label": "hallucinated",
-        "category": "wrong date",
-        "verdict": "unsupported",
-        "method": "hybrid",
-        "reason": "The maximum close price is 188.2, which is 3.9% above the maximum 50-day moving average of 181.1. (2026-11-02 does not appear in the evidence)"
-      },
-      {
-        "case_id": "sector-counts",
-        "mode": "hybrid",
-        "text": "The dataset lists three companies.",
-        "label": "faithful",
-        "category": "count",
-        "verdict": "supported",
-        "method": "deterministic",
-        "reason": "every fact matches the evidence"
-      },
-      {
-        "case_id": "sector-counts",
-        "mode": "hybrid",
-        "text": "Two of them are in Technology.",
-        "label": "faithful",
-        "category": "count",
-        "verdict": "supported",
-        "method": "hybrid",
-        "reason": "The evidence shows two companies, Apple Inc. and Microsoft Corporation, are in the Technology sector."
-      },
-      {
-        "case_id": "sector-counts",
-        "mode": "hybrid",
-        "text": "Four companies are in Financial Services.",
-        "label": "hallucinated",
-        "category": "wrong count",
-        "verdict": "unsupported",
-        "method": "hybrid",
-        "reason": "The evidence does not show that four companies are in the Financial Services sector. (Four matches no value in the evidence)"
-      },
-      {
-        "case_id": "sector-counts",
-        "mode": "hybrid",
-        "text": "Amazon is also in Technology.",
-        "label": "hallucinated",
-        "category": "invented entity",
-        "verdict": "unsupported",
-        "method": "llm",
-        "reason": "The evidence does not show that Amazon is in the Technology sector."
-      },
-      {
-        "case_id": "qualitative",
-        "mode": "hybrid",
-        "text": "ARK's Advanced Micro Devices, Inc. position is worth $822.8M.",
-        "label": "faithful",
-        "category": "value",
-        "verdict": "supported",
-        "method": "deterministic",
-        "reason": "every fact matches the evidence"
-      },
-      {
-        "case_id": "qualitative",
-        "mode": "hybrid",
-        "text": "Tesla, Inc. is the best-performing stock in ARK's portfolio.",
-        "label": "hallucinated",
-        "category": "qualitative",
-        "verdict": "unverifiable",
-        "method": "deterministic",
-        "reason": "names match the evidence; the statement itself is not checkable"
-      },
-      {
-        "case_id": "position-change",
-        "mode": "hybrid",
-        "text": "Chevron Corporation's position lost $3.47B in value.",
-        "label": "faithful",
-        "category": "value",
-        "verdict": "supported",
-        "method": "deterministic",
-        "reason": "every fact matches the evidence"
-      },
-      {
-        "case_id": "position-change",
-        "mode": "hybrid",
-        "text": "Apple Inc.'s position gained $8.11B.",
-        "label": "faithful",
-        "category": "value",
-        "verdict": "supported",
-        "method": "deterministic",
-        "reason": "every fact matches the evidence"
-      },
-      {
-        "case_id": "position-change",
-        "mode": "hybrid",
-        "text": "Apple Inc.'s position gained $81.1B.",
-        "label": "hallucinated",
-        "category": "fabricated value",
-        "verdict": "unsupported",
-        "method": "deterministic",
-        "reason": "$81.1B matches no value in the evidence"
-      },
-      {
-        "case_id": "top-holdings-wording",
-        "mode": "hybrid",
-        "text": "All five positions exceed $1.5 billion.",
-        "label": "faithful",
-        "category": "bound",
-        "verdict": "supported",
-        "method": "deterministic",
-        "reason": "every fact matches the evidence"
-      },
-      {
-        "case_id": "top-holdings-wording",
-        "mode": "hybrid",
-        "text": "The gap between the largest ($2.33 B) and smallest ($1.59 B) position is roughly $741 million.",
-        "label": "faithful",
-        "category": "computed",
-        "verdict": "supported",
-        "method": "deterministic",
-        "reason": "every fact matches the evidence"
-      },
-      {
-        "case_id": "top-holdings-wording",
-        "mode": "hybrid",
-        "text": "The top three positions each exceed $2.2 billion.",
-        "label": "faithful",
-        "category": "bound",
-        "verdict": "supported",
-        "method": "deterministic",
-        "reason": "every fact matches the evidence"
-      },
-      {
-        "case_id": "top-holdings-wording",
-        "mode": "hybrid",
-        "text": "All five positions exceed $2 billion.",
-        "label": "hallucinated",
-        "category": "wrong bound",
         "verdict": "partially_supported",
         "method": "deterministic",
-        "reason": "$2 billion does not hold for every row (row:4)"
+        "reason": "the values compared are not close to each other"
       },
       {
-        "case_id": "top-holdings-wording",
-        "mode": "hybrid",
-        "text": "The gap between the largest and smallest position is roughly $1.1 billion.",
+        "case_id": "names-totals-and-wording",
+        "mode": "heuristic",
+        "text": "Alphabet positions total 2.1 million shares.",
         "label": "hallucinated",
-        "category": "fabricated value",
+        "category": "computed",
         "verdict": "unsupported",
         "method": "deterministic",
-        "reason": "$1.1 billion matches no value in the evidence"
-      },
-      {
-        "case_id": "annual-net-income-wording",
-        "mode": "hybrid",
-        "text": "Microsoft Corporation reported net income of $133.7B for the year ending June 30, 2026.",
-        "label": "faithful",
-        "category": "value",
-        "verdict": "supported",
-        "method": "deterministic",
-        "reason": "every fact matches the evidence"
-      },
-      {
-        "case_id": "annual-net-income-wording",
-        "mode": "hybrid",
-        "text": "MSFT's latest annual statement is dated 2026\u201106\u201130.",
-        "label": "faithful",
-        "category": "value",
-        "verdict": "supported",
-        "method": "deterministic",
-        "reason": "every fact matches the evidence"
-      },
-      {
-        "case_id": "annual-net-income-wording",
-        "mode": "hybrid",
-        "text": "Microsoft's latest annual statement is dated June 30, 2025.",
-        "label": "hallucinated",
-        "category": "wrong date",
-        "verdict": "unsupported",
-        "method": "hybrid",
-        "reason": "The evidence does not support the claim that Microsoft's latest annual statement is dated June 30, 2025. (2025-06-30 does not appear in the evidence)"
+        "reason": "2.1 million matches no value in the evidence"
       }
     ]
   }

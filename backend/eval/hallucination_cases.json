@@ -432,5 +432,62 @@
         "category": "wrong date"
       }
     ]
+  },
+  {
+    "id": "names-totals-and-wording",
+    "question": "Compare the Alphabet, Microsoft and Amazon positions of Soros and Tiger Global",
+    "rows": [
+      {
+        "fund": "Soros",
+        "issuer_name": "ALPHABET INC",
+        "ticker": "GOOGL",
+        "shares": 900000
+      },
+      {
+        "fund": "Tiger Global",
+        "issuer_name": "ALPHABET INC",
+        "ticker": "GOOGL",
+        "shares": 560000
+      },
+      {
+        "fund": "Soros",
+        "issuer_name": "MICROSOFT CORP",
+        "ticker": "MSFT",
+        "shares": 118000
+      },
+      {
+        "fund": "Tiger Global",
+        "issuer_name": "AMAZON COM INC",
+        "ticker": "AMZN",
+        "shares": 81000
+      }
+    ],
+    "claims": [
+      {
+        "text": "Soros held 900,000 shares of Alphabet GOOGL.",
+        "label": "faithful",
+        "category": "value"
+      },
+      {
+        "text": "Alphabet positions total 1.46 million shares.",
+        "label": "faithful",
+        "category": "computed"
+      },
+      {
+        "text": "Tiger Global held 81,000 Amazon shares, a stock found in many ETFs.",
+        "label": "faithful",
+        "category": "value"
+      },
+      {
+        "text": "Microsoft and Amazon positions were near-equal.",
+        "label": "hallucinated",
+        "category": "qualitative"
+      },
+      {
+        "text": "Alphabet positions total 2.1 million shares.",
+        "label": "hallucinated",
+        "category": "computed"
+      }
+    ]
   }
 ]

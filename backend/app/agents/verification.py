@@ -33,7 +33,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from app.agents.base import Agent, Trace
-from app.agents.name_matching import names_match
+from app.agents.name_matching import name_words, names_match
 from app.agents.result_overview import (
     MAX_SCANNED_ROWS,
     representative_indices,
@@ -195,8 +195,22 @@ _COMMON_CAPITALISED = frozenset(_COMMON_CAPITALISED_TEXT.split())
 # Domain vocabulary that needs no evidence of its own.
 _DOMAIN_TERMS_TEXT = """
     saas usd eur gbp ttm yoy qoq mom cagr ipo ceo cfo sec edgar nasdaq nyse s&p ai p/e pe
-    ebitda arr mrr ltv cac eps"""
+    ebitda arr mrr ltv cac eps etf reit adr russell dow ftse nikkei stoxx"""
 _DOMAIN_TERMS = frozenset(_DOMAIN_TERMS_TEXT.split())
+# Market indexes: the number is part of the name, not a value to look up.
+_INDEX_NAME = re.compile(
+    r"\b(?:S&P|Russell|Nasdaq|Dow(?:\s+Jones)?|FTSE|Nikkei|Stoxx)\s*\d{2,4}\b", re.IGNORECASE
+)
+# Words claiming two values are about the same.
+_CLOSENESS_CUE = re.compile(
+    r"\b(?:near[- ]equal|nearly\s+(?:equal|identical|the\s+same)"
+    r"|(?:roughly|about|approximately)\s+(?:equal|the\s+same)"
+    r"|almost\s+(?:equal|identical|the\s+same)|virtually\s+(?:equal|identical)"
+    r"|neck\s+and\s+neck|on\s+par)\b",
+    re.IGNORECASE,
+)
+# Beyond this ratio two values are no longer "about the same".
+_CLOSE_RATIO = 1.1
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9$\"'(])")
 _ABBREVIATION_END = re.compile(
     r"\b(?:inc|corp|co|ltd|plc|vs|e\.g|i\.e|etc|approx|no|u\.s)\.$", re.IGNORECASE
@@ -315,7 +329,8 @@ def _entities(claim: str) -> tuple[list[str], list[str]]:
         opens_claim = (
             not claim[: match.start()].strip() or claim[: match.start()].rstrip()[-1] in ".:;"
         )
-        if len(entity) < 2 or entity.lower() in _DOMAIN_TERMS:
+        singular = entity.lower().removesuffix("s")
+        if len(entity) < 2 or entity.lower() in _DOMAIN_TERMS or singular in _DOMAIN_TERMS:
             continue
         parts = _TERM_SEPARATOR.split(entity.lower())
         if len(parts) > 1 and all(p in _DOMAIN_TERMS or p in _TERM_CONNECTORS for p in parts):
@@ -333,7 +348,9 @@ def extract_facts(claim: str) -> Facts:
     claim = claim.translate(_TYPOGRAPHY)
     word_dates, plain = _word_dates(claim)
     dates = tuple(_ISO_DATE.findall(plain)) + word_dates
-    text = _FILING_FORM.sub(" ", _ISO_DATE.sub(" ", plain))
+    text = _INDEX_NAME.sub(
+        lambda m: " " * len(m.group(0)), _FILING_FORM.sub(" ", _ISO_DATE.sub(" ", plain))
+    )
     numbers: list[NumberFact] = []
     years: list[str] = []
     for match in _NUMBER.finditer(text):
@@ -650,6 +667,30 @@ class Evidence:
                     return [f"~row:{i}"]
         return []
 
+    def match_entity_total(self, fact: NumberFact, rows: set[int]) -> list[str]:
+        """A row id, prefixed "~", when `fact` is a column's total over the named rows."""
+        if fact.percent or fact.multiple or fact.small_count or len(rows) < 2:
+            return []
+        tol = max(fact.tolerance, abs(fact.value) * 1e-9)
+        for column in self.rows[min(rows)]:
+            if not all(_is_number(self.rows[i].get(column)) for i in rows):
+                continue
+            total = math.fsum(float(self.rows[i][column]) for i in rows)
+            if abs(total - fact.value) <= tol:
+                return [f"~row:{min(rows)}"]
+        return []
+
+    def rows_differ(self, rows: set[int]) -> bool:
+        """Whether the named rows are far apart on every numeric column they share."""
+        if len(rows) < 2:
+            return False
+        shared = [
+            [float(self.rows[i][column]) for i in rows]
+            for column in self.rows[min(rows)]
+            if all(_is_number(self.rows[i].get(column)) for i in rows)
+        ]
+        return bool(shared) and all(_far_apart(values) for values in shared)
+
     def _differences(self) -> list[tuple[float, int, int]]:
         """Gaps between two values of a row (close vs. average) or of a column (A vs. B)."""
         if self._gaps is not None:
@@ -694,7 +735,8 @@ class Evidence:
 
         `rows`, when given, requires both values to come from those rows.
         """
-        if fact.percent or fact.multiple or fact.small_count:
+        # Percentages add up ("together 39%"); a gap between them is ambiguous.
+        if (fact.percent and not sums) or fact.multiple or fact.small_count:
             return []
         tol = max(fact.tolerance, abs(fact.value) * 1e-9)
         pairs = self._pair_sums() if sums else self._differences()
@@ -782,9 +824,19 @@ class Evidence:
         ]
         if hits:
             return hits
+        # "Alphabet GOOGL": a name and its ticker, both found on the same row.
+        words = name.split()
+        if len(words) > 1:
+            shared = set.intersection(*(self.rows_mentioning(word) for word in words))
+            if shared:
+                return [f"row:{min(shared)}"]
         # A name the query filtered on ("WHERE ticker = 'NVDA'") selected these rows.
         literals = (literal.strip("%") for literal in _SQL_LITERAL.findall(self.sql))
-        return ["sql"] if any(names_match(name, literal) for literal in literals) else []
+        return (
+            ["sql"]
+            if any(names_match(name, lit) or _filtered_on(name, lit) for lit in literals)
+            else []
+        )
 
     def ref(self, item_id: str) -> EvidenceRef | None:
         if item_id == "question":
@@ -842,6 +894,17 @@ _MOVEMENT_CUE = re.compile(
     r"f[ae]ll\w*|declin\w*|increas\w*|decreas\w*|drop\w*|climb\w*|gain\w*|lost)\b",
     re.IGNORECASE,
 )
+
+
+def _filtered_on(name: str, literal: str) -> bool:
+    """`WHERE f.name ILIKE '%berkshire%'` selects "Berkshire Hathaway" by its first word."""
+    filtered = name_words(literal)
+    return len(filtered) == 1 and len(filtered[0]) >= 5 and name_words(name)[:1] == filtered
+
+
+def _far_apart(values: Sequence[float]) -> bool:
+    sizes = [abs(value) for value in values]
+    return min(sizes) > 0 and max(sizes) / min(sizes) > _CLOSE_RATIO
 
 
 def _within_result(fact: NumberFact, total_rows: int) -> bool:
@@ -903,6 +966,9 @@ def check_claim(claim: Claim, evidence: Evidence) -> FactCheck:
             hits = evidence.match_multiple(fact, entity_rows)
         else:
             hits = evidence.match_number(fact, rows=entity_rows or None)
+        if not hits and entity_rows:
+            # "Apple held 1.46 million shares in all": added up over its own rows.
+            hits = evidence.match_entity_total(fact, entity_rows)
         if entity_rows and not hits and evidence.match_number(fact):
             fail(fact.text, f"{fact.text} belongs to a different row than the one named")
             continue
@@ -923,6 +989,11 @@ def check_claim(claim: Claim, evidence: Evidence) -> FactCheck:
         # A ratio found among all rows may be a coincidence and needs the judge;
         # within the named entity's own rows the candidates are too few for that.
         result.via_derived = result.via_derived or (hits[0].startswith("~") and not entity_rows)
+
+    if _CLOSENESS_CUE.search(claim.text):
+        stated = [f.value for f in numbers if not f.multiple]
+        if (len(stated) > 1 and _far_apart(stated)) or evidence.rows_differ(entity_rows):
+            fail("about the same", "the values compared are not close to each other")
 
     checked_bounds = 0
     scope = int(ranks[0].value) if ranks else None
