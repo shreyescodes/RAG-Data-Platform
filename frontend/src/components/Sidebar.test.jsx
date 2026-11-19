@@ -4,9 +4,10 @@ import { describe, expect, it, vi } from 'vitest'
 import { Sidebar } from './Sidebar.jsx'
 
 const history = [
-  { id: 3, query: 'Top holdings of Berkshire', success: true },
-  { id: 2, query: 'Drop all tables', success: false },
-  { id: 1, query: 'top holdings of berkshire', success: false },
+  { id: 4, conversation_id: 'chat-1', query: 'And its revenue?', success: true },
+  { id: 3, conversation_id: 'chat-2', query: 'Drop all tables', success: false },
+  { id: 2, conversation_id: 'chat-1', query: 'Top holdings of Berkshire', success: true },
+  { id: 1, conversation_id: null, query: 'Asked outside a chat', success: true },
 ]
 
 function setup(props = {}) {
@@ -16,7 +17,7 @@ function setup(props = {}) {
 }
 
 describe('Sidebar', () => {
-  it('lists each question once, using its latest run', () => {
+  it('lists each chat once, titled by its first question', () => {
     setup()
     expect(screen.getAllByRole('listitem')).toHaveLength(2)
     expect(screen.getByRole('button', { name: 'Top holdings of Berkshire' })).toBeInTheDocument()
@@ -29,14 +30,14 @@ describe('Sidebar', () => {
     expect(handlers.onNewChat).toHaveBeenCalledOnce()
   })
 
-  it('opens a recent question', async () => {
+  it('opens a saved chat', async () => {
     const { handlers, user } = setup()
     await user.click(screen.getByRole('button', { name: 'Top holdings of Berkshire' }))
-    expect(handlers.onSelect).toHaveBeenCalledWith('Top holdings of Berkshire')
+    expect(handlers.onSelect).toHaveBeenCalledWith('chat-1')
   })
 
-  it('marks the question on screen', () => {
-    setup({ activeQuery: 'Top holdings of Berkshire' })
+  it('marks the chat on screen', () => {
+    setup({ activeChat: 'chat-1' })
     expect(screen.getByRole('button', { name: 'Top holdings of Berkshire' })).toHaveAttribute(
       'aria-current',
       'true',

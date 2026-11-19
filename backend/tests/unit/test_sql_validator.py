@@ -68,3 +68,32 @@ def test_clamps_excessive_limit() -> None:
 def test_cte_name_does_not_need_allow_listing() -> None:
     sql = "WITH totals AS (SELECT company_id FROM financial_statements) SELECT * FROM totals"
     assert "totals" in _validate(sql)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT count(*) FROM companies",
+        "SELECT COUNT(DISTINCT ticker) AS n FROM market_data",
+        "SELECT count(*) OVER () AS n, name FROM companies",
+        "WITH c AS (SELECT * FROM companies) SELECT count(*) FROM c",
+        "SELECT count(*) FROM (SELECT id FROM companies) AS c",
+    ],
+)
+def test_whole_table_counts_can_be_blocked(sql: str) -> None:
+    assert _validate(sql)
+    with pytest.raises(UnsafeSQLError, match="counting every row"):
+        validate_and_limit(sql, allowed_tables=ALLOWED, max_rows=500, block_dataset_size=True)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT count(*) FROM companies WHERE sector = 'Technology'",
+        "SELECT sector, count(*) FROM companies GROUP BY sector",
+        "WITH c AS (SELECT * FROM companies WHERE sector = 'Energy') SELECT count(*) FROM c",
+        "SELECT name FROM companies",
+    ],
+)
+def test_filtered_counts_stay_allowed(sql: str) -> None:
+    assert validate_and_limit(sql, allowed_tables=ALLOWED, max_rows=500, block_dataset_size=True)

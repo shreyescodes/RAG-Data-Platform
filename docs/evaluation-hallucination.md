@@ -5,73 +5,78 @@ answer claims labelled faithful or hallucinated against the rows and live data
 they were written from. A hallucinated claim is *caught* when it is marked
 unsupported or partially supported; a faithful claim so marked is a false positive.
 
-- **Run:** 2026-11-09 09:11 UTC
-- **Judge model (hybrid):** `qwen2.5:1.5b`
+- **Run:** 2026-11-19 15:35 UTC
+- **Judge model (hybrid):** `not used`
 
 | Mode | Caught | Recall | False positives | Precision | Faithful confirmed | Unverifiable |
 |------|-------:|-------:|----------------:|----------:|-------------------:|-------------:|
-| `heuristic` | 16/19 | 0.84 | 0/25 | 1.00 | 25/25 | 3 |
-| `hybrid` | 18/19 | 0.95 | 0/25 | 1.00 | 25/25 | 1 |
+| `heuristic` | 18/21 | 0.86 | 0/28 | 1.00 | 28/28 | 3 |
 
 ## By category (hallucinated claims caught)
 
-| Category | `heuristic` | `hybrid` |
-|----------|---:|---:|
-| fabricated value | 8/8 | 8/8 |
-| invented entity | 1/2 | 2/2 |
-| misattribution | 3/3 | 3/3 |
-| qualitative | 0/2 | 1/2 |
-| wrong bound | 1/1 | 1/1 |
-| wrong count | 1/1 | 1/1 |
-| wrong date | 2/2 | 2/2 |
+| Category | `heuristic` |
+|----------|---:|
+| computed | 1/1 |
+| fabricated value | 8/8 |
+| invented entity | 1/2 |
+| misattribution | 3/3 |
+| qualitative | 1/3 |
+| wrong bound | 1/1 |
+| wrong count | 1/1 |
+| wrong date | 2/2 |
 
 ## Every claim
 
-| Case | Claim | Label | `heuristic` | `hybrid` |
-|------|-------|-------|---|---|
-| `quarterly-financials` | Apple Inc. reported revenue of $94.0B in the quarter ending 2026-06-30. | faithful | supported | supported |
-| `quarterly-financials` | Microsoft Corporation earned $27.2B in net income. | faithful | supported | supported |
-| `quarterly-financials` | Microsoft's net margin of 35.6% exceeds Apple's 24.9%. | faithful | supported | supported |
-| `quarterly-financials` | Apple's revenue was 23% higher than Microsoft's. | faithful | supported | supported |
-| `quarterly-financials` | Microsoft reported the higher revenue, at $94.0B. | hallucinated | unsupported | unsupported |
-| `quarterly-financials` | Apple's net income reached $31.5B. | hallucinated | unsupported | unsupported |
-| `top-holdings` | Apple Inc. is the largest holding at $65.95B. | faithful | supported | supported |
-| `top-holdings` | American Express Company follows at $51.28B. | faithful | supported | supported |
-| `top-holdings` | Together the five positions are worth $205.44B. | faithful | supported | supported |
-| `top-holdings` | Two of the five are in Financial Services. | faithful | supported | supported |
-| `top-holdings` | Microsoft Corporation ranks sixth with $15.2B. | hallucinated | unsupported | unsupported |
-| `top-holdings` | Alphabet Inc. is the largest holding at $65.95B. | hallucinated | unsupported | unsupported |
-| `top-holdings` | The average position among the five is worth $52.3B. | hallucinated | partially_supported | partially_supported |
-| `concentration-by-fund` | Berkshire Hathaway is the most concentrated, with 22.04% in its top position. | faithful | supported | supported |
-| `concentration-by-fund` | Soros Fund Management is the least concentrated at 3.46%. | faithful | supported | supported |
-| `concentration-by-fund` | Tiger Global's largest position is 7.54% of its portfolio. | hallucinated | unsupported | unsupported |
-| `concentration-by-fund` | Berkshire's top position is five times the size of Tiger Global's. | hallucinated | unsupported | unsupported |
-| `concentration-by-fund` | Concentration falls steadily from Soros to ARK to Tiger Global. | hallucinated | unverifiable | unsupported |
-| `live-quote` | NVDA trades at $181.26 per share. | faithful | supported | supported |
-| `live-quote` | Its market capitalization is about $4.4T. | faithful | supported | supported |
-| `live-quote` | NVDA's P/E ratio is 51.8. | faithful | supported | supported |
-| `live-quote` | NVDA's market cap is $5.2T. | hallucinated | unsupported | unsupported |
-| `live-quote` | NVDA pays a 2.5% dividend yield. | hallucinated | unsupported | unsupported |
-| `price-trend` | NVDA closed at $188.20 on 2026-10-31. | faithful | supported | supported |
-| `price-trend` | The close was 3.9% above its 50-day average on the latest day. | faithful | supported | supported |
-| `price-trend` | NVDA closed at $191.50 on 2026-10-31. | hallucinated | partially_supported | partially_supported |
-| `price-trend` | NVDA closed at $186.40 on 2026-11-02. | hallucinated | partially_supported | unsupported |
-| `sector-counts` | The dataset lists three companies. | faithful | supported | supported |
-| `sector-counts` | Two of them are in Technology. | faithful | supported | supported |
-| `sector-counts` | Four companies are in Financial Services. | hallucinated | unsupported | unsupported |
-| `sector-counts` | Amazon is also in Technology. | hallucinated | unverifiable | unsupported |
-| `qualitative` | ARK's Advanced Micro Devices, Inc. position is worth $822.8M. | faithful | supported | supported |
-| `qualitative` | Tesla, Inc. is the best-performing stock in ARK's portfolio. | hallucinated | unverifiable | unverifiable |
-| `position-change` | Chevron Corporation's position lost $3.47B in value. | faithful | supported | supported |
-| `position-change` | Apple Inc.'s position gained $8.11B. | faithful | supported | supported |
-| `position-change` | Apple Inc.'s position gained $81.1B. | hallucinated | unsupported | unsupported |
-| `top-holdings-wording` | All five positions exceed $1.5 billion. | faithful | supported | supported |
-| `top-holdings-wording` | The gap between the largest ($2.33 B) and smallest ($1.59 B) position is roughly $741 million. | faithful | supported | supported |
-| `top-holdings-wording` | The top three positions each exceed $2.2 billion. | faithful | supported | supported |
-| `top-holdings-wording` | All five positions exceed $2 billion. | hallucinated | partially_supported | partially_supported |
-| `top-holdings-wording` | The gap between the largest and smallest position is roughly $1.1 billion. | hallucinated | unsupported | unsupported |
-| `annual-net-income-wording` | Microsoft Corporation reported net income of $133.7B for the year ending June 30, 2026. | faithful | supported | supported |
-| `annual-net-income-wording` | MSFT's latest annual statement is dated 2026‑06‑30. | faithful | supported | supported |
-| `annual-net-income-wording` | Microsoft's latest annual statement is dated June 30, 2025. | hallucinated | unsupported | unsupported |
+| Case | Claim | Label | `heuristic` |
+|------|-------|-------|---|
+| `quarterly-financials` | Apple Inc. reported revenue of $94.0B in the quarter ending 2026-06-30. | faithful | supported |
+| `quarterly-financials` | Microsoft Corporation earned $27.2B in net income. | faithful | supported |
+| `quarterly-financials` | Microsoft's net margin of 35.6% exceeds Apple's 24.9%. | faithful | supported |
+| `quarterly-financials` | Apple's revenue was 23% higher than Microsoft's. | faithful | supported |
+| `quarterly-financials` | Microsoft reported the higher revenue, at $94.0B. | hallucinated | unsupported |
+| `quarterly-financials` | Apple's net income reached $31.5B. | hallucinated | unsupported |
+| `top-holdings` | Apple Inc. is the largest holding at $65.95B. | faithful | supported |
+| `top-holdings` | American Express Company follows at $51.28B. | faithful | supported |
+| `top-holdings` | Together the five positions are worth $205.44B. | faithful | supported |
+| `top-holdings` | Two of the five are in Financial Services. | faithful | supported |
+| `top-holdings` | Microsoft Corporation ranks sixth with $15.2B. | hallucinated | unsupported |
+| `top-holdings` | Alphabet Inc. is the largest holding at $65.95B. | hallucinated | unsupported |
+| `top-holdings` | The average position among the five is worth $52.3B. | hallucinated | partially_supported |
+| `concentration-by-fund` | Berkshire Hathaway is the most concentrated, with 22.04% in its top position. | faithful | supported |
+| `concentration-by-fund` | Soros Fund Management is the least concentrated at 3.46%. | faithful | supported |
+| `concentration-by-fund` | Tiger Global's largest position is 7.54% of its portfolio. | hallucinated | unsupported |
+| `concentration-by-fund` | Berkshire's top position is five times the size of Tiger Global's. | hallucinated | unsupported |
+| `concentration-by-fund` | Concentration falls steadily from Soros to ARK to Tiger Global. | hallucinated | unverifiable |
+| `live-quote` | NVDA trades at $181.26 per share. | faithful | supported |
+| `live-quote` | Its market capitalization is about $4.4T. | faithful | supported |
+| `live-quote` | NVDA's P/E ratio is 51.8. | faithful | supported |
+| `live-quote` | NVDA's market cap is $5.2T. | hallucinated | unsupported |
+| `live-quote` | NVDA pays a 2.5% dividend yield. | hallucinated | unsupported |
+| `price-trend` | NVDA closed at $188.20 on 2026-10-31. | faithful | supported |
+| `price-trend` | The close was 3.9% above its 50-day average on the latest day. | faithful | supported |
+| `price-trend` | NVDA closed at $191.50 on 2026-10-31. | hallucinated | partially_supported |
+| `price-trend` | NVDA closed at $186.40 on 2026-11-02. | hallucinated | partially_supported |
+| `sector-counts` | The dataset lists three companies. | faithful | supported |
+| `sector-counts` | Two of them are in Technology. | faithful | supported |
+| `sector-counts` | Four companies are in Financial Services. | hallucinated | unsupported |
+| `sector-counts` | Amazon is also in Technology. | hallucinated | unverifiable |
+| `qualitative` | ARK's Advanced Micro Devices, Inc. position is worth $822.8M. | faithful | supported |
+| `qualitative` | Tesla, Inc. is the best-performing stock in ARK's portfolio. | hallucinated | unverifiable |
+| `position-change` | Chevron Corporation's position lost $3.47B in value. | faithful | supported |
+| `position-change` | Apple Inc.'s position gained $8.11B. | faithful | supported |
+| `position-change` | Apple Inc.'s position gained $81.1B. | hallucinated | unsupported |
+| `top-holdings-wording` | All five positions exceed $1.5 billion. | faithful | supported |
+| `top-holdings-wording` | The gap between the largest ($2.33 B) and smallest ($1.59 B) position is roughly $741 million. | faithful | supported |
+| `top-holdings-wording` | The top three positions each exceed $2.2 billion. | faithful | supported |
+| `top-holdings-wording` | All five positions exceed $2 billion. | hallucinated | partially_supported |
+| `top-holdings-wording` | The gap between the largest and smallest position is roughly $1.1 billion. | hallucinated | unsupported |
+| `annual-net-income-wording` | Microsoft Corporation reported net income of $133.7B for the year ending June 30, 2026. | faithful | supported |
+| `annual-net-income-wording` | MSFT's latest annual statement is dated 2026‑06‑30. | faithful | supported |
+| `annual-net-income-wording` | Microsoft's latest annual statement is dated June 30, 2025. | hallucinated | unsupported |
+| `names-totals-and-wording` | Soros held 900,000 shares of Alphabet GOOGL. | faithful | supported |
+| `names-totals-and-wording` | Alphabet positions total 1.46 million shares. | faithful | supported |
+| `names-totals-and-wording` | Tiger Global held 81,000 Amazon shares, a stock found in many ETFs. | faithful | supported |
+| `names-totals-and-wording` | Microsoft and Amazon positions were near-equal. | hallucinated | partially_supported |
+| `names-totals-and-wording` | Alphabet positions total 2.1 million shares. | hallucinated | unsupported |
 
 Bold verdicts are errors: a missed hallucination or a false positive.

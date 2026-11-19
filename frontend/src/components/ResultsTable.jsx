@@ -3,7 +3,7 @@ import { downloadCsv } from '../utils/csv.js'
 import { formatCell } from '../utils/format.js'
 import { Card } from './Card.jsx'
 
-export function ResultsTable({ rows }) {
+export function ResultsTable({ rows, rowPrefix = '' }) {
   if (!rows?.length) return null
   const columns = Object.keys(rows[0])
   const visible = rows.slice(0, MAX_TABLE_ROWS)
@@ -35,7 +35,7 @@ export function ResultsTable({ rows }) {
           </thead>
           <tbody>
             {visible.map((row, idx) => (
-              <tr key={idx} id={`result-row-${idx}`}>
+              <tr key={idx} id={`${rowPrefix}result-row-${idx}`}>
                 {columns.map((col) => (
                   <td key={col} className={typeof row[col] === 'number' ? 'num' : undefined}>
                     {formatCell(row[col])}

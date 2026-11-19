@@ -43,7 +43,35 @@ def _function_name(node: exp.Func) -> str:
     return node.sql_name().lower()
 
 
-def validate_and_limit(sql: str, *, allowed_tables: Collection[str], max_rows: int) -> str:
+def _is_unfiltered(select: exp.Select, ctes: dict[str, exp.Expression]) -> bool:
+    """Whether `select` reads every row of its source."""
+    if any(select.args.get(key) for key in ("where", "group", "having")):
+        return False
+    source = select.find(exp.From)
+    node = source.this if source is not None else None
+    if isinstance(node, exp.Table) and node.name.lower() in ctes:
+        node = ctes[node.name.lower()]
+    if isinstance(node, exp.Subquery):
+        node = node.this
+    return _is_unfiltered(node, ctes) if isinstance(node, exp.Select) else True
+
+
+def _counts_whole_table(statement: exp.Query) -> bool:
+    ctes = {cte.alias_or_name.lower(): cte.this for cte in statement.find_all(exp.CTE)}
+    return any(
+        _is_unfiltered(select, ctes)
+        for select in statement.find_all(exp.Select)
+        if any(column.find(exp.Count) for column in select.expressions)
+    )
+
+
+def validate_and_limit(
+    sql: str,
+    *,
+    allowed_tables: Collection[str],
+    max_rows: int,
+    block_dataset_size: bool = False,
+) -> str:
     """Return a safe, row-limited rendering of `sql` or raise `UnsafeSQLError`."""
     cleaned = sql.strip().rstrip(";").strip()
     if not cleaned:
@@ -70,6 +98,8 @@ def validate_and_limit(sql: str, *, allowed_tables: Collection[str], max_rows: i
                 raise UnsafeSQLError(f"forbidden function: {name}")
 
     _check_tables(statement, allowed_tables)
+    if block_dataset_size and _counts_whole_table(statement):
+        raise UnsafeSQLError("counting every row of a table is not allowed; filter the rows")
     return _apply_limit(statement, max_rows).sql(dialect=_DIALECT)
 
 

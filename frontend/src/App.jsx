@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './App.css'
 import { AgentTrace } from './components/AgentTrace.jsx'
 import { AnswerCard } from './components/AnswerCard.jsx'
@@ -9,17 +9,18 @@ import { ExampleQueries } from './components/ExampleQueries.jsx'
 import { ExecutionDetails } from './components/ExecutionDetails.jsx'
 import { ComposeIcon, PanelIcon } from './components/Icons.jsx'
 import { ObservabilityPage } from './components/ObservabilityPage.jsx'
+import { ProgressSteps } from './components/ProgressSteps.jsx'
 import { QueryForm } from './components/QueryForm.jsx'
 import { ResultChart } from './components/ResultChart.jsx'
 import { ResultsTable } from './components/ResultsTable.jsx'
 import { Sidebar } from './components/Sidebar.jsx'
 import { VerificationPanel } from './components/VerificationPanel.jsx'
+import { useConversation } from './hooks/useConversation.js'
 import { useGlassLens } from './hooks/useGlassLens.js'
 import { usePlatformData } from './hooks/usePlatformData.js'
-import { useQueryRunner } from './hooks/useQueryRunner.js'
 import { isNarrowViewport, useSidebar } from './hooks/useSidebar.js'
 
-function QueryResult({ result }) {
+function QueryResult({ result, rowPrefix }) {
   if (!result.success) {
     return (
       <>
@@ -36,7 +37,7 @@ function QueryResult({ result }) {
         insights={result.insights}
         degraded={result.agent_flow?.analysis === 'degraded'}
       />
-      <VerificationPanel report={result.verification} />
+      <VerificationPanel report={result.verification} rowPrefix={rowPrefix} />
       <ResultChart key={result.sql} rows={result.data} />
       <EnrichmentPanel data={result.enriched_data} />
       <CitationsPanel citations={result.citations} />
@@ -44,8 +45,32 @@ function QueryResult({ result }) {
         <ExecutionDetails result={result} />
         <AgentTrace flow={result.agent_flow} trace={result.trace} />
       </div>
-      <ResultsTable rows={result.data} />
+      <ResultsTable rows={result.data} rowPrefix={rowPrefix} />
     </>
+  )
+}
+
+function Turn({ turn, rowPrefix }) {
+  const running = turn.status === 'running'
+  return (
+    <article className="turn">
+      <p className="asked">{turn.question}</p>
+      <div aria-live="polite" aria-busy={running}>
+        {running && <ProgressSteps stages={turn.stages} />}
+        {turn.error && (
+          <ErrorBanner
+            title="Request failed"
+            message={turn.error.message}
+            requestId={turn.error.requestId}
+          />
+        )}
+        {turn.result && (
+          <div className="result-container">
+            <QueryResult result={turn.result} rowPrefix={rowPrefix} />
+          </div>
+        )}
+      </div>
+    </article>
   )
 }
 
@@ -67,26 +92,34 @@ export default function App() {
   const headerRef = useGlassLens()
   const sidebar = useSidebar()
   const [query, setQuery] = useState('')
-  const [asked, setAsked] = useState(null)
   const { history, refresh } = usePlatformData()
-  const { loading, result, error, run, cancel, reset } = useQueryRunner({ onSettled: refresh })
+  const chat = useConversation({ onSettled: refresh })
+  const latestTurnRef = useRef(null)
+  const turnCount = chat.turns.length
+
+  useEffect(() => {
+    if (turnCount > 1) latestTurnRef.current?.scrollIntoView?.({ block: 'start' })
+  }, [turnCount])
 
   const showChat = () => {
     if (window.location.hash === OBSERVABILITY_HASH) window.location.hash = '#/'
     sidebar.closeDrawer()
   }
 
-  const runQuery = (text) => {
+  const askQuestion = (text) => {
     showChat()
-    setAsked(text)
     setQuery('')
-    run(text)
+    chat.ask(text)
+  }
+
+  const openChat = (id) => {
+    showChat()
+    setQuery('')
+    chat.open(id)
   }
 
   const startOver = () => {
-    cancel()
-    reset()
-    setAsked(null)
+    chat.reset()
     setQuery('')
     showChat()
     if (!isNarrowViewport()) {
@@ -95,24 +128,23 @@ export default function App() {
   }
 
   // Stopping a question hands it back, ready to edit.
-  const stopQuery = () => {
-    cancel()
-    setQuery(asked ?? '')
-    setAsked(null)
+  const stopQuestion = () => {
+    const question = chat.turns.at(-1)?.question ?? ''
+    chat.stop()
+    setQuery(question)
   }
 
-  const idle = !asked
+  const idle = turnCount === 0 && !chat.opening && !chat.openError
 
   return (
     <div className="app" data-sidebar={sidebar.open ? 'open' : 'closed'}>
-      <h1 className="visually-hidden">RAG Financial Terminal</h1>
+      <h1 className="visually-hidden">RAG Data Platform</h1>
       <Sidebar
         history={history}
-        activeQuery={asked}
+        activeChat={chat.conversationId}
         observabilityActive={section === 'observability'}
-        disabled={loading}
         onNewChat={startOver}
-        onSelect={runQuery}
+        onSelect={openChat}
         onNavigate={sidebar.closeDrawer}
         onClose={sidebar.toggle}
       />
@@ -131,7 +163,7 @@ export default function App() {
         >
           <PanelIcon />
         </button>
-        <span className="brand-name">RAG Financial Terminal</span>
+        <span className="brand-name">RAG Data Platform</span>
         <button type="button" className="icon-btn" onClick={startOver} aria-label="Start a new chat">
           <ComposeIcon />
         </button>
@@ -154,34 +186,30 @@ export default function App() {
           <QueryForm
             value={query}
             onChange={setQuery}
-            onSubmit={runQuery}
-            onCancel={stopQuery}
-            loading={loading}
+            onSubmit={askQuestion}
+            onCancel={stopQuestion}
+            loading={chat.loading}
           />
-          {idle && <ExampleQueries onSelect={runQuery} disabled={loading} />}
+          {idle && <ExampleQueries onSelect={askQuestion} disabled={chat.loading} />}
         </div>
 
-        {asked && (
+        {!idle && (
           <div className="conversation">
-            <p className="asked">{asked}</p>
-            <div aria-live="polite" aria-busy={loading}>
-              {loading && <p className="loading-text">Retrieving schema, generating SQL and analysing results…</p>}
-              {error && (
-                <ErrorBanner
-                  title="Request failed"
-                  message={error.message}
-                  requestId={error.requestId}
-                />
-              )}
-              {result && (
-                <div className="result-container">
-                  <QueryResult result={result} />
-                </div>
-              )}
-            </div>
+            {chat.opening && <p className="opening-text">Opening this chat…</p>}
+            {chat.openError && (
+              <ErrorBanner
+                title="This chat could not be opened"
+                message={chat.openError.message}
+                requestId={chat.openError.requestId}
+              />
+            )}
+            {chat.turns.map((turn, index) => (
+              <div key={turn.key} ref={index === turnCount - 1 ? latestTurnRef : null}>
+                <Turn turn={turn} rowPrefix={index ? `turn-${index}-` : ''} />
+              </div>
+            ))}
           </div>
         )}
-
       </main>
       )}
       </div>

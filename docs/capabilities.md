@@ -1,8 +1,8 @@
-# Production upgrades
+# Capabilities and tuning
 
-Five capabilities were added on top of the original pipeline. Each is on by
-default, can be switched off with one environment variable, is covered by
-unit and integration tests, and has an evaluation that measures it.
+The main capabilities on top of the core pipeline. Each can be switched with
+one environment variable, is covered by unit and integration tests, and has an
+evaluation that measures it. Reranking is the one that is off by default.
 
 | Capability | Where | Switch | Measured in |
 |------------|-------|--------|-------------|
@@ -10,7 +10,7 @@ unit and integration tests, and has an evaluation that measures it.
 | Structured output with validation and retries | `services/structured_output.py`, `rag/sql_generator.py` | `LLM_STRUCTURED_OUTPUT`, `LLM_STRUCTURED_MAX_ATTEMPTS`, `SQL_REPAIR_ATTEMPTS` | unit tests; [evaluation-local-llm.md](evaluation-local-llm.md) |
 | Hallucination detector | `agents/verification.py` | `VERIFICATION_MODE` | [evaluation-hallucination.md](evaluation-hallucination.md) |
 | Observability dashboard | `observability/`, `api/routes/metrics.py`, `ObservabilityPage.jsx` | always on | integration tests |
-| Local LLM on your own GPU, LLM caches | `services/llm.py`, `services/cache.py`, `docker-compose.yml` profiles | `LLM_BASE_URL`, `LLM_CACHE_ENABLED`, `SEMANTIC_CACHE_ENABLED` | [evaluation-local-llm.md](evaluation-local-llm.md) |
+| Local LLM on your own GPU, LLM caches | `services/llm.py`, `services/cache.py`, `docker-compose.yml` profiles | `LLM_BASE_URL`, `LLM_CACHE_ENABLED`, `SEMANTIC_CACHE_ENABLED` | [results.md](results.md) |
 
 Paths are relative to `backend/app/` unless shown otherwise.
 
@@ -32,29 +32,32 @@ decides what can be answered. It now combines three signals:
 2. **Sparse:** BM25 over the same table and column documents. It catches exact
    identifiers that embeddings blur, such as `ma_50`, `eps` or `runway_months`.
    Snake-case names are indexed both whole and split.
-3. **Fusion and reranking:** Reciprocal Rank Fusion (k = 60) merges the two
-   rankings by rank alone, so their scores never need calibrating. A local
-   cross-encoder (`cross-encoder/ms-marco-MiniLM-L6-v2`, about 90 MB, CPU)
-   rescores the fused top 12.
+3. **Fusion:** Reciprocal Rank Fusion (k = 60) merges the two rankings by
+   rank alone, so their scores never need calibrating.
+4. **Optional reranking:** a local cross-encoder
+   (`cross-encoder/ms-marco-MiniLM-L6-v2`, about 90 MB, CPU) can rescore the
+   fused top 12. It is off by default (`RETRIEVAL_RERANK=false`). If it cannot
+   load, retrieval falls back to the fused ranking and marks the trace
+   `degraded`.
 
-If the reranker cannot load, retrieval falls back to the fused ranking and
-marks the trace `degraded`, so it never takes queries down.
+**What it bought** (`make eval-retrieval`, 70 questions, real models):
 
-**What it bought** (`make eval-retrieval`, 32 questions, real models): with a
-budget of one table before join expansion, dense retrieval hands the
-generator every table it needs for 28 of 32 questions; hybrid with
-reranking does so for 32 of 32. At the production budget of four tables it
-is 31/32 vs 32/32, and reranking also sends fewer tables (2.3 vs 2.6 per
-prompt). The cost is latency: reranking 12 candidates took about 0.5 s on
-the 4-thread laptop CPU used for the evaluation. Set `RETRIEVAL_RERANK=false`
-to keep hybrid search at about 30 ms.
+| Mode | Every needed table found, budget of 1 table | Same, default budget of 4 | Search time |
+|------|--------------------------------------------:|--------------------------:|------------:|
+| Dense only | 67/70 | 70/70 | about 5 ms |
+| Hybrid (default) | 69/70 | 70/70 | about 5 ms |
+| Hybrid with reranking | 68/70 | 69/70 | about 45 ms here, about 500 ms in Docker |
+
+Hybrid search helps most when the budget is tight. On this small schema the
+reranker is slower and finds slightly fewer of the right tables, so it stays
+off; it is worth measuring again on a schema with many more tables.
 
 **Citations.** Every successful answer carries a `citations` object:
 
 ```jsonc
 "citations": {
-  "retrieval_mode": "hybrid+rerank",
-  "retrieval_confidence": 0.93,          // cross-encoder probability of the best table
+  "retrieval_mode": "hybrid",
+  "retrieval_confidence": 0.93,          // how strongly the best table matched
   "generation_confidence": 0.9,          // the SQL generator's own estimate
   "sql": "SELECT f.name, h.value_usd FROM ...", // exactly what ran
   "sql_explanation": "Joins each fund's latest 13F positions ...",
@@ -250,8 +253,8 @@ running directly on the host.
 
 ### Which model
 
-Only `qwen2.5:1.5b` on CPU has been run against this project
-([report](evaluation-local-llm.md)). The GPU rows are starting points sized
+Only `qwen2.5:1.5b` on CPU has been run against this project, on the previous
+dataset ([results](results.md)). The GPU rows are starting points sized
 from the models' download sizes (Q4 quantisation), not measured results:
 run `make eval` on your hardware before relying on one.
 

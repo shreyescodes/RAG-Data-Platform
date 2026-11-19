@@ -5,25 +5,25 @@ no database or LLM involved. A case is *complete* when every table a correct
 query needs reaches the SQL generator. The *table budget* caps how many tables
 search may pick before foreign-key expansion; small budgets stress the ranking.
 
-- **Run:** 2026-11-09 09:26 UTC
+- **Run:** 2026-11-19 15:15 UTC
 - **Embeddings:** `all-MiniLM-L6-v2`  ·  **Reranker:** `cross-encoder/ms-marco-MiniLM-L6-v2` (shortlist 12)
-- **Cases:** 32 (12 from `cases.json`, 20 from `retrieval_cases.json`)
-- **Production default:** table budget 4
+- **Cases:** 70 (50 from `cases.json`, 20 from `retrieval_cases.json`)
+- **Production default:** `hybrid` search (no reranking), table budget 4
 
 | Table budget | Mode | Complete | Recall | MRR | Tables in prompt | p50 latency |
 |-------------:|------|---------:|-------:|----:|-----------------:|------------:|
-| 1 | `dense` | 32/32 | 1.000 | 0.969 | 2.38 | 11.9 ms |
-| 1 | `hybrid` | 32/32 | 1.000 | 1.000 | 2.31 | 13.1 ms |
-| 1 | `dense+rerank` | 32/32 | 1.000 | 0.969 | 2.38 | 444.3 ms |
-| 1 | `hybrid+rerank` | 32/32 | 1.000 | 0.969 | 2.38 | 484.1 ms |
-| 2 | `dense` | 32/32 | 1.000 | 0.984 | 2.50 | 17.4 ms |
-| 2 | `hybrid` | 32/32 | 1.000 | 1.000 | 2.62 | 17.4 ms |
-| 2 | `dense+rerank` | 32/32 | 1.000 | 0.984 | 2.41 | 572.6 ms |
-| 2 | `hybrid+rerank` | 32/32 | 1.000 | 0.984 | 2.50 | 555.2 ms |
-| 4 | `dense` | 32/32 | 1.000 | 0.984 | 2.59 | 20.8 ms |
-| 4 | `hybrid` | 32/32 | 1.000 | 1.000 | 2.66 | 17.7 ms |
-| 4 | `dense+rerank` | 32/32 | 1.000 | 0.984 | 2.41 | 529.2 ms |
-| 4 | `hybrid+rerank` | 32/32 | 1.000 | 0.984 | 2.53 | 521.4 ms |
+| 1 | `dense` | 67/70 | 0.962 | 0.957 | 2.30 | 5.2 ms |
+| 1 | `hybrid` | 69/70 | 0.993 | 0.986 | 2.29 | 5.2 ms |
+| 1 | `dense+rerank` | 68/70 | 0.979 | 0.957 | 2.30 | 42.1 ms |
+| 1 | `hybrid+rerank` | 68/70 | 0.979 | 0.957 | 2.30 | 41.5 ms |
+| 2 | `dense` | 70/70 | 1.000 | 0.979 | 2.60 | 5.2 ms |
+| 2 | `hybrid` | 70/70 | 1.000 | 0.993 | 2.67 | 5.2 ms |
+| 2 | `dense+rerank` | 69/70 | 0.993 | 0.971 | 2.36 | 41.7 ms |
+| 2 | `hybrid+rerank` | 69/70 | 0.993 | 0.971 | 2.49 | 42.8 ms |
+| 4 | `dense` | 70/70 | 1.000 | 0.979 | 2.73 | 5.3 ms |
+| 4 | `hybrid` | 70/70 | 1.000 | 0.993 | 2.67 | 5.3 ms |
+| 4 | `dense+rerank` | 69/70 | 0.993 | 0.971 | 2.36 | 46.7 ms |
+| 4 | `hybrid+rerank` | 69/70 | 0.993 | 0.971 | 2.50 | 43.6 ms |
 
 Latency is the search alone, CPU only, on the machine that ran the evaluation.
 
@@ -31,18 +31,56 @@ Latency is the search alone, CPU only, on the machine that ran the evaluation.
 
 | Case | Needs | `dense` | `hybrid` | `dense+rerank` | `hybrid+rerank` |
 |------|-------|---|---|---|---|
-| `count-companies` | companies | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
 | `tech-tickers` | companies | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `energy-names` | companies | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `financial-tickers` | companies | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `healthcare-tickers` | companies | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `largest-sector` | companies | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `apple-latest-revenue` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `msft-latest-net-income` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `nvda-latest-eps` | companies, financial_statements | pass · RR 1.00 · 2t | **miss** · RR 0.00 · 3t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `top-net-income` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `top-quarter-revenue` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | **miss** · RR 0.00 · 3t | **miss** · RR 0.00 · 3t |
+| `top5-annual-revenue` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `tesla-four-quarters` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `jpm-total-assets` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `walmart-fcf` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `amazon-operating-cash` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `costco-gross-profit` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `bac-liabilities` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `tech-best-margin` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `apple-msft-revenue` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `avg-revenue-sector` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `revenue-growth` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `nvda-close-on-date` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `highest-close` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `most-traded` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `tsla-volume` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `nvda-five-closes` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `aapl-year-high` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | **miss** · RR 0.00 · 1t | **miss** · RR 0.00 · 1t |
+| `msft-october-volume` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `googl-ma50` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `above-ma200` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `best-october-return` | market_data | **miss** · RR 0.00 · 3t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `worst-2026-return` | market_data | **miss** · RR 0.00 · 3t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `gs-october-range` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `berkshire-top-holdings` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `positions-by-fund` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `apple-latest-revenue` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `nvda-trend` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `highest-close` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `fund-value-by-sector` | companies, fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `top-net-income` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `funds-holding-nvda` | fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `tsla-volume` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `largest-single-position` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `fund-value-by-sector` | companies, fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `berkshire-apple-shares` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `pershing-top-holding` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `ark-top-weights` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `berkshire-total-value` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `duquesne-total-value` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `funds-holding-tesla` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `apple-value-all-funds` | fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `berkshire-new-positions` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `berkshire-biggest-add` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `tiger-tech-value` | companies, fund_holdings, funds | **miss** · RR 1.00 · 1t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `top-financial-by-funds` | companies, fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `soros-amazon-value` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `ident-moving-averages` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `ident-eps` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `ident-fcf` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
@@ -68,18 +106,56 @@ Latency is the search alone, CPU only, on the machine that ran the evaluation.
 
 | Case | Needs | `dense` | `hybrid` | `dense+rerank` | `hybrid+rerank` |
 |------|-------|---|---|---|---|
-| `count-companies` | companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
-| `tech-tickers` | companies | pass · RR 1.00 · 1t | pass · RR 1.00 · 3t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `tech-tickers` | companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `energy-names` | companies | pass · RR 1.00 · 1t | pass · RR 1.00 · 3t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `financial-tickers` | companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 2t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `healthcare-tickers` | companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 2t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `largest-sector` | companies | pass · RR 1.00 · 1t | pass · RR 1.00 · 3t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `apple-latest-revenue` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t |
+| `msft-latest-net-income` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t |
+| `nvda-latest-eps` | companies, financial_statements | pass · RR 1.00 · 4t | pass · RR 0.50 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `top-net-income` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `top-quarter-revenue` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t | **miss** · RR 0.00 · 3t | **miss** · RR 0.00 · 3t |
+| `top5-annual-revenue` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `tesla-four-quarters` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t |
+| `jpm-total-assets` | companies, financial_statements | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `walmart-fcf` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `amazon-operating-cash` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `costco-gross-profit` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `bac-liabilities` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `tech-best-margin` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `apple-msft-revenue` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `avg-revenue-sector` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `revenue-growth` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `nvda-close-on-date` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `highest-close` | market_data | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `most-traded` | market_data | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `tsla-volume` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `nvda-five-closes` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `aapl-year-high` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 0.50 · 2t | pass · RR 0.50 · 2t |
+| `msft-october-volume` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `googl-ma50` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `above-ma200` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `best-october-return` | market_data | pass · RR 0.50 · 4t | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t |
+| `worst-2026-return` | market_data | pass · RR 0.50 · 4t | pass · RR 1.00 · 4t | pass · RR 1.00 · 4t | pass · RR 1.00 · 4t |
+| `gs-october-range` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `berkshire-top-holdings` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `positions-by-fund` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `apple-latest-revenue` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t |
-| `nvda-trend` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `highest-close` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `fund-value-by-sector` | companies, fund_holdings | pass · RR 1.00 · 4t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `top-net-income` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `funds-holding-nvda` | fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `tsla-volume` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `largest-single-position` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `fund-value-by-sector` | companies, fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `berkshire-apple-shares` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `pershing-top-holding` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `ark-top-weights` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `berkshire-total-value` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `duquesne-total-value` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 4t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `funds-holding-tesla` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `apple-value-all-funds` | fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `berkshire-new-positions` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `berkshire-biggest-add` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `tiger-tech-value` | companies, fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `top-financial-by-funds` | companies, fund_holdings | pass · RR 1.00 · 4t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `soros-amazon-value` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `ident-moving-averages` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `ident-eps` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `ident-fcf` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
@@ -105,18 +181,56 @@ Latency is the search alone, CPU only, on the machine that ran the evaluation.
 
 | Case | Needs | `dense` | `hybrid` | `dense+rerank` | `hybrid+rerank` |
 |------|-------|---|---|---|---|
-| `count-companies` | companies | pass · RR 1.00 · 2t | pass · RR 1.00 · 3t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
-| `tech-tickers` | companies | pass · RR 1.00 · 1t | pass · RR 1.00 · 3t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `tech-tickers` | companies | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `energy-names` | companies | pass · RR 1.00 · 1t | pass · RR 1.00 · 3t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `financial-tickers` | companies | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `healthcare-tickers` | companies | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `largest-sector` | companies | pass · RR 1.00 · 1t | pass · RR 1.00 · 3t | pass · RR 1.00 · 1t | pass · RR 1.00 · 1t |
+| `apple-latest-revenue` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t |
+| `msft-latest-net-income` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t |
+| `nvda-latest-eps` | companies, financial_statements | pass · RR 1.00 · 5t | pass · RR 0.50 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `top-net-income` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `top-quarter-revenue` | companies, financial_statements | pass · RR 1.00 · 4t | pass · RR 1.00 · 4t | **miss** · RR 0.00 · 3t | **miss** · RR 0.00 · 3t |
+| `top5-annual-revenue` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `tesla-four-quarters` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t |
+| `jpm-total-assets` | companies, financial_statements | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `walmart-fcf` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `amazon-operating-cash` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `costco-gross-profit` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `bac-liabilities` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `tech-best-margin` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `apple-msft-revenue` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `avg-revenue-sector` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `revenue-growth` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `nvda-close-on-date` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `highest-close` | market_data | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `most-traded` | market_data | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `tsla-volume` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `nvda-five-closes` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `aapl-year-high` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 0.50 · 2t | pass · RR 0.50 · 2t |
+| `msft-october-volume` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `googl-ma50` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `above-ma200` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
+| `best-october-return` | market_data | pass · RR 0.50 · 4t | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t |
+| `worst-2026-return` | market_data | pass · RR 0.50 · 4t | pass · RR 1.00 · 4t | pass · RR 1.00 · 4t | pass · RR 1.00 · 4t |
+| `gs-october-range` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `berkshire-top-holdings` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `positions-by-fund` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `apple-latest-revenue` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t | pass · RR 1.00 · 2t | pass · RR 1.00 · 4t |
-| `nvda-trend` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `highest-close` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
-| `fund-value-by-sector` | companies, fund_holdings | pass · RR 1.00 · 4t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `top-net-income` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `funds-holding-nvda` | fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
-| `tsla-volume` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `largest-single-position` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `fund-value-by-sector` | companies, fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `berkshire-apple-shares` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `pershing-top-holding` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `ark-top-weights` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `berkshire-total-value` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `duquesne-total-value` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 4t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `funds-holding-tesla` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `apple-value-all-funds` | fund_holdings | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `berkshire-new-positions` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `berkshire-biggest-add` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `tiger-tech-value` | companies, fund_holdings, funds | pass · RR 1.00 · 4t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `top-financial-by-funds` | companies, fund_holdings | pass · RR 1.00 · 4t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
+| `soros-amazon-value` | fund_holdings, funds | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t | pass · RR 1.00 · 3t |
 | `ident-moving-averages` | market_data | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `ident-eps` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |
 | `ident-fcf` | companies, financial_statements | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t | pass · RR 1.00 · 2t |

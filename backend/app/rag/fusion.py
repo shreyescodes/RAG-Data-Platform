@@ -18,7 +18,7 @@ K = TypeVar("K", bound=Hashable)
 DEFAULT_K = 60
 
 
-def reciprocal_rank_fusion(
+def reciprocal_rank_fusion[K: Hashable](
     rankings: Mapping[str, Sequence[K]], *, k: int = DEFAULT_K
 ) -> list[tuple[K, float]]:
     """Fuse best-first rankings into one list of `(key, score)`, best first.

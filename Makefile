@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 .PHONY: help install dev-backend dev-frontend migrate seed index lint format typecheck \
-        test test-backend test-frontend eval eval-offline eval-retrieval eval-hallucination \
+        test test-backend test-frontend test-e2e eval eval-offline eval-retrieval eval-hallucination \
         check docker-up docker-up-ollama docker-down clean
 
 BACKEND  := cd backend &&
@@ -46,12 +46,15 @@ test-backend: ## Run backend tests with coverage
 test-frontend: ## Run frontend tests
 	$(FRONTEND) npm test
 
+test-e2e: ## Playwright browser tests against a production build (mocked API)
+	cd frontend && npx playwright test
+
 test: test-backend test-frontend ## Run all tests
 
 eval: ## Score the live pipeline on eval/cases.json (needs seeded DB + an LLM)
 	$(BACKEND) python -m eval.run
 
-eval-retrieval: ## Dense vs hybrid vs reranked schema search (local models, no DB or LLM)
+eval-retrieval: ## Dense vs hybrid (vs reranked) schema search (local models, no DB or LLM)
 	$(BACKEND) python -m eval.retrieval
 
 eval-hallucination: ## Hallucination detector on labelled claims (no DB or LLM)

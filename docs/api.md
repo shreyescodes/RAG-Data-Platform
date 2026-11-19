@@ -5,12 +5,16 @@
 The HTTP endpoints, with an example request and the response format.
 
 Interactive docs are served at `/docs`. All endpoints except health require
-`X-API-Key` when auth is enabled.
+`X-API-Key` when auth is enabled. The browser also sends `X-Visitor-Id`, a
+random ID kept in local storage: history and saved chats are only returned to
+the visitor who asked. Requests without it see no history.
 
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/api/query` | Answer a natural-language question |
-| `GET`  | `/api/history?limit=&offset=` | Recent queries, newest first |
+| `POST` | `/api/query/stream` | The same, as server-sent events: a `stage` event as each step starts and ends, then one `result` |
+| `GET`  | `/api/history?limit=&offset=` | The calling visitor's recent questions, newest first |
+| `GET`  | `/api/conversations/{id}` | A saved chat, answers included, without calling the LLM again |
 | `GET`  | `/api/stats` | Row counts, query success rate, index size. Backend only: nginx returns 403 |
 | `POST` | `/api/index-schema` | Rebuild the schema vector index (run after migrations) |
 | `GET`  | `/api/health` | Readiness: `200` when the database is reachable, else `503`; reports local/remote LLM |
@@ -25,6 +29,9 @@ curl -s localhost:8000/api/query \
   -d '{"query": "What were Berkshire Hathaway'"'"'s 5 largest holdings in its latest 13F filing?"}'
 ```
 
+Send `conversation_id` (8–64 letters, digits, `-` or `_`) with each question of
+a chat so follow-ups such as "and its revenue?" see the earlier turns.
+
 The response includes `answer`, `summary`, `insights`, `sql`, `data`,
 `relevant_tables`, `enriched_data`, `agent_flow` (status per stage), `trace`,
 `citations` (tables, scores, column lineage, row keys), `verification`
@@ -32,4 +39,6 @@ The response includes `answer`, `summary`, `insights`, `sql`, `data`,
 latency per stage).
 A question the pipeline cannot answer safely returns `200` with
 `"success": false` and a user-facing `error`. HTTP errors (`401`, `422`, `429`,
-`500`) are reserved for problems with the request itself or the server.
+`500`) are reserved for problems with the request itself or the server. `429`
+also means a daily question limit was reached (`DAILY_QUERY_LIMIT`,
+`DAILY_VISITOR_QUERY_LIMIT`); the `detail` says so.

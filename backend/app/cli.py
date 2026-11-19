@@ -39,7 +39,7 @@ from app.rag.vector_store import FAISSVectorStore
 
 logger = logging.getLogger("app.cli")
 
-#: 50 of the largest US-listed companies, across every major sector.
+#: Large US-listed companies, across every major sector.
 DEFAULT_TICKERS = (
     # Technology and communication
     "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "META", "AVGO", "ORCL", "CRM", "ADBE",

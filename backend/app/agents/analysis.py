@@ -108,6 +108,8 @@ class AnalysisAgent(Agent):
         rows: Sequence[Mapping[str, Any]],
         enrichment: Mapping[str, Any],
         trace: Trace,
+        *,
+        context: str = "",
     ) -> AnalysisResult:
         if not rows and not enrichment:
             self._record(trace, "no_rows")
@@ -125,6 +127,8 @@ class AnalysisAgent(Agent):
                 "The internal database has no data for this question; answer from the "
                 "live data below only."
             )
+        if context:
+            prompt = f"{context}\n\n{prompt}"
         if enrichment:
             prompt += f"\n\nLive data:\n{_serialise(enrichment, MAX_PROMPT_DATA_CHARS // 2)}"
 

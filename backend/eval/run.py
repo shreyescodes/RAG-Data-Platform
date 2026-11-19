@@ -14,7 +14,12 @@ Usage, from `backend/` with DATABASE_URL set and an LLM configured (a local
 endpoint such as Ollama needs no key):
 
     python -m eval.run                       # writes ../docs/evaluation.md
-    python -m eval.run --only top-arr --pause 0
+    python -m eval.run --only apple-latest-revenue --pause 0
+    python -m eval.run --sql-only --resume --wait-on-limit
+
+`--sql-only` scores accuracy on the generated SQL without writing an answer,
+which uses about a third of the tokens. `--resume` keeps finished cases and
+`--wait-on-limit` sleeps through a provider's rate limit.
 """
 
 from __future__ import annotations
@@ -35,13 +40,15 @@ import sqlglot
 from sqlalchemy import func, select, text
 from sqlglot import exp
 
-from app.api.dependencies import get_orchestrator
+from app.agents.base import Trace
+from app.api.dependencies import build_retrieval_agent, get_orchestrator
 from app.container import ServiceContainer, build_services
 from app.core.config import get_settings
+from app.core.exceptions import LLMError, LLMRateLimitError, PlatformError
 from app.core.logging import configure_logging
 from app.db.models import Company, QueryLog
-from app.db.repositories import count_rows_by_table
 from app.db.session import get_engine, get_session_factory
+from app.observability.metrics import track_request
 from app.schemas import QueryResponse, RequestUsage
 from app.services.llm import endpoint_kind
 
@@ -72,6 +79,11 @@ class CaseResult:
     cost_usd: float = 0.0
     cache_hits: int = 0
     llm_calls: int = 0
+    detail: str | None = None  # internal error text, for diagnosing failures
+
+
+# Failures caused by the model provider rather than the pipeline: rerun on --resume.
+_PROVIDER_FAILURE = LLMError.user_message
 
 
 def _norm(value: Any) -> Any:
@@ -85,7 +97,8 @@ def _norm(value: Any) -> Any:
 def _present(expected: Any, rows: list[dict[str, Any]]) -> bool:
     """Whether `expected` appears as any cell of `rows` (numbers within 0.5%)."""
     for row in rows:
-        for cell in row.values():
+        for raw in row.values():
+            cell = _norm(raw)
             if isinstance(expected, int | float) and isinstance(cell, int | float):
                 if math.isclose(float(cell), float(expected), rel_tol=5e-3, abs_tol=1e-9):
                     return True
@@ -120,6 +133,57 @@ def _truth_tables(sql: str) -> set[str]:
     return {t.name for t in sqlglot.parse_one(sql, read="postgres").find_all(exp.Table)}
 
 
+def _accuracy(
+    expected: list[Any], rows: list[dict[str, Any]], error: str | None
+) -> tuple[bool, str]:
+    missing = [v for v in expected if not _present(v, rows)]
+    passed = error is None and bool(expected) and not missing
+    reason = "all ground-truth values returned" if passed else (error or f"missing {missing[:3]}")
+    return passed, reason
+
+
+async def run_sql_case(services: ServiceContainer, case: dict[str, Any]) -> CaseResult:
+    """Score the generated SQL alone: no written answer and no fact check."""
+    with get_engine().connect() as conn:
+        expected = [_norm(r[0]) for r in conn.execute(text(case["truth_sql"])).all()]
+    agent = build_retrieval_agent(services, get_settings())
+    rows: list[dict[str, Any]] = []
+    sql: str | None = None
+    error: str | None = None
+    detail: str | None = None
+    tables: list[str] = []
+    started = time.perf_counter()
+    with track_request() as metrics:
+        try:
+            retrieved = await agent.run(case["question"], Trace())
+            rows, sql, tables = retrieved.rows, retrieved.sql, retrieved.tables
+        except LLMRateLimitError:
+            raise
+        except PlatformError as exc:
+            sql, error, detail = exc.sql, exc.user_message, f"{type(exc).__name__}: {exc}"[:500]
+    passed, reason = _accuracy(expected, rows, error)
+    return CaseResult(
+        id=case["id"],
+        kind="accuracy",
+        question=case["question"],
+        passed=passed,
+        reason=reason,
+        success=error is None,
+        latency_s=round(time.perf_counter() - started, 2),
+        rows=len(rows),
+        tables=tables,
+        agent_flow={},
+        sql=sql,
+        answer=None,
+        error=error,
+        expected=expected[:5],
+        tokens=metrics.prompt_tokens + metrics.completion_tokens,
+        cache_hits=metrics.cache_hits,
+        llm_calls=len(metrics.llm_calls),
+        detail=detail,
+    )
+
+
 async def run_case(services: ServiceContainer, case: dict[str, Any]) -> CaseResult:
     kind = case.get("kind", "accuracy")
     expected: list[Any] = []
@@ -132,15 +196,11 @@ async def run_case(services: ServiceContainer, case: dict[str, Any]) -> CaseResu
     started = time.perf_counter()
     response = await _ask(services, case["question"])
     latency = time.perf_counter() - started
+    if "usage limit" in (response.error or ""):
+        raise LLMRateLimitError(response.error or "", retry_after_seconds=None)
 
     if kind == "accuracy":
-        missing = [v for v in expected if not _present(v, response.data)]
-        passed = response.success and bool(expected) and not missing
-        reason = (
-            "all ground-truth values returned"
-            if passed
-            else (response.error or f"missing {missing[:3]}")
-        )
+        passed, reason = _accuracy(expected, response.data, response.error)
     elif kind == "live":
         quotes = response.enriched_data.get("market_data", [])
         passed = response.success and any(q.get("ticker") == case["ticker"] for q in quotes)
@@ -224,14 +284,18 @@ def render_markdown(results: list[CaseResult], meta: dict[str, Any]) -> str:
     lines = [
         "# Evaluation",
         "",
-        "Generated by `python -m eval.run` from a live run: real PostgreSQL, real LLM,",
-        "Yahoo Finance data loaded by `python -m app.cli seed`. Nothing here is mocked.",
+        "Generated by `python -m eval.run` from a live run: real PostgreSQL, a real LLM and",
+        "the Yahoo Finance and SEC data loaded by `python -m app.cli seed`. Nothing is mocked.",
+        *(
+            ["", "Accuracy cases score the generated SQL only; no written answer is produced."]
+            if meta.get("sql_only")
+            else []
+        ),
         "",
         f"- **Run:** {meta['date']}",
         f"- **Model:** `{meta['model']}` ({meta['endpoint']} endpoint)  ·  "
         f"**Embeddings:** `{meta['embedding_model']}`",
         f"- **Retrieval:** `{meta['retrieval']}`  ·  **Fact check:** `{meta['verification']}`",
-        f"- **Dataset:** {', '.join(f'{k} {v:,}' for k, v in meta['rows'].items())}",
         "",
         f"**{passed}/{len(results)} cases passed.** "
         f"Execution accuracy {sum(r.passed for r in accuracy)}/{len(accuracy)}, "
@@ -239,11 +303,23 @@ def render_markdown(results: list[CaseResult], meta: dict[str, Any]) -> str:
         f"{sum(r.passed for r in guards)}/{len(guards)}, "
         f"median latency {median:.1f}s.",
         "",
-        f"- **Citations:** ground-truth tables cited as used in "
-        f"{sum(bool(r.cited) for r in cited)}/{len(cited)} answered accuracy cases.",
-        f"- **Fact check:** {sum(r.flagged_claims for r in answered)} of "
-        f"{sum(r.claims for r in answered)} answer claims flagged as not fully supported "
-        f"across {len(answered)} answers.",
+        *(
+            [
+                f"- **Citations:** ground-truth tables cited as used in "
+                f"{sum(bool(r.cited) for r in cited)}/{len(cited)} answered accuracy cases."
+            ]
+            if cited
+            else []
+        ),
+        *(
+            [
+                f"- **Fact check:** {sum(r.flagged_claims for r in answered)} of "
+                f"{sum(r.claims for r in answered)} answer claims flagged as not fully "
+                f"supported across {len(answered)} answers."
+            ]
+            if answered
+            else []
+        ),
         f"- **Usage:** {sum(r.tokens for r in results):,} tokens, "
         f"${sum(r.cost_usd for r in results):.4f} estimated, "
         f"{sum(r.cache_hits for r in results)} of {sum(r.llm_calls for r in results)} "
@@ -263,6 +339,10 @@ def render_markdown(results: list[CaseResult], meta: dict[str, Any]) -> str:
             f"| {r.latency_s:.1f}s | {cited_mark} | {flagged} | {r.tokens:,} | {r.reason} |"
         )
 
+    failures = [r for r in results if not r.passed]
+    if failures:
+        lines += ["", "## Failures", ""]
+        lines += [f"- `{r.id}`: {r.reason}" for r in failures]
     lines += ["", "## Generated SQL and answers", ""]
     for r in results:
         lines += [f"### `{r.id}`: {r.question}", ""]
@@ -288,6 +368,11 @@ async def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Seconds between cases for hosted-API rate limits (default: 8, or 0 when local).",
     )
+    parser.add_argument("--sql-only", action="store_true", help="Score accuracy on SQL alone.")
+    parser.add_argument("--resume", action="store_true", help="Keep results already in --out.")
+    parser.add_argument(
+        "--wait-on-limit", action="store_true", help="Sleep through provider rate limits."
+    )
     args = parser.parse_args(argv)
 
     settings = get_settings()
@@ -301,6 +386,13 @@ async def main(argv: list[str] | None = None) -> int:
         return 2
 
     pause = args.pause if args.pause is not None else (0.0 if local else 8.0)
+    results_path = args.out.with_suffix(".json")
+    finished: dict[str, CaseResult] = {}
+    if args.resume and results_path.exists():
+        saved = json.loads(results_path.read_text(encoding="utf-8"))["results"]
+        finished = {
+            item["id"]: CaseResult(**item) for item in saved if item["reason"] != _PROVIDER_FAILURE
+        }
     cases = json.loads(args.cases.read_text(encoding="utf-8"))
     if args.only:
         cases = [c for c in cases if c["id"] in args.only]
@@ -311,19 +403,41 @@ async def main(argv: list[str] | None = None) -> int:
         if services.vector_store.size == 0:
             services.schema_indexer.index()
 
-        results = []
-        for i, case in enumerate(cases):
-            if i and pause:
-                await asyncio.sleep(pause)
-            result = await run_case(services, case)
+        results: list[CaseResult] = []
+        for case in cases:
+            if case["id"] in finished:
+                results.append(finished[case["id"]])
+                continue
+            while True:
+                try:
+                    accuracy = case.get("kind", "accuracy") == "accuracy"
+                    result = await (
+                        run_sql_case(services, case)
+                        if args.sql_only and accuracy
+                        else run_case(services, case)
+                    )
+                    break
+                except LLMRateLimitError as exc:
+                    if not args.wait_on_limit:
+                        raise
+                    delay = (exc.retry_after_seconds or 600.0) + 30.0
+                    print(f"[wait] rate limited, sleeping {delay:.0f}s", flush=True)
+                    await asyncio.sleep(delay)
             results.append(result)
+            results_path.parent.mkdir(parents=True, exist_ok=True)
+            results_path.write_text(
+                json.dumps({"results": [asdict(r) for r in results]}, indent=2, default=str),
+                encoding="utf-8",
+            )
             status = "PASS" if result.passed else "FAIL"
-            print(f"[{status}] {result.id:<22} {result.latency_s:5.1f}s  {result.reason}")
+            print(
+                f"[{status}] {result.id:<26} {result.latency_s:5.1f}s  {result.reason}", flush=True
+            )
+            if pause:
+                await asyncio.sleep(pause)
     finally:
         await services.aclose()
 
-    with get_session_factory()() as db:
-        rows = count_rows_by_table(db)
     meta = {
         "date": dt.datetime.now(dt.UTC).strftime("%Y-%m-%d %H:%M UTC"),
         "model": settings.llm_model,
@@ -331,7 +445,7 @@ async def main(argv: list[str] | None = None) -> int:
         "embedding_model": settings.embedding_model,
         "retrieval": services.schema_indexer.mode,
         "verification": settings.verification_mode,
-        "rows": rows,
+        "sql_only": args.sql_only,
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(render_markdown(results, meta) + "\n", encoding="utf-8")

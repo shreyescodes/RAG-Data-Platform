@@ -4,8 +4,9 @@
 
 What the platform does, shown from a live session, and how each feature is verified.
 
-A multi-agent pipeline retrieves the relevant part of the database schema with
-hybrid search (embeddings + BM25, fused and reranked), has an LLM write
+A pipeline of retrieval, enrichment, analysis and fact-check steps finds the
+relevant part of the database schema with hybrid search (embeddings + BM25,
+merged by rank fusion), has an LLM write
 PostgreSQL for it as validated structured output, executes that SQL under
 read-only guardrails, optionally enriches the result with live market and SEC
 EDGAR data, summarises the outcome and checks the summary against the data.
@@ -63,26 +64,28 @@ Every answer also shows:
   every figure is matched to a cell, "all five above $1.5B" is checked against
   the whole column, and "roughly $741 million" is matched to the gap between
   two rows. Evidence links jump to the row.
-- **Sources.** The tables the SQL generator was shown, with their reranker,
-  embedding, BM25 and fused scores, whether the SQL used them, and which table
+- **Sources.** The tables the SQL generator was shown, with their embedding,
+  BM25 and fused scores, whether the SQL used them, and which table
   and column each result column came from.
 - **Agent trace.** Every step: retrieved tables, generated SQL, the normalised
   SQL that actually ran (with the enforced `LIMIT`), and row counts.
 
 **Observability.** Tokens, cost, latency per stage and failures from every
 request, stored in PostgreSQL. This capture covers 30 days of local test runs
-on one laptop. Of the 18 failed requests, 12 are deliberate refusals (ten
-prompt-injection attempts and two questions about CEO pay) and 6 hit the rate
-limits of Groq's free tier during testing.
+on one laptop. Of the 26 failed requests, 20 are deliberate refusals (14
+prompt-injection attempts, 4 questions about CEO pay, 1 request to email
+results and 1 question about how much data is stored) and 6 hit the rate
+limits of Groq's free tier during testing. Question text is hidden on the
+dashboard in production, so other visitors' questions stay private.
 
 ![Observability dashboard: requests, error rate, latency percentiles, tokens, cost, cache hits and fact-check flags](screenshots/observability.webp)
 
-## Production features
+## Features
 
 | # | Feature | How it is delivered | Verified by |
 |---|---------|---------------------|-------------|
 | 1 | **Hybrid retrieval** | Dense (FAISS) + BM25 keyword search fused with Reciprocal Rank Fusion | `make eval-retrieval`, `test_sparse.py`, `test_fusion.py` |
-| 2 | **Reranking** | Local cross-encoder (`ms-marco-MiniLM-L6-v2`) over the fused shortlist; graceful fallback | `make eval-retrieval`, `test_schema_indexer.py` |
+| 2 | **Optional reranking** | Local cross-encoder (`ms-marco-MiniLM-L6-v2`) over the fused shortlist; off by default because it did not help on this schema | `make eval-retrieval`, `test_schema_indexer.py` |
 | 3 | **Cited answers** | Tables with every retrieval score, executed SQL, column lineage, row keys, live-data links | `test_citations.py`, Sources panel |
 | 4 | **Structured output** | Reusable `StructuredOutputExtractor`: JSON Schema prompt or constrained decoding, Pydantic validation | `test_structured_output.py` |
 | 5 | **Validation-driven retries** | Up to 3 attempts with errors fed back; SQL safety checks inside the loop; one database-error repair | `test_sql_generator.py`, `test_api.py` |
@@ -97,7 +100,11 @@ limits of Groq's free tier during testing.
 | 14 | **API hardening** | API-key auth, per-IP rate limits, security headers, request IDs, curated errors | `test_api.py` |
 | 15 | **Operations** | Structured JSON logs, readiness and LLM health checks, Alembic migrations checked in CI, non-root backend image | CI workflow |
 
-How to use and tune each new capability: [docs/PRODUCTION_UPGRADES.md](PRODUCTION_UPGRADES.md).
+| 16 | **Chat with saved history** | Follow-up questions see the earlier turns; chats reopen from the sidebar without calling the LLM again | `test_conversations.py`, `App.test.jsx`, `e2e/chat.spec.js` |
+| 17 | **Live progress** | `POST /api/query/stream` sends each pipeline step as server-sent events | `test_conversations.py`, `client.test.js` |
+| 18 | **Public-demo limits** | Per-visitor history, daily question limits, hidden question text on the dashboard, refusal of dataset-size questions, clear quota messages | `test_conversations.py`, `test_llm.py`, `test_sql_validator.py` |
+
+How to use and tune each capability: [docs/capabilities.md](capabilities.md).
 
 ## Highlights
 

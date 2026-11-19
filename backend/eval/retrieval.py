@@ -15,8 +15,9 @@ Metrics per mode and table budget, over all questions:
 - p50 latency of the search itself.
 
 The table budget caps how many tables search may pick before foreign-key
-expansion; small budgets stress the ranking. The run exits non-zero if a
-hybrid or reranked mode completes fewer cases than plain dense retrieval.
+expansion; small budgets stress the ranking. The run exits non-zero if the
+production mode (hybrid, without reranking) completes fewer cases than plain
+dense retrieval. Reranked modes are measured and reported, not gated.
 
 Usage, from `backend/`:
 
@@ -74,7 +75,8 @@ Results = dict[int, dict[str, list[ModeResult]]]  # table budget -> mode -> per 
 
 def truth_tables(sql: str) -> list[str]:
     tree = sqlglot.parse_one(sql, read="postgres")
-    return sorted({t.name for t in tree.find_all(exp.Table)})
+    ctes = {cte.alias_or_name for cte in tree.find_all(exp.CTE)}
+    return sorted({t.name for t in tree.find_all(exp.Table)} - ctes)
 
 
 def load_cases(cases_path: Path, retrieval_path: Path) -> list[Case]:
@@ -120,16 +122,19 @@ def summarise(results: list[ModeResult]) -> dict[str, Any]:
     }
 
 
+# The search the application runs by default; regressions here fail the run.
+PRODUCTION_MODE = "hybrid"
+
+
 def regressions(results: Results) -> list[str]:
-    """Budgets where a hybrid or reranked mode completes fewer cases than dense."""
+    """Budgets where the production mode completes fewer cases than dense."""
     found = []
     for budget, by_mode in results.items():
-        if "dense" not in by_mode:
+        if "dense" not in by_mode or PRODUCTION_MODE not in by_mode:
             continue
         baseline = summarise(by_mode["dense"])["complete"]
-        for mode, mode_results in by_mode.items():
-            if summarise(mode_results)["complete"] < baseline:
-                found.append(f"{mode} below dense at table budget {budget}")
+        if summarise(by_mode[PRODUCTION_MODE])["complete"] < baseline:
+            found.append(f"{PRODUCTION_MODE} below dense at table budget {budget}")
     return found
 
 
@@ -147,7 +152,8 @@ def render_markdown(cases: list[Case], results: Results, meta: dict[str, Any]) -
         f"(shortlist {meta['rerank_candidates']})",
         f"- **Cases:** {len(cases)} ({meta['end_to_end']} from `cases.json`, "
         f"{meta['retrieval_only']} from `retrieval_cases.json`)",
-        f"- **Production default:** table budget {meta['default_budget']}",
+        f"- **Production default:** `{PRODUCTION_MODE}` search (no reranking), "
+        f"table budget {meta['default_budget']}",
         "",
         "| Table budget | Mode | Complete | Recall | MRR | Tables in prompt | p50 latency |",
         "|-------------:|------|---------:|-------:|----:|-----------------:|------------:|",

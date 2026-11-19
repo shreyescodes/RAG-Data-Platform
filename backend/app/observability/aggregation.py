@@ -78,7 +78,7 @@ def stage_latencies(metric: RequestMetric) -> dict[str, float]:
     return {stage: ms for stage, ms in found.items() if ms is not None}
 
 
-def _group(items: Iterable[T], key: Callable[[T], str]) -> dict[str, list[T]]:
+def _group[T](items: Iterable[T], key: Callable[[T], str]) -> dict[str, list[T]]:
     groups: dict[str, list[T]] = defaultdict(list)
     for item in items:
         groups[key(item)].append(item)

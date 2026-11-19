@@ -91,6 +91,27 @@ but is not a guarantee, and it does not detect names or addresses.
   `llm_endpoint: local`.
 - `FORWARDED_ALLOW_IPS` restricted to your proxy so clients cannot spoof
   `X-Forwarded-For` to evade rate limits.
+- `DAILY_QUERY_LIMIT` and `DAILY_VISITOR_QUERY_LIMIT` set, so a public link
+  cannot spend the whole LLM quota. Groq's free tier covers about 28 full
+  answers a day.
+
+## Privacy between visitors
+
+Through nginx every browser shares one API key, so the key alone cannot tell
+visitors apart. Each browser keeps a random visitor ID and sends it as
+`X-Visitor-Id`; history and saved chats are only returned for that ID, and a
+request without one sees no history. With `ENVIRONMENT=production` the metrics
+dashboard hides question text unless `METRICS_SHOW_QUERIES=true`. nginx also
+refuses `/api/stats`, and questions or SQL that only count every row of a table
+are refused (`BLOCK_DATASET_SIZE_QUERIES`). This is privacy between visitors of
+a demo, not authentication: anyone holding a visitor ID can read its history.
+
+## Scanning
+
+CI scans the whole git history for committed secrets (gitleaks), checks Python
+and npm dependencies for known vulnerabilities (pip-audit, npm audit), and
+scans both Docker images with Grype, failing on critical vulnerabilities that
+have a fix. Reviewed false positives are listed in `.gitleaksignore`.
 
 ## Reporting a vulnerability
 

@@ -64,7 +64,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(
         title="RAG Data Platform API",
-        description="Natural-language querying of financial data with a multi-agent RAG pipeline.",
+        description="Natural-language querying of financial data with a RAG pipeline.",
         version=__version__,
         lifespan=lifespan,
         docs_url="/docs" if settings.expose_docs else None,
@@ -85,7 +85,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_origins=settings.allowed_origins_list,
         allow_credentials=False,
         allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type", API_KEY_HEADER_NAME, REQUEST_ID_HEADER_NAME],
+        allow_headers=["Content-Type", "X-Visitor-Id", API_KEY_HEADER_NAME, REQUEST_ID_HEADER_NAME],
         expose_headers=[REQUEST_ID_HEADER_NAME],
     )
 

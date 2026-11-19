@@ -623,3 +623,94 @@ def test_a_multiple_is_not_excused_by_the_same_number_in_the_question() -> None:
         "supported"
     )
     assert verdict("Coca-Cola holds five times the shares of Alphabet.") == "supported"
+
+
+FUND_POSITIONS: list[dict[str, Any]] = [
+    {"fund": "Soros", "issuer_name": "ALPHABET INC", "ticker": "GOOGL", "shares": 900_000},
+    {"fund": "Tiger", "issuer_name": "ALPHABET INC", "ticker": "GOOGL", "shares": 560_000},
+    {"fund": "Soros", "issuer_name": "MICROSOFT CORP", "ticker": "MSFT", "shares": 118_000},
+    {"fund": "Tiger", "issuer_name": "AMAZON COM INC", "ticker": "AMZN", "shares": 81_000},
+]
+
+
+def test_a_name_with_its_ticker_is_one_company() -> None:
+    assert _verdict("Soros held 900,000 shares of Alphabet GOOGL.", FUND_POSITIONS) == "supported"
+
+
+def test_a_name_and_ticker_of_different_companies_is_not_recognised() -> None:
+    assert _verdict("Soros held 900,000 shares of Alphabet MSFT.", FUND_POSITIONS) != "supported"
+
+
+def test_a_total_over_one_companys_rows_is_supported() -> None:
+    assert _verdict("Alphabet positions total 1.46 million shares.", FUND_POSITIONS) == "supported"
+
+
+def test_a_wrong_total_over_one_companys_rows_is_flagged() -> None:
+    assert _verdict("Alphabet positions total 1.9 million shares.", FUND_POSITIONS) != "supported"
+
+
+@pytest.mark.parametrize(
+    "claim",
+    [
+        "Microsoft held 118,000 shares, more than any S&P 500 peer here.",
+        "Microsoft held 118,000 shares, unlike the Russell 2000 names.",
+        "Microsoft held 118,000 shares, a position larger than most ETFs.",
+    ],
+)
+def test_index_and_fund_terms_need_no_evidence(claim: str) -> None:
+    assert _verdict(claim, FUND_POSITIONS) == "supported"
+
+
+@pytest.mark.parametrize(
+    "claim",
+    [
+        "Microsoft and Amazon positions were near-equal.",
+        "The 118,000 and 81,000 share positions were about the same.",
+    ],
+)
+def test_calling_distant_values_equal_is_flagged(claim: str) -> None:
+    assert _verdict(claim, FUND_POSITIONS) in ("unsupported", "partially_supported")
+
+
+def test_calling_close_values_equal_is_not_flagged() -> None:
+    rows = [
+        {"issuer_name": "MICROSOFT CORP", "shares": 118_000},
+        {"issuer_name": "AMAZON COM INC", "shares": 116_000},
+    ]
+    assert _verdict("Microsoft and Amazon positions were near-equal.", rows) not in (
+        "unsupported",
+        "partially_supported",
+    )
+
+
+def test_a_sum_of_two_percentages_is_supported() -> None:
+    rows = [
+        {"issuer_name": "APPLE INC", "portfolio_pct": 22.0383},
+        {"issuer_name": "AMERICAN EXPRESS CO", "portfolio_pct": 17.1367},
+        {"issuer_name": "COCA COLA CO", "portfolio_pct": 10.863},
+    ]
+    claim = "Apple and American Express together make up roughly 39% of the portfolio."
+    assert _verdict(claim, rows) != "unsupported"
+    assert _verdict(claim.replace("39%", "60%"), rows) in ("unsupported", "partially_supported")
+
+
+def _verdict_with_sql(text: str, rows: list[dict[str, Any]], sql: str) -> str:
+    (claim,) = extract_claims(text)
+    return check_claim(claim, Evidence("How many shares did it hold?", rows, {}, sql=sql)).verdict
+
+
+def test_a_fund_the_sql_filtered_on_by_its_first_word_is_recognised() -> None:
+    sql = (
+        "SELECT h.shares FROM fund_holdings h JOIN funds f ON f.id = h.fund_id "
+        "WHERE f.name ILIKE '%berkshire%'"
+    )
+    rows = [{"shares": 227917808}]
+    assert (
+        _verdict_with_sql("Berkshire Hathaway held 227,917,808 shares.", rows, sql) == "supported"
+    )
+
+
+def test_a_short_or_shared_filter_word_does_not_vouch_for_a_name() -> None:
+    sql = "SELECT shares FROM fund_holdings WHERE issuer_name ILIKE '%bank%'"
+    rows = [{"shares": 1000}]
+    assert _verdict_with_sql("Bank of Canada held 1,000 shares.", rows, sql) != "supported"

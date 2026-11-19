@@ -145,6 +145,7 @@ export const history = {
   history: [
     {
       id: 1,
+      conversation_id: 'chat-1',
       query: 'Fund positions by quarter',
       sql: 'SELECT 1',
       answer: 'About 1.5%.',

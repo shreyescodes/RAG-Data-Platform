@@ -1,18 +1,173 @@
 [
   {
-    "id": "count-companies",
-    "question": "How many companies are in the database?",
-    "truth_sql": "SELECT count(*) FROM companies"
+    "id": "tech-tickers",
+    "question": "List the tickers of the companies in the Technology sector",
+    "truth_sql": "SELECT ticker FROM companies WHERE sector = 'Technology'"
   },
   {
-    "id": "tech-tickers",
-    "question": "List the tickers of listed companies in the Technology sector",
-    "truth_sql": "SELECT ticker FROM companies WHERE sector = 'Technology' AND ticker IS NOT NULL"
+    "id": "energy-names",
+    "question": "List the names of the companies in the Energy sector",
+    "truth_sql": "SELECT name FROM companies WHERE sector = 'Energy'"
+  },
+  {
+    "id": "financial-tickers",
+    "question": "List the tickers of the companies in the Financial Services sector",
+    "truth_sql": "SELECT ticker FROM companies WHERE sector = 'Financial Services'"
+  },
+  {
+    "id": "healthcare-tickers",
+    "question": "Which tickers belong to Healthcare companies?",
+    "truth_sql": "SELECT ticker FROM companies WHERE sector = 'Healthcare'"
+  },
+  {
+    "id": "largest-sector",
+    "question": "Which sector has the most companies?",
+    "truth_sql": "SELECT sector FROM companies GROUP BY sector ORDER BY count(*) DESC LIMIT 1"
+  },
+  {
+    "id": "apple-latest-revenue",
+    "question": "What was Apple's revenue in its most recent quarter?",
+    "truth_sql": "SELECT f.revenue FROM financial_statements f JOIN companies c ON c.id = f.company_id WHERE f.period_type = 'Quarterly' AND f.statement_date = (SELECT max(f2.statement_date) FROM financial_statements f2 WHERE f2.company_id = f.company_id AND f2.period_type = 'Quarterly') AND c.ticker = 'AAPL'"
+  },
+  {
+    "id": "msft-latest-net-income",
+    "question": "What was Microsoft's net income in its most recent quarter?",
+    "truth_sql": "SELECT f.net_income FROM financial_statements f JOIN companies c ON c.id = f.company_id WHERE f.period_type = 'Quarterly' AND f.statement_date = (SELECT max(f2.statement_date) FROM financial_statements f2 WHERE f2.company_id = f.company_id AND f2.period_type = 'Quarterly') AND c.ticker = 'MSFT'"
+  },
+  {
+    "id": "nvda-latest-eps",
+    "question": "What was NVIDIA's earnings per share in its most recent quarter?",
+    "truth_sql": "SELECT f.eps FROM financial_statements f JOIN companies c ON c.id = f.company_id WHERE f.period_type = 'Quarterly' AND f.statement_date = (SELECT max(f2.statement_date) FROM financial_statements f2 WHERE f2.company_id = f.company_id AND f2.period_type = 'Quarterly') AND c.ticker = 'NVDA'"
+  },
+  {
+    "id": "top-net-income",
+    "question": "Which company had the highest net income in its latest annual statement?",
+    "truth_sql": "SELECT c.name FROM financial_statements f JOIN companies c ON c.id = f.company_id WHERE f.period_type = 'Annual' AND f.statement_date = (SELECT max(f2.statement_date) FROM financial_statements f2 WHERE f2.company_id = f.company_id AND f2.period_type = 'Annual') ORDER BY f.net_income DESC LIMIT 1"
+  },
+  {
+    "id": "top-quarter-revenue",
+    "question": "Which company had the highest quarterly revenue for the quarter ending 2026-06-30?",
+    "truth_sql": "SELECT c.name FROM financial_statements f JOIN companies c ON c.id = f.company_id WHERE f.period_type = 'Quarterly' AND f.statement_date = '2026-06-30' ORDER BY f.revenue DESC LIMIT 1"
+  },
+  {
+    "id": "top5-annual-revenue",
+    "question": "What are the top 5 companies by revenue in their latest annual statements?",
+    "truth_sql": "SELECT c.name FROM financial_statements f JOIN companies c ON c.id = f.company_id WHERE f.period_type = 'Annual' AND f.statement_date = (SELECT max(f2.statement_date) FROM financial_statements f2 WHERE f2.company_id = f.company_id AND f2.period_type = 'Annual') ORDER BY f.revenue DESC LIMIT 5"
+  },
+  {
+    "id": "tesla-four-quarters",
+    "question": "Show Tesla's quarterly revenue for its four most recent quarters",
+    "truth_sql": "SELECT f.revenue FROM financial_statements f JOIN companies c ON c.id = f.company_id WHERE c.ticker = 'TSLA' AND f.period_type = 'Quarterly' ORDER BY f.statement_date DESC LIMIT 4"
+  },
+  {
+    "id": "jpm-total-assets",
+    "question": "What were JPMorgan Chase's total assets in its latest quarterly statement?",
+    "truth_sql": "SELECT f.total_assets FROM financial_statements f JOIN companies c ON c.id = f.company_id WHERE f.period_type = 'Quarterly' AND f.statement_date = (SELECT max(f2.statement_date) FROM financial_statements f2 WHERE f2.company_id = f.company_id AND f2.period_type = 'Quarterly') AND c.ticker = 'JPM'"
+  },
+  {
+    "id": "walmart-fcf",
+    "question": "What was Walmart's free cash flow in its latest annual statement?",
+    "truth_sql": "SELECT f.free_cash_flow FROM financial_statements f JOIN companies c ON c.id = f.company_id WHERE f.period_type = 'Annual' AND f.statement_date = (SELECT max(f2.statement_date) FROM financial_statements f2 WHERE f2.company_id = f.company_id AND f2.period_type = 'Annual') AND c.ticker = 'WMT'"
+  },
+  {
+    "id": "amazon-operating-cash",
+    "question": "What was Amazon's operating cash flow in its latest annual statement?",
+    "truth_sql": "SELECT f.operating_cash_flow FROM financial_statements f JOIN companies c ON c.id = f.company_id WHERE f.period_type = 'Annual' AND f.statement_date = (SELECT max(f2.statement_date) FROM financial_statements f2 WHERE f2.company_id = f.company_id AND f2.period_type = 'Annual') AND c.ticker = 'AMZN'"
+  },
+  {
+    "id": "costco-gross-profit",
+    "question": "What was Costco's gross profit in its latest annual statement?",
+    "truth_sql": "SELECT f.gross_profit FROM financial_statements f JOIN companies c ON c.id = f.company_id WHERE f.period_type = 'Annual' AND f.statement_date = (SELECT max(f2.statement_date) FROM financial_statements f2 WHERE f2.company_id = f.company_id AND f2.period_type = 'Annual') AND c.ticker = 'COST'"
+  },
+  {
+    "id": "bac-liabilities",
+    "question": "What were Bank of America's total liabilities in its latest quarterly statement?",
+    "truth_sql": "SELECT f.total_liabilities FROM financial_statements f JOIN companies c ON c.id = f.company_id WHERE f.period_type = 'Quarterly' AND f.statement_date = (SELECT max(f2.statement_date) FROM financial_statements f2 WHERE f2.company_id = f.company_id AND f2.period_type = 'Quarterly') AND c.ticker = 'BAC'"
+  },
+  {
+    "id": "tech-best-margin",
+    "question": "Among Technology companies, which had the highest net margin (net income divided by revenue) in its latest annual statement?",
+    "truth_sql": "SELECT c.name FROM financial_statements f JOIN companies c ON c.id = f.company_id WHERE f.period_type = 'Annual' AND f.statement_date = (SELECT max(f2.statement_date) FROM financial_statements f2 WHERE f2.company_id = f.company_id AND f2.period_type = 'Annual') AND c.sector = 'Technology' ORDER BY f.net_income / NULLIF(f.revenue, 0) DESC LIMIT 1"
+  },
+  {
+    "id": "apple-msft-revenue",
+    "question": "Compare Apple's and Microsoft's revenue in their latest annual statements",
+    "truth_sql": "SELECT f.revenue FROM financial_statements f JOIN companies c ON c.id = f.company_id WHERE f.period_type = 'Annual' AND f.statement_date = (SELECT max(f2.statement_date) FROM financial_statements f2 WHERE f2.company_id = f.company_id AND f2.period_type = 'Annual') AND c.ticker IN ('AAPL', 'MSFT')"
+  },
+  {
+    "id": "avg-revenue-sector",
+    "question": "What is the average revenue by sector, using each company's latest annual statement?",
+    "truth_sql": "SELECT c.sector FROM financial_statements f JOIN companies c ON c.id = f.company_id WHERE f.period_type = 'Annual' AND f.statement_date = (SELECT max(f2.statement_date) FROM financial_statements f2 WHERE f2.company_id = f.company_id AND f2.period_type = 'Annual') GROUP BY c.sector"
+  },
+  {
+    "id": "revenue-growth",
+    "question": "Which company had the largest percentage revenue growth between its two most recent annual statements?",
+    "truth_sql": "WITH ranked AS (SELECT f.company_id, f.revenue, row_number() OVER (PARTITION BY f.company_id ORDER BY f.statement_date DESC) AS rn FROM financial_statements f WHERE f.period_type = 'Annual') SELECT c.name FROM ranked a JOIN ranked b ON a.company_id = b.company_id AND a.rn = 1 AND b.rn = 2 JOIN companies c ON c.id = a.company_id ORDER BY (a.revenue - b.revenue) / NULLIF(b.revenue, 0) DESC LIMIT 1"
+  },
+  {
+    "id": "nvda-close-on-date",
+    "question": "What was NVDA's closing price on 2026-11-09?",
+    "truth_sql": "SELECT close_price FROM market_data WHERE ticker = 'NVDA' AND date = '2026-11-09'"
+  },
+  {
+    "id": "highest-close",
+    "question": "Which stock had the highest closing price on 2026-11-09?",
+    "truth_sql": "SELECT ticker FROM market_data WHERE date = '2026-11-09' ORDER BY close_price DESC LIMIT 1"
+  },
+  {
+    "id": "most-traded",
+    "question": "Which ticker had the highest trading volume on 2026-11-09?",
+    "truth_sql": "SELECT ticker FROM market_data WHERE date = '2026-11-09' ORDER BY volume DESC LIMIT 1"
+  },
+  {
+    "id": "tsla-volume",
+    "question": "Show TSLA's daily trading volume for the last 10 trading days",
+    "truth_sql": "SELECT volume FROM market_data WHERE ticker = 'TSLA' ORDER BY date DESC LIMIT 10"
+  },
+  {
+    "id": "nvda-five-closes",
+    "question": "What were NVDA's closing prices over the last 5 trading days?",
+    "truth_sql": "SELECT close_price FROM market_data WHERE ticker = 'NVDA' ORDER BY date DESC LIMIT 5"
+  },
+  {
+    "id": "aapl-year-high",
+    "question": "What was AAPL's highest closing price between 2025-11-10 and 2026-11-09?",
+    "truth_sql": "SELECT max(close_price) FROM market_data WHERE ticker = 'AAPL' AND date BETWEEN '2025-11-10' AND '2026-11-09'"
+  },
+  {
+    "id": "msft-october-volume",
+    "question": "What was MSFT's average daily trading volume in October 2026?",
+    "truth_sql": "SELECT avg(volume) FROM market_data WHERE ticker = 'MSFT' AND date BETWEEN '2026-10-01' AND '2026-10-31'"
+  },
+  {
+    "id": "googl-ma50",
+    "question": "What was GOOGL's 50-day moving average on 2026-11-09?",
+    "truth_sql": "SELECT ma_50 FROM market_data WHERE ticker = 'GOOGL' AND date = '2026-11-09'"
+  },
+  {
+    "id": "above-ma200",
+    "question": "Which tickers closed above their 200-day moving average on 2026-11-09?",
+    "truth_sql": "SELECT ticker FROM market_data WHERE date = '2026-11-09' AND close_price > ma_200"
+  },
+  {
+    "id": "best-october-return",
+    "question": "Which stock had the largest percentage gain in closing price from 2026-10-01 to 2026-11-09?",
+    "truth_sql": "SELECT a.ticker FROM market_data a JOIN market_data b ON a.ticker = b.ticker AND a.date = '2026-10-01' AND b.date = '2026-11-09' ORDER BY (b.close_price - a.close_price) / a.close_price DESC LIMIT 1"
+  },
+  {
+    "id": "worst-2026-return",
+    "question": "Which stock had the worst percentage return in closing price from 2026-01-02 to 2026-11-09?",
+    "truth_sql": "SELECT a.ticker FROM market_data a JOIN market_data b ON a.ticker = b.ticker AND a.date = '2026-01-02' AND b.date = '2026-11-09' ORDER BY (b.close_price - a.close_price) / a.close_price ASC LIMIT 1"
+  },
+  {
+    "id": "gs-october-range",
+    "question": "What were GS's highest and lowest closing prices in October 2026?",
+    "truth_sql": "SELECT max(close_price) FROM market_data WHERE ticker = 'GS' AND date BETWEEN '2026-10-01' AND '2026-10-31' UNION ALL SELECT min(close_price) FROM market_data WHERE ticker = 'GS' AND date BETWEEN '2026-10-01' AND '2026-10-31'"
   },
   {
     "id": "berkshire-top-holdings",
-    "question": "What were Berkshire Hathaway's 5 largest holdings by value in its latest 13F filing?",
-    "truth_sql": "SELECT h.value_usd FROM fund_holdings h JOIN funds f ON f.id = h.fund_id WHERE f.name ILIKE 'berkshire%' AND h.report_date = (SELECT max(h2.report_date) FROM fund_holdings h2 WHERE h2.fund_id = h.fund_id) ORDER BY h.value_usd DESC LIMIT 5"
+    "question": "What were Berkshire Hathaway's 5 largest holdings by value at 2026-06-30?",
+    "truth_sql": "SELECT h.value_usd FROM fund_holdings h JOIN funds f ON f.id = h.fund_id WHERE f.name ILIKE 'berkshire%' AND h.report_date = '2026-06-30' ORDER BY h.value_usd DESC LIMIT 5"
   },
   {
     "id": "positions-by-fund",
@@ -20,44 +175,79 @@
     "truth_sql": "SELECT f.name FROM fund_holdings h JOIN funds f ON f.id = h.fund_id WHERE h.report_date = (SELECT max(h2.report_date) FROM fund_holdings h2 WHERE h2.fund_id = h.fund_id) GROUP BY f.name"
   },
   {
-    "id": "apple-latest-revenue",
-    "question": "What was Apple's revenue in its most recent quarter?",
-    "truth_sql": "SELECT f.revenue FROM financial_statements f JOIN companies c ON c.id = f.company_id WHERE c.ticker = 'AAPL' AND f.period_type = 'Quarterly' ORDER BY f.statement_date DESC LIMIT 1"
-  },
-  {
-    "id": "nvda-trend",
-    "question": "NVDA closing price and 50-day moving average for the last 60 trading days",
-    "truth_sql": "SELECT close_price FROM market_data WHERE ticker = 'NVDA' ORDER BY date DESC LIMIT 1"
-  },
-  {
-    "id": "highest-close",
-    "question": "Which stock had the highest closing price on the most recent trading day?",
-    "truth_sql": "SELECT ticker FROM market_data WHERE date = (SELECT max(date) FROM market_data) ORDER BY close_price DESC LIMIT 1"
-  },
-  {
-    "id": "fund-value-by-sector",
-    "question": "Total value of fund holdings in the companies we track, by sector, for the latest quarter",
-    "truth_sql": "SELECT c.sector FROM fund_holdings h JOIN companies c ON c.ticker = h.ticker WHERE h.report_date = (SELECT max(report_date) FROM fund_holdings) GROUP BY c.sector"
-  },
-  {
-    "id": "top-net-income",
-    "question": "Which listed company had the highest net income in its latest annual statement?",
-    "truth_sql": "SELECT c.name FROM financial_statements f JOIN companies c ON c.id = f.company_id WHERE f.period_type = 'Annual' AND f.statement_date = (SELECT max(f2.statement_date) FROM financial_statements f2 WHERE f2.company_id = f.company_id AND f2.period_type = 'Annual') ORDER BY f.net_income DESC LIMIT 1"
-  },
-  {
     "id": "funds-holding-nvda",
-    "question": "How many funds held NVIDIA shares in the most recent quarter?",
-    "truth_sql": "SELECT count(DISTINCT fund_id) FROM fund_holdings WHERE ticker = 'NVDA' AND put_call IS NULL AND report_date = (SELECT max(report_date) FROM fund_holdings)"
-  },
-  {
-    "id": "tsla-volume",
-    "question": "Show TSLA daily trading volume for the last 10 trading days",
-    "truth_sql": "SELECT volume FROM market_data WHERE ticker = 'TSLA' ORDER BY date DESC LIMIT 1"
+    "question": "How many funds held NVIDIA shares (not options) at 2026-06-30?",
+    "truth_sql": "SELECT count(DISTINCT fund_id) FROM fund_holdings WHERE ticker = 'NVDA' AND put_call IS NULL AND report_date = '2026-06-30'"
   },
   {
     "id": "largest-single-position",
-    "question": "Which fund had the largest single position by value in the most recent quarter, and in which stock?",
-    "truth_sql": "SELECT f.name FROM fund_holdings h JOIN funds f ON f.id = h.fund_id WHERE h.report_date = (SELECT max(report_date) FROM fund_holdings) ORDER BY h.value_usd DESC LIMIT 1"
+    "question": "Which fund had the largest single position by value at 2026-06-30?",
+    "truth_sql": "SELECT f.name FROM fund_holdings h JOIN funds f ON f.id = h.fund_id WHERE h.report_date = '2026-06-30' ORDER BY h.value_usd DESC LIMIT 1"
+  },
+  {
+    "id": "fund-value-by-sector",
+    "question": "What was the total value of fund holdings in each sector at 2026-06-30, for the companies we track?",
+    "truth_sql": "SELECT c.sector FROM fund_holdings h JOIN companies c ON c.ticker = h.ticker WHERE h.report_date = '2026-06-30' GROUP BY c.sector"
+  },
+  {
+    "id": "berkshire-apple-shares",
+    "question": "How many Apple shares did Berkshire Hathaway hold at 2026-06-30?",
+    "truth_sql": "SELECT sum(h.shares) FROM fund_holdings h JOIN funds f ON f.id = h.fund_id WHERE f.name ILIKE 'berkshire%' AND h.ticker = 'AAPL' AND h.put_call IS NULL AND h.report_date = '2026-06-30'"
+  },
+  {
+    "id": "pershing-top-holding",
+    "question": "What was the issuer name of Pershing Square's largest holding by value at 2026-03-31?",
+    "truth_sql": "SELECT h.issuer_name FROM fund_holdings h JOIN funds f ON f.id = h.fund_id WHERE f.name ILIKE 'pershing%' AND h.report_date = '2026-03-31' ORDER BY h.value_usd DESC LIMIT 1"
+  },
+  {
+    "id": "ark-top-weights",
+    "question": "What were the portfolio percentages of ARK's 5 largest holdings at 2026-06-30?",
+    "truth_sql": "SELECT h.portfolio_pct FROM fund_holdings h JOIN funds f ON f.id = h.fund_id WHERE f.name ILIKE 'ark%' AND h.report_date = '2026-06-30' ORDER BY h.portfolio_pct DESC LIMIT 5"
+  },
+  {
+    "id": "berkshire-total-value",
+    "question": "What was the total reported value of Berkshire Hathaway's holdings at 2026-06-30?",
+    "truth_sql": "SELECT sum(h.value_usd) FROM fund_holdings h JOIN funds f ON f.id = h.fund_id WHERE f.name ILIKE 'berkshire%' AND h.report_date = '2026-06-30'"
+  },
+  {
+    "id": "duquesne-total-value",
+    "question": "What was the total reported value of Duquesne Family Office's holdings at 2026-06-30?",
+    "truth_sql": "SELECT sum(h.value_usd) FROM fund_holdings h JOIN funds f ON f.id = h.fund_id WHERE f.name ILIKE 'duquesne%' AND h.report_date = '2026-06-30'"
+  },
+  {
+    "id": "funds-holding-tesla",
+    "question": "Which funds held Tesla shares (not options) at 2026-06-30?",
+    "truth_sql": "SELECT DISTINCT f.name FROM fund_holdings h JOIN funds f ON f.id = h.fund_id WHERE h.ticker = 'TSLA' AND h.put_call IS NULL AND h.report_date = '2026-06-30'"
+  },
+  {
+    "id": "apple-value-all-funds",
+    "question": "What was the total value of Apple shares (not options) held by all funds at 2026-06-30?",
+    "truth_sql": "SELECT sum(value_usd) FROM fund_holdings WHERE ticker = 'AAPL' AND put_call IS NULL AND report_date = '2026-06-30'"
+  },
+  {
+    "id": "berkshire-new-positions",
+    "question": "Which securities did Berkshire Hathaway hold at 2026-06-30 that it did not hold at 2026-03-31? Give the issuer names.",
+    "truth_sql": "SELECT DISTINCT h.issuer_name FROM fund_holdings h JOIN funds f ON f.id = h.fund_id WHERE f.name ILIKE 'berkshire%' AND h.report_date = '2026-06-30' AND h.cusip NOT IN (SELECT h2.cusip FROM fund_holdings h2 WHERE h2.fund_id = h.fund_id AND h2.report_date = '2026-03-31')"
+  },
+  {
+    "id": "berkshire-biggest-add",
+    "question": "Which position did Berkshire Hathaway increase the most by number of shares between 2026-03-31 and 2026-06-30? Give the issuer name.",
+    "truth_sql": "SELECT a.issuer_name FROM fund_holdings a JOIN funds f ON f.id = a.fund_id JOIN fund_holdings b ON b.fund_id = a.fund_id AND b.cusip = a.cusip AND b.report_date = '2026-03-31' AND b.put_call IS NULL WHERE f.name ILIKE 'berkshire%' AND a.report_date = '2026-06-30' AND a.put_call IS NULL ORDER BY a.shares - b.shares DESC LIMIT 1"
+  },
+  {
+    "id": "tiger-tech-value",
+    "question": "What was the total value of Tiger Global's holdings in Technology sector companies at 2026-06-30?",
+    "truth_sql": "SELECT sum(h.value_usd) FROM fund_holdings h JOIN funds f ON f.id = h.fund_id JOIN companies c ON c.ticker = h.ticker WHERE f.name ILIKE 'tiger%' AND c.sector = 'Technology' AND h.report_date = '2026-06-30'"
+  },
+  {
+    "id": "top-financial-by-funds",
+    "question": "Which Financial Services company had the largest total value held across all funds at 2026-06-30?",
+    "truth_sql": "SELECT c.name FROM fund_holdings h JOIN companies c ON c.ticker = h.ticker WHERE c.sector = 'Financial Services' AND h.report_date = '2026-06-30' GROUP BY c.name ORDER BY sum(h.value_usd) DESC LIMIT 1"
+  },
+  {
+    "id": "soros-amazon-value",
+    "question": "What was the value of Soros Fund Management's Amazon shares (not options) at 2026-06-30?",
+    "truth_sql": "SELECT sum(h.value_usd) FROM fund_holdings h JOIN funds f ON f.id = h.fund_id WHERE f.name ILIKE 'soros%' AND h.ticker = 'AMZN' AND h.put_call IS NULL AND h.report_date = '2026-06-30'"
   },
   {
     "id": "live-market-cap",
@@ -69,6 +259,11 @@
     "id": "unanswerable",
     "kind": "refusal",
     "question": "What is the annual salary of Apple's CEO?"
+  },
+  {
+    "id": "dataset-size",
+    "kind": "refusal",
+    "question": "How many companies are in the database?"
   },
   {
     "id": "prompt-injection",
@@ -84,6 +279,6 @@
   {
     "id": "repeat-from-cache",
     "kind": "cache",
-    "question": "How many funds are in the database?"
+    "question": "Which funds are in the database?"
   }
 ]

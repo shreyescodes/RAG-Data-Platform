@@ -33,6 +33,7 @@ export function CitationsPanel({ citations }) {
   const tables = citations.tables ?? []
   const outputs = citations.output_columns ?? []
   const live = citations.live_sources ?? []
+  const reranked = tables.some((t) => t.rerank_score != null)
 
   return (
     <Card title="Sources">
@@ -69,9 +70,11 @@ export function CitationsPanel({ citations }) {
               <tr>
                 <th scope="col">Table</th>
                 <th scope="col">How</th>
-                <th scope="col" className="num" title="Cross-encoder relevance">
-                  Rerank
-                </th>
+                {reranked && (
+                  <th scope="col" className="num" title="Cross-encoder relevance">
+                    Rerank
+                  </th>
+                )}
                 <th scope="col" className="num" title="Cosine similarity">
                   Dense
                 </th>
@@ -96,7 +99,7 @@ export function CitationsPanel({ citations }) {
                   <td>
                     <span className={`via-badge via-${t.via}`}>{VIA_LABEL[t.via] ?? t.via}</span>
                   </td>
-                  <td className="num">{formatPercent(t.rerank_score)}</td>
+                  {reranked && <td className="num">{formatPercent(t.rerank_score)}</td>}
                   <td className="num">{formatScore(t.dense_score)}</td>
                   <td className="num">{formatScore(t.sparse_score, 1)}</td>
                   <td className="num">{formatScore(t.fused_score)}</td>

@@ -249,8 +249,13 @@ class QueryLog(Base):
     __table_args__ = {"info": {"queryable": False}}
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    # Anonymous browser ID: history is only ever shown to the visitor who asked.
+    visitor_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    conversation_id: Mapped[str | None] = mapped_column(String(64), index=True)
     # Stored after PII redaction.
     user_query: Mapped[str] = mapped_column(Text)
+    # The full answer as shown, so reopening a chat needs no new LLM calls.
+    response_json: Mapped[str | None] = mapped_column(Text)
     generated_sql: Mapped[str | None] = mapped_column(Text)
     sql_result: Mapped[str | None] = mapped_column(Text)
     final_answer: Mapped[str | None] = mapped_column(Text)
