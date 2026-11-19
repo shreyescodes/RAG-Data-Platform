@@ -1,0 +1,6 @@
+# False positives, reviewed: placeholder "your_api_key" in old README curl examples,
+# and chart series keys ("latency_p50") in ObservabilityPage.jsx.
+073158b6804aa15aab072d85e89725ed20f4bf43:frontend/src/components/ObservabilityPage.jsx:generic-api-key:34
+073158b6804aa15aab072d85e89725ed20f4bf43:frontend/src/components/ObservabilityPage.jsx:generic-api-key:35
+8f707d81932e86bed0c9ad6ab833f6a18b3726cf:README.md:curl-auth-header:148
+8f707d81932e86bed0c9ad6ab833f6a18b3726cf:README.md:curl-auth-header:254
