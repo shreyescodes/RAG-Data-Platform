@@ -62,13 +62,13 @@ above.
 
 Every row is real, public data. `python -m app.cli seed` loads:
 
-| Table | Source | Typical size |
-|-------|--------|--------------|
-| `companies` | Yahoo Finance: 50 of the largest US-listed companies across all sectors | 50 |
-| `market_data` | Yahoo Finance daily OHLCV with 50/200-day moving averages, 2 years | ~25,000 |
-| `financial_statements` | Yahoo Finance quarterly and annual statements | ~450 |
-| `funds` | SEC EDGAR: 10 well-known 13F filers (Berkshire Hathaway, Bridgewater, ARK, Pershing Square, Duquesne, Soros, Tiger Global, Third Point, Appaloosa, Baupost) | 10 |
-| `fund_holdings` | SEC Form 13F: each fund's quarter-end positions for the last 8 quarters, with shares, value and portfolio weight | ~12,000 |
+| Table | Source |
+|-------|--------|
+| `companies` | Yahoo Finance: large US-listed companies across all sectors |
+| `market_data` | Yahoo Finance daily OHLCV with 50/200-day moving averages |
+| `financial_statements` | Yahoo Finance quarterly and annual statements |
+| `funds` | SEC EDGAR: well-known 13F filers (Berkshire Hathaway, Bridgewater, ARK, Pershing Square, Duquesne, Soros, Tiger Global, Third Point, Appaloosa, Baupost) |
+| `fund_holdings` | SEC Form 13F: each fund's quarter-end positions, with shares, value and portfolio weight |
 
 13F filings identify securities by CUSIP. The loader maps them to tickers with
 [OpenFIGI](https://www.openfigi.com/api), including CINS codes for
